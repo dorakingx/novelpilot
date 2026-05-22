@@ -1,6 +1,6 @@
 # I Built NovelPilot with Gemma 4 — An AI Writing Room That Turns One Prompt into a Story Pipeline
 
-- Live demo: TODO_VERCEL_URL
+- Live demo: https://novelpilot.vercel.app
 - GitHub repo: https://github.com/dorakingx/novelpilot
 
 ## Introduction
@@ -145,7 +145,7 @@ This is the differentiator: NovelPilot understands **story structure**, not just
 
 **Try it:**
 
-- Live demo: TODO_VERCEL_URL  
+- Live demo: https://novelpilot.vercel.app  
 - GitHub: [github.com/dorakingx/novelpilot](https://github.com/dorakingx/novelpilot)
 
 **Tagline for posts:** *One prompt. Nine agents. Gemma 4 as your writing room's reasoning engine.*

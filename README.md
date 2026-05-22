@@ -6,7 +6,7 @@ NovelPilot is designed to demonstrate Gemma 4 as a multi-agent creative reasonin
 
 ## Live Demo
 
-- Live app: TODO_VERCEL_URL
+- Live app: https://novelpilot.vercel.app
 - Source code: https://github.com/dorakingx/novelpilot
 
 Judges can open the live app and click **Run Judge Demo** to experience the full NovelPilot pipeline without an API key.
@@ -111,8 +111,6 @@ Set `GEMMA_API_KEY` and restart the dev server. Each agent calls Gemma 4 via [`l
 
 **Important:** The app must work on Vercel without `GEMMA_API_KEY` because Judge Demo uses curated mock outputs.
 
-After deploy, replace `TODO_VERCEL_URL` in this README with your production URL.
-
 ## Architecture
 
 ```
@@ -135,7 +133,7 @@ State is **in-memory** (React) — no database or auth.
 
 ## Hackathon submission
 
-- **Live demo:** TODO_VERCEL_URL (primary judge experience — no video required)
+- **Live demo:** https://novelpilot.vercel.app (primary judge experience — no video required)
 - **DEV post draft:** [`docs/dev-post-draft.md`](docs/dev-post-draft.md)
 - **Checklist:** [`docs/submission-checklist.md`](docs/submission-checklist.md)
 
