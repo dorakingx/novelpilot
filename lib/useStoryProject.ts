@@ -9,6 +9,7 @@ import {
   setAgentStatus,
 } from "./agents";
 import { JUDGE_DEMO_SETTINGS } from "./demo";
+import { formatLiveGenerationError } from "./format-generation-error";
 import type {
   AgentId,
   GenerateAgentResponse,
@@ -45,6 +46,15 @@ export function useStoryProject() {
       .catch(() => {});
   }, []);
 
+  const resolveGenerationError = useCallback(
+    (raw: string, liveMode: boolean, provider: string, model: string) => {
+      if (!liveMode) return raw;
+      if (raw.startsWith("Live generation failed")) return raw;
+      return formatLiveGenerationError(raw, provider, model);
+    },
+    []
+  );
+
   const runPipeline = useCallback(
     async (startProject: StoryProject, fromAgentId?: AgentId) => {
       const startIdx = fromAgentId
@@ -74,8 +84,10 @@ export function useStoryProject() {
 
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
+            const raw =
+              (err as { error?: string }).error ?? `Agent ${agentId} failed`;
             throw new Error(
-              (err as { error?: string }).error ?? `Agent ${agentId} failed`
+              resolveGenerationError(raw, !mockMode, llmProvider, llmModel)
             );
           }
 
@@ -95,8 +107,14 @@ export function useStoryProject() {
             });
           });
         } else {
-          const message =
+          const raw =
             err instanceof Error ? err.message : "Generation failed";
+          const message = resolveGenerationError(
+            raw,
+            !mockMode,
+            llmProvider,
+            llmModel
+          );
           setProject((p) => {
             if (!p) return p;
             const running = p.agents.find((a) => a.status === "running");
@@ -111,7 +129,7 @@ export function useStoryProject() {
         abortRef.current = null;
       }
     },
-    []
+    [llmModel, llmProvider, mockMode, resolveGenerationError]
   );
 
   const startGeneration = useCallback(

@@ -1,5 +1,6 @@
 import { mergeAgentOutput } from "@/lib/agents";
-import { isMockMode } from "@/lib/gemma";
+import { formatLiveGenerationError } from "@/lib/format-generation-error";
+import { getLlmConfig, isMockMode } from "@/lib/gemma";
 import { runAgent } from "@/lib/run-agent";
 import type {
   AgentId,
@@ -36,8 +37,15 @@ export async function POST(request: Request) {
     if (err instanceof Error && err.name === "AbortError") {
       return Response.json({ error: "Request aborted" }, { status: 499 });
     }
-    const message =
+    const raw =
       err instanceof Error ? err.message : "Agent generation failed";
-    return Response.json({ error: message }, { status: 500 });
+    if (isMockMode()) {
+      return Response.json({ error: raw }, { status: 500 });
+    }
+    const { provider, model } = getLlmConfig();
+    return Response.json(
+      { error: formatLiveGenerationError(raw, provider, model) },
+      { status: 500 }
+    );
   }
 }

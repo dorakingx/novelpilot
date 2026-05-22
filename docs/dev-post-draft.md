@@ -5,11 +5,29 @@
 
 ## Introduction
 
-Most “AI story generators” give you a wall of text. You prompt once, you get paragraphs back, and you hope something coherent emerges.
+NovelPilot is not another AI story generator. It is a Gemma-powered writing room: nine specialized agents transform one prompt into a story bible, cast, world, plot, chapter outline, prose draft, editing report, continuity audit, foreshadowing tracker, and publishing package.
 
-**NovelPilot is different.** It is a Gemma 4-powered autonomous writing room: nine specialized agents plan, write, edit, and audit a story through a structured pipeline — from a single user prompt to a story bible, chapter outline, chapter draft, editorial report, continuity audit, and publisher package.
+Live demo: https://novelpilot.vercel.app  
+GitHub: https://github.com/dorakingx/novelpilot
 
-Gemma 4 is not just generating paragraphs here. In NovelPilot, it acts as the **structural memory and reasoning layer** for the entire novel creation process.
+Gemma acts as the **structural memory and reasoning layer** for the entire novel creation process — not a single completion call.
+
+## Architecture
+
+```
+Prompt
+→ Premise Architect
+→ Character Director
+→ World Builder
+→ Plot Strategist
+→ Chapter Architect
+→ Prose Writer
+→ Style Editor
+→ Continuity Detective
+→ Publisher Agent
+```
+
+Each step receives the accumulated Story Bible and previous structured outputs.
 
 ## How to try it
 

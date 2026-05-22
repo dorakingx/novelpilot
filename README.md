@@ -11,6 +11,21 @@ NovelPilot is designed to demonstrate Gemma 4 as a multi-agent creative reasonin
 
 Judges can open the live app and click **Run Judge Demo** to experience the full NovelPilot pipeline without an API key.
 
+## Fast Judge Path
+
+1. Open https://novelpilot.vercel.app
+2. Click **Run Judge Demo**
+3. Wait for the nine-agent pipeline to complete
+4. Inspect:
+   - Story Bible
+   - Foreshadowing Tracker
+   - Chapter 1 draft
+   - Continuity Detective
+   - Publisher package
+5. Click **Export Full Demo Markdown**
+
+The default judging experience does not require an API key; Live OpenRouter mode is optional.
+
 <!-- Screenshot: add `docs/screenshot.png` after deploying to Vercel -->
 
 ### Judge Demo (60 seconds)
@@ -86,6 +101,7 @@ Copy `.env.example` to `.env.local`:
 GEMMA_PROVIDER=openrouter
 GEMMA_API_KEY=
 GEMMA_API_URL=https://openrouter.ai/api/v1/chat/completions
+# If this model is unavailable on OpenRouter, choose a currently available Gemma model from https://openrouter.ai/models and update GEMMA_MODEL.
 GEMMA_MODEL=google/gemma-3-27b-it
 OPENROUTER_APP_NAME=NovelPilot
 NEXT_PUBLIC_APP_NAME=NovelPilot
