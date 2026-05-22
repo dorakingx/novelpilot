@@ -1,14 +1,8 @@
 "use client";
 
+import { StorySettingsFields } from "@/components/StorySettingsFields";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { ProjectSettings } from "@/lib/types";
 import { Gavel, Loader2, Sparkles, Square } from "lucide-react";
@@ -52,91 +46,11 @@ export function StoryPromptPanel({
           />
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Language</label>
-          <Select
-            value={settings.language}
-            onValueChange={(v) =>
-              onSettingsChange({ language: v as ProjectSettings["language"] })
-            }
-            disabled={isRunning}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="en">English</SelectItem>
-              <SelectItem value="ja">Japanese</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Genre</label>
-          <Select
-            value={settings.genre}
-            onValueChange={(v) =>
-              onSettingsChange({ genre: v as ProjectSettings["genre"] })
-            }
-            disabled={isRunning}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="sci-fi">Sci-Fi</SelectItem>
-              <SelectItem value="mystery">Mystery</SelectItem>
-              <SelectItem value="fantasy">Fantasy</SelectItem>
-              <SelectItem value="literary">Literary</SelectItem>
-              <SelectItem value="romance">Romance</SelectItem>
-              <SelectItem value="horror">Horror</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Tone</label>
-          <Select
-            value={settings.tone}
-            onValueChange={(v) =>
-              onSettingsChange({ tone: v as ProjectSettings["tone"] })
-            }
-            disabled={isRunning}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="melancholic">Melancholic</SelectItem>
-              <SelectItem value="hopeful">Hopeful</SelectItem>
-              <SelectItem value="dark">Dark</SelectItem>
-              <SelectItem value="whimsical">Whimsical</SelectItem>
-              <SelectItem value="tense">Tense</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Target Length</label>
-          <Select
-            value={settings.targetLength}
-            onValueChange={(v) =>
-              onSettingsChange({
-                targetLength: v as ProjectSettings["targetLength"],
-              })
-            }
-            disabled={isRunning}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="flash-fiction">Flash Fiction</SelectItem>
-              <SelectItem value="short-story">Short Story</SelectItem>
-              <SelectItem value="novella-outline">Novella Outline</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <StorySettingsFields
+          settings={settings}
+          onSettingsChange={onSettingsChange}
+          disabled={isRunning}
+        />
 
         <div className="flex flex-col gap-2 pt-2">
           <Button

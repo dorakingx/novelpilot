@@ -154,6 +154,13 @@ export function useStoryProject() {
     abortRef.current?.abort();
   }, []);
 
+  const resetProject = useCallback(() => {
+    abortRef.current?.abort();
+    setProject(null);
+    setIsRunning(false);
+    abortRef.current = null;
+  }, []);
+
   const regenerateAgent = useCallback(
     async (agentId: AgentId) => {
       if (!project || isRunning) return;
@@ -209,6 +216,7 @@ export function useStoryProject() {
     generateStory,
     runJudgeDemo,
     stopGeneration,
+    resetProject,
     regenerateAgent,
     approveAgent,
     updateAgentOutput,

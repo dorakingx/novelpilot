@@ -39,6 +39,8 @@ Each step receives the accumulated Story Bible and previous structured outputs.
 
 ## What I built
 
+The UI starts as a simple prompt launcher. Once the user begins, it transforms into an agent workspace where the writing room runs step by step.
+
 NovelPilot is a Next.js web app where judges and writers can:
 
 1. Enter one story prompt (or click **Run Judge Demo** for an instant sci-fi mystery).

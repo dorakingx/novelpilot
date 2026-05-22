@@ -31,7 +31,7 @@ The default judging experience does not require an API key; Live OpenRouter mode
 ### Judge Demo (60 seconds)
 
 1. Open the live app (Vercel URL above).
-2. Click **Run Judge Demo** (left panel or center **Try the Judge Demo**).
+2. Click **Run Judge Demo** on the prompt launcher screen.
 3. Watch nine agents complete: Premise Architect through Publisher Agent.
 4. Review **Foreshadowing Tracker** and **Continuity Detective** on the right.
 5. Click **Export Full Demo Markdown** for a DEV/Hackathon submission bundle.
@@ -72,6 +72,13 @@ flowchart LR
 | Style Editor | Pacing, dialogue, revision notes |
 | Continuity Detective | Structured issues + unresolved threads |
 | Publisher Agent | Titles, summaries, submission copy |
+
+## User experience
+
+NovelPilot uses a two-stage flow:
+
+1. **Prompt Launcher** — the user enters a story idea and settings on a focused full-screen start view.
+2. **Agent Workspace** — nine Gemma-powered agents run the full writing pipeline and produce the story bible, draft, foreshadowing tracker, continuity report, and publisher package.
 
 ## Features
 
