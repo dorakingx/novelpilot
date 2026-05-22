@@ -83,29 +83,53 @@ Open [http://localhost:3000](http://localhost:3000).
 Copy `.env.example` to `.env.local`:
 
 ```env
-GEMMA_API_KEY=your_key_here
-GEMMA_API_URL=https://generativelanguage.googleapis.com/v1beta/models
-GEMMA_MODEL=gemma-4-31b-it
+GEMMA_PROVIDER=openrouter
+GEMMA_API_KEY=
+GEMMA_API_URL=https://openrouter.ai/api/v1/chat/completions
+GEMMA_MODEL=google/gemma-3-27b-it
+OPENROUTER_APP_NAME=NovelPilot
 NEXT_PUBLIC_APP_NAME=NovelPilot
 ```
 
 ### Mock mode
 
-If `GEMMA_API_KEY` is empty, the app uses curated sample outputs. The banner shows **Demo mode**. All UI features work without configuration.
+If `GEMMA_API_KEY` is empty, the app uses curated sample outputs. The banner shows **Demo mode**. Judge Demo and all UI features work without any API key.
 
-### Live mode
+### Live mode (OpenRouter — recommended)
 
-Set `GEMMA_API_KEY` and restart the dev server. Each agent calls Gemma 4 via [`lib/gemma.ts`](lib/gemma.ts) (provider-swappable).
+NovelPilot calls Gemma models through [OpenRouter](https://openrouter.ai) chat completions by default. Set `GEMMA_API_KEY` to your OpenRouter API key and restart the dev server. The banner shows **Live mode** with provider and model name.
+
+See [Using OpenRouter](#using-openrouter) below.
+
+### Live mode (Google generateContent — optional)
+
+Set `GEMMA_PROVIDER=google` and point `GEMMA_API_URL` / `GEMMA_MODEL` at Google's `generateContent` endpoint. See commented example in `.env.example`.
+
+## Using OpenRouter
+
+1. Create an [OpenRouter](https://openrouter.ai) API key.
+2. In Vercel (or `.env.local` for local dev), add:
+   - `GEMMA_PROVIDER=openrouter`
+   - `GEMMA_API_KEY=` your OpenRouter key
+   - `GEMMA_API_URL=https://openrouter.ai/api/v1/chat/completions`
+   - `GEMMA_MODEL=google/gemma-3-27b-it`
+   - `OPENROUTER_APP_NAME=NovelPilot`
+3. Redeploy (Vercel) or restart `npm run dev`.
+4. Open the app and confirm the banner shows **Live mode: using openrouter / …**
+
+If the model name is unavailable on OpenRouter, pick a currently available Gemma model from [OpenRouter's model list](https://openrouter.ai/models) and update `GEMMA_MODEL`.
 
 ## Deploying to Vercel
 
 1. Import this GitHub repository into Vercel.
 2. Use the default Next.js settings.
 3. Leave `GEMMA_API_KEY` empty if you want demo/mock mode.
-4. Optional live mode environment variables:
+4. Optional live mode (OpenRouter) environment variables:
+   - `GEMMA_PROVIDER=openrouter`
    - `GEMMA_API_KEY`
-   - `GEMMA_API_URL`
-   - `GEMMA_MODEL`
+   - `GEMMA_API_URL=https://openrouter.ai/api/v1/chat/completions`
+   - `GEMMA_MODEL=google/gemma-3-27b-it`
+   - `OPENROUTER_APP_NAME=NovelPilot`
 5. Deploy.
 6. Open the deployed URL and click **Run Judge Demo**.
 
@@ -117,7 +141,8 @@ Set `GEMMA_API_KEY` and restart the dev server. Each agent calls Gemma 4 via [`l
 app/page.tsx              → 3-column UI, Judge Demo CTA
 lib/useStoryProject.ts    → client orchestration, AbortController stop
 app/api/generate-agent/   → one agent per request
-lib/run-agent.ts          → prompt + Gemma + JSON parse
+lib/run-agent.ts          → prompt + OpenRouter/Gemma + JSON parse
+lib/gemma.ts              → OpenRouter, Google, or custom provider
 lib/agents.ts             → merge outputs into StoryBible / reports
 lib/mock-outputs.ts       → EN/JA demo data
 ```

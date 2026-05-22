@@ -20,6 +20,8 @@ export default function Home() {
     project,
     isRunning,
     mockMode,
+    llmProvider,
+    llmModel,
     generateStory,
     runJudgeDemo,
     stopGeneration,
@@ -49,7 +51,11 @@ export default function Home() {
         </div>
       </header>
 
-      <DemoModeBanner mockMode={mockMode} />
+      <DemoModeBanner
+        mockMode={mockMode}
+        provider={llmProvider}
+        model={llmModel}
+      />
 
       <main className="flex-1 mx-auto w-full max-w-[1600px] px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

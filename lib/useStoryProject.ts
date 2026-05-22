@@ -30,13 +30,17 @@ export function useStoryProject() {
   const [project, setProject] = useState<StoryProject | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [mockMode, setMockMode] = useState(true);
+  const [llmProvider, setLlmProvider] = useState("openrouter");
+  const [llmModel, setLlmModel] = useState("google/gemma-3-27b-it");
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     fetch("/api/status")
       .then((r) => r.json())
-      .then((d: { mockMode?: boolean }) => {
+      .then((d: { mockMode?: boolean; provider?: string; model?: string }) => {
         if (typeof d.mockMode === "boolean") setMockMode(d.mockMode);
+        if (d.provider) setLlmProvider(d.provider);
+        if (d.model) setLlmModel(d.model);
       })
       .catch(() => {});
   }, []);
@@ -182,6 +186,8 @@ export function useStoryProject() {
     project,
     isRunning,
     mockMode,
+    llmProvider,
+    llmModel,
     generateStory,
     runJudgeDemo,
     stopGeneration,

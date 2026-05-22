@@ -1,12 +1,17 @@
 "use client";
 
 import { Cpu, FlaskConical } from "lucide-react";
-
 interface DemoModeBannerProps {
   mockMode: boolean;
+  provider?: string;
+  model?: string;
 }
 
-export function DemoModeBanner({ mockMode }: DemoModeBannerProps) {
+export function DemoModeBanner({
+  mockMode,
+  provider = "openrouter",
+  model,
+}: DemoModeBannerProps) {
   return (
     <div
       className={
@@ -22,14 +27,15 @@ export function DemoModeBanner({ mockMode }: DemoModeBannerProps) {
             <span className="text-amber-200/90">
               Demo mode: using curated sample outputs. Add{" "}
               <code className="text-amber-300">GEMMA_API_KEY</code> for live
-              Gemma 4 generation.
+              OpenRouter generation.
             </span>
           </>
         ) : (
           <>
             <Cpu className="size-3.5 text-primary shrink-0" />
             <span className="text-muted-foreground">
-              Live mode: powered by Gemma 4.
+              Live mode: using {provider}
+              {model ? ` / ${model}` : ""}
             </span>
           </>
         )}

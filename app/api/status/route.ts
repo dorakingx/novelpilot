@@ -1,5 +1,6 @@
-import { isMockMode } from "@/lib/gemma";
+import { getLlmConfig } from "@/lib/gemma";
 
 export async function GET() {
-  return Response.json({ mockMode: isMockMode() });
+  const { mockMode, provider, model } = getLlmConfig();
+  return Response.json({ mockMode, provider, model });
 }
