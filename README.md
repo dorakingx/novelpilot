@@ -4,15 +4,18 @@ A Gemma 4-powered AI writing agent that turns one prompt into a complete story c
 
 NovelPilot is designed to demonstrate Gemma 4 as a multi-agent creative reasoning engine, not just a text completion model.
 
-## Demo
+## Live Demo
 
-<!-- Screenshot: add `docs/screenshot.png` after deploying -->
+- Live app: TODO_VERCEL_URL
+- Source code: https://github.com/dorakingx/novelpilot
 
-**Live demo:** Deploy to Vercel and open the app. **Judge Demo** runs the full pipeline with zero setup (mock mode).
+Judges can open the live app and click **Run Judge Demo** to experience the full NovelPilot pipeline without an API key.
+
+<!-- Screenshot: add `docs/screenshot.png` after deploying to Vercel -->
 
 ### Judge Demo (60 seconds)
 
-1. Open the app.
+1. Open the live app (Vercel URL above).
 2. Click **Run Judge Demo** (left panel or center **Try the Judge Demo**).
 3. Watch nine agents complete: Premise Architect through Publisher Agent.
 4. Review **Foreshadowing Tracker** and **Continuity Detective** on the right.
@@ -94,6 +97,22 @@ If `GEMMA_API_KEY` is empty, the app uses curated sample outputs. The banner sho
 
 Set `GEMMA_API_KEY` and restart the dev server. Each agent calls Gemma 4 via [`lib/gemma.ts`](lib/gemma.ts) (provider-swappable).
 
+## Deploying to Vercel
+
+1. Import this GitHub repository into Vercel.
+2. Use the default Next.js settings.
+3. Leave `GEMMA_API_KEY` empty if you want demo/mock mode.
+4. Optional live mode environment variables:
+   - `GEMMA_API_KEY`
+   - `GEMMA_API_URL`
+   - `GEMMA_MODEL`
+5. Deploy.
+6. Open the deployed URL and click **Run Judge Demo**.
+
+**Important:** The app must work on Vercel without `GEMMA_API_KEY` because Judge Demo uses curated mock outputs.
+
+After deploy, replace `TODO_VERCEL_URL` in this README with your production URL.
+
 ## Architecture
 
 ```
@@ -113,6 +132,12 @@ State is **in-memory** (React) — no database or auth.
 - `npm run build` — production build
 - `npm run lint` — ESLint
 - `npm run start` — production server
+
+## Hackathon submission
+
+- **Live demo:** TODO_VERCEL_URL (primary judge experience — no video required)
+- **DEV post draft:** [`docs/dev-post-draft.md`](docs/dev-post-draft.md)
+- **Checklist:** [`docs/submission-checklist.md`](docs/submission-checklist.md)
 
 ## DEV article
 

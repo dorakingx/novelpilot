@@ -1,5 +1,8 @@
 # I Built NovelPilot with Gemma 4 — An AI Writing Room That Turns One Prompt into a Story Pipeline
 
+- Live demo: TODO_VERCEL_URL
+- GitHub repo: https://github.com/dorakingx/novelpilot
+
 ## Introduction
 
 Most “AI story generators” give you a wall of text. You prompt once, you get paragraphs back, and you hope something coherent emerges.
@@ -7,6 +10,14 @@ Most “AI story generators” give you a wall of text. You prompt once, you get
 **NovelPilot is different.** It is a Gemma 4-powered autonomous writing room: nine specialized agents plan, write, edit, and audit a story through a structured pipeline — from a single user prompt to a story bible, chapter outline, chapter draft, editorial report, continuity audit, and publisher package.
 
 Gemma 4 is not just generating paragraphs here. In NovelPilot, it acts as the **structural memory and reasoning layer** for the entire novel creation process.
+
+## How to try it
+
+1. Open the live demo.
+2. Click **Run Judge Demo**.
+3. Watch the nine-agent pipeline complete.
+4. Check the Foreshadowing Tracker and Continuity Detective.
+5. Export the full demo markdown.
 
 ## What I built
 
@@ -53,12 +64,14 @@ The client orchestrates the pipeline: one HTTP request per agent, visible progre
 
 **For hackathon judges (under 60 seconds):**
 
-1. Open NovelPilot.  
+1. Open the **live Vercel deployment** (link at top of this post).  
 2. Click **Run Judge Demo**.  
 3. Watch the timeline fill: Premise Architect → … → Publisher Agent.  
 4. Open **Foreshadowing Tracker** — see threads like “cracked silver watch” with payoff chapter and emotional purpose.  
 5. Read **Continuity Detective** — structured issues, not bullet fluff.  
 6. **Export Full Demo Markdown** — one file for submission.
+
+No demo video — the live app is the demo.
 
 No API key required in demo mode — curated outputs prove the UX; add `GEMMA_API_KEY` for live Gemma 4.
 
@@ -130,6 +143,9 @@ This is the differentiator: NovelPilot understands **story structure**, not just
 
 ---
 
-**Try it:** [github.com/dorakingx/novelpilot](https://github.com/dorakingx/novelpilot)
+**Try it:**
+
+- Live demo: TODO_VERCEL_URL  
+- GitHub: [github.com/dorakingx/novelpilot](https://github.com/dorakingx/novelpilot)
 
 **Tagline for posts:** *One prompt. Nine agents. Gemma 4 as your writing room's reasoning engine.*
