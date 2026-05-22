@@ -31,11 +31,13 @@ const SCHEMAS: Record<AgentId, string> = {
   plot: `{
   "beginning", "middle", "climax", "ending",
   "twists": ["string"],
-  "foreshadowingPlan": ["string"]
+  "foreshadowingPlan": ["string"],
+  "foreshadowingTracker": [{ "item", "introducedIn", "status": "planned|unresolved|paid-off", "suggestedPayoff", "payoffChapter", "emotionalPurpose" }]
 }`,
   "chapter-outline": `{
   "chapters": [{ "number", "title", "purpose", "emotionalTurn", "keyEvents": [], "foreshadowing": [] }],
-  "styleGuide": { "pov", "tense", "proseStyle", "dialogueNotes", "taboos": [] }
+  "styleGuide": { "pov", "tense", "proseStyle", "dialogueNotes", "taboos": [] },
+  "foreshadowingTracker": [{ "item", "introducedIn", "status", "suggestedPayoff", "payoffChapter", "emotionalPurpose" }]
 }`,
   drafting: `{
   "chapterNumber": 1,
@@ -47,8 +49,11 @@ const SCHEMAS: Record<AgentId, string> = {
   "dialogueIssues": [], "emotionalClarityIssues": [], "revisionSuggestions": []
 }`,
   continuity: `{
-  "inconsistencies": [], "unresolvedForeshadowing": [], "characterIssues": [],
-  "timelineIssues": [], "suggestions": [], "repeatedMotifs": []
+  "issues": [{ "category": "character|timeline|foreshadowing|worldbuilding|motif", "severity": "low|medium|high", "issue", "evidence", "suggestedFix" }],
+  "unresolvedForeshadowing": [{ "item", "introducedIn", "status", "suggestedPayoff", "payoffChapter", "emotionalPurpose" }],
+  "repeatedMotifs": [],
+  "missingPayoffs": [],
+  "overallDiagnosis": "string"
 }`,
   publisher: `{
   "titleIdeas": [], "shortSummary", "longSummary", "logline", "tagline",
@@ -66,23 +71,26 @@ export function buildAgentPrompt(
   const schema = SCHEMAS[agentId];
 
   const agentInstructions: Record<AgentId, string> = {
-    concept: `You are the Concept Agent in NovelPilot, a multi-agent novel studio.
+    concept: `You are the Premise Architect in NovelPilot, a multi-agent writing room.
 From the user prompt and project settings, create a compelling story concept.
 ${lang}`,
-    character: `You are the Character Agent. Using the concept output, create rich characters.
+    character: `You are the Character Director. Using the concept output, create rich characters.
 ${lang}`,
-    worldbuilding: `You are the Worldbuilding Agent. Using concept and characters, build the story world.
+    worldbuilding: `You are the World Builder. Using concept and characters, build the story world.
 ${lang}`,
-    plot: `You are the Plot Agent. Structure a complete plot from concept, characters, and world.
+    plot: `You are the Plot Strategist. Structure a complete plot from concept, characters, and world.
+Optionally include foreshadowingTracker seeds (status: planned).
 ${lang}`,
-    "chapter-outline": `You are the Chapter Outline Agent. Create 3 chapters for MVP scope (novella outline scale).
+    "chapter-outline": `You are the Chapter Architect. Create 3 chapters for MVP scope.
+You MUST include foreshadowingTracker with 4-6 items: each with item, introducedIn, status (planned/unresolved/paid-off), suggestedPayoff, payoffChapter, emotionalPurpose.
 ${lang}`,
-    drafting: `You are the Drafting Agent. Write ONLY chapter 1 as literary fiction prose.
+    drafting: `You are the Prose Writer. Write ONLY chapter 1 as literary fiction prose.
 Do not summarize. Show scenes. Match tone. Under 1200 words for flash, ~2500 for short story, ~3500 for novella outline scope.
 ${lang}`,
-    editor: `You are the Editor Agent. Critique the chapter 1 draft against the story bible. Be specific and constructive.
+    editor: `You are the Style Editor. Critique the chapter 1 draft against the story bible. Be specific and constructive.
 ${lang}`,
-    continuity: `You are the Continuity Agent. Audit draft vs characters, plot, and outline.
+    continuity: `You are the Continuity Detective. Audit draft vs characters, plot, outline, and foreshadowingTracker.
+Return structured issues with category, severity, evidence, and suggestedFix. Include overallDiagnosis and missingPayoffs.
 ${lang}`,
     publisher: `You are the Publisher Agent. Create marketing and submission package from the full project.
 ${lang}`,

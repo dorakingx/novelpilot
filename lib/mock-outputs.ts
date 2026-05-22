@@ -1,4 +1,91 @@
-import type { AgentId, Language } from "./types";
+import type { AgentId, ForeshadowingItem, Language } from "./types";
+
+const FORESHADOWING_TRACKER_EN: ForeshadowingItem[] = [
+  {
+    item: "The cracked silver watch",
+    introducedIn: "Chapter 1",
+    status: "unresolved",
+    suggestedPayoff:
+      "Reveals the exact minute the protagonist's memory was overwritten.",
+    payoffChapter: "Chapter 3",
+    emotionalPurpose: "Connects guilt, identity, and lost time.",
+  },
+  {
+    item: "Unlabeled memory card",
+    introducedIn: "Chapter 1",
+    status: "unresolved",
+    suggestedPayoff: "Contains Aya's farewell cipher and proof of consent fraud.",
+    payoffChapter: "Chapter 2",
+    emotionalPurpose: "Turns absence into an active clue.",
+  },
+  {
+    item: "Fogged safety goggles",
+    introducedIn: "Chapter 1",
+    status: "planned",
+    suggestedPayoff: "Breath pattern on lenses matches Chamber B recording.",
+    payoffChapter: "Chapter 3",
+    emotionalPurpose: "Physical evidence of complicity or frame-up.",
+  },
+  {
+    item: "Cherry blossom petal in centrifuge",
+    introducedIn: "Chapter 2",
+    status: "planned",
+    suggestedPayoff: "Decodes to Aya's timestamped goodbye message.",
+    payoffChapter: "Chapter 3",
+    emotionalPurpose: "Beauty against sterile lab horror.",
+  },
+  {
+    item: "Don't trust the backup",
+    introducedIn: "Chapter 1",
+    status: "unresolved",
+    suggestedPayoff: "Ren wrote it before erasing his own memory.",
+    payoffChapter: "Chapter 3",
+    emotionalPurpose: "Self-warning as tragic irony.",
+  },
+];
+
+const FORESHADOWING_TRACKER_JA: ForeshadowingItem[] = [
+  {
+    item: "ひび割れた銀の懐中時計",
+    introducedIn: "第1章",
+    status: "unresolved",
+    suggestedPayoff: "主人公の記憶が上書きされた正確な時刻を示す。",
+    payoffChapter: "第3章",
+    emotionalPurpose: "罪悪、自己、喪失した時間を結ぶ。",
+  },
+  {
+    item: "無印のメモリーカード",
+    introducedIn: "第1章",
+    status: "unresolved",
+    suggestedPayoff: "彩の別れの暗号と同意書不正の証拠を含む。",
+    payoffChapter: "第2章",
+    emotionalPurpose: "不在を能動的な手がかりに変える。",
+  },
+  {
+    item: "曇った保護ゴーグル",
+    introducedIn: "第1章",
+    status: "planned",
+    suggestedPayoff: "レンズの呼気パターンが室Bの記録と一致する。",
+    payoffChapter: "第3章",
+    emotionalPurpose: "共犯か陥れかの物的証拠。",
+  },
+  {
+    item: "遠心分離機の桜の花びら",
+    introducedIn: "第2章",
+    status: "planned",
+    suggestedPayoff: "彩のタイムスタンプ付き別れのメッセージに解読される。",
+    payoffChapter: "第3章",
+    emotionalPurpose: "無機質な研究室への美の対比。",
+  },
+  {
+    item: "バックアップを信じるな",
+    introducedIn: "第1章",
+    status: "unresolved",
+    suggestedPayoff: "蓮が自らの記憶を消す前に書いた警告。",
+    payoffChapter: "第3章",
+    emotionalPurpose: "自己警告という悲劇的な皮肉。",
+  },
+];
 
 const MOCK_EN: Record<AgentId, unknown> = {
   concept: {
@@ -129,6 +216,7 @@ const MOCK_EN: Record<AgentId, unknown> = {
       dialogueNotes: "Subtext-heavy; avoid technobabble dumps",
       taboos: ["Sudden full memory recovery", "Villain monologuing"],
     },
+    foreshadowingTracker: FORESHADOWING_TRACKER_EN,
   },
   drafting: {
     chapterNumber: 1,
@@ -168,24 +256,48 @@ Ren put the goggles in his pocket and went looking for a memory that would not a
     ],
   },
   continuity: {
-    inconsistencies: [
-      "Ren's admitted memory loss vs. handwriting in logs needs clearer rules in later chapters",
+    issues: [
+      {
+        category: "foreshadowing",
+        severity: "high",
+        issue: "Unlabeled memory card is mentioned but never activated in chapter 1.",
+        evidence: "Chapter outline flags the card; draft ends before any interaction.",
+        suggestedFix: "End chapter 1 with Ren hearing a faint audio pulse from the card.",
+      },
+      {
+        category: "timeline",
+        severity: "medium",
+        issue: "48-hour disappearance window is stated once but not tracked on-page.",
+        evidence: "Missing-person alert cites 48 hours; no subsequent clock anchor.",
+        suggestedFix: "Add a security log timestamp in chapter 2 opening.",
+      },
+      {
+        category: "character",
+        severity: "medium",
+        issue: "Ren's obsessive rationalization appears only after the locker reveal.",
+        evidence: "Early paragraphs are observational; guilt emerges late.",
+        suggestedFix: "Give Ren one premature explanation he almost believes in paragraph 2.",
+      },
+      {
+        category: "worldbuilding",
+        severity: "low",
+        issue: "Quantum decoherence rules are implied but not grounded in one concrete rule.",
+        evidence: "Logs are mysterious; no stated constraint on who may observe data.",
+        suggestedFix: "One line of signage or policy about unauthorized observation.",
+      },
     ],
-    unresolvedForeshadowing: [
-      "Unlabeled memory card introduced but not activated in chapter 1",
-      "Cherry blossom symbol not yet on page",
+    unresolvedForeshadowing: FORESHADOWING_TRACKER_EN.filter(
+      (f) => f.status === "unresolved"
+    ),
+    repeatedMotifs: [
+      "Fluorescent light / humming machines — effective, monitor density",
     ],
-    characterIssues: [
-      "Ren's obsessive rationalization could show in one internal contradiction earlier",
+    missingPayoffs: [
+      "Cherry blossom petal not yet planted in chapter 1",
+      "Silver watch not yet introduced on-page",
     ],
-    timelineIssues: [
-      "48-hour window should be tracked explicitly in chapter 2",
-    ],
-    suggestions: [
-      "Open chapter 2 with a timestamp overlay or security log",
-      "Plant cherry blossom petal at end of chapter 1",
-    ],
-    repeatedMotifs: ["Fluorescent light / humming machines — effective, monitor density"],
+    overallDiagnosis:
+      "Strong atmospheric setup with clear genre identity. Primary risks are dormant foreshadowing objects and a soft timeline anchor. The memory-card thread should surface before chapter 2.",
   },
   publisher: {
     titleIdeas: [
@@ -335,6 +447,7 @@ const MOCK_JA: Record<AgentId, unknown> = {
       dialogueNotes: "サブテキスト重視。専門用語の羅列を避ける",
       taboos: ["突然の完全記憶回復", "悪役の独白"],
     },
+    foreshadowingTracker: FORESHADOWING_TRACKER_JA,
   },
   drafting: {
     chapterNumber: 1,
@@ -368,20 +481,39 @@ const MOCK_JA: Record<AgentId, unknown> = {
     ],
   },
   continuity: {
-    inconsistencies: [
-      "記憶喪失とログの筆跡のルールを後続章で明確化する必要",
+    issues: [
+      {
+        category: "foreshadowing",
+        severity: "high",
+        issue: "無印メモリーカードが言及されるが第1章で起動されない。",
+        evidence: "アウトラインにカードあり。草案は接触前に終わる。",
+        suggestedFix: "第1章末にカードから微かな音声パルスを聞かせる。",
+      },
+      {
+        category: "timeline",
+        severity: "medium",
+        issue: "48時間の失踪枠が一度だけ示され、以降追跡されない。",
+        evidence: "アラートのみ。時刻のアンカーがない。",
+        suggestedFix: "第2章冒頭にセキュリティログのタイムスタンプを追加。",
+      },
+      {
+        category: "character",
+        severity: "medium",
+        issue: "蓮の合理的執着がロッカー発見後にしか現れない。",
+        evidence: "前半は観察的。罪悪感が遅い。",
+        suggestedFix: "第2段落で蓮が信じかけた説明を一行入れる。",
+      },
     ],
-    unresolvedForeshadowing: [
-      "無印メモリーカードは導入のみ",
-      "桜のシンボルは未登場",
-    ],
-    characterIssues: ["蓮の合理的執着を内的矛盾でもう少し早く"],
-    timelineIssues: ["48時間の枠を第2章で明示的に追跡"],
-    suggestions: [
-      "第2章はタイムスタンプかセキュリティログで開始",
-      "第1章末に桜の花びらを配置",
-    ],
+    unresolvedForeshadowing: FORESHADOWING_TRACKER_JA.filter(
+      (f) => f.status === "unresolved"
+    ),
     repeatedMotifs: ["蛍光灯 / 機械の唸り — 効果的、密度に注意"],
+    missingPayoffs: [
+      "桜の花びらは第1章未配置",
+      "銀の懐中時計は未登場",
+    ],
+    overallDiagnosis:
+      "雰囲気とジャンルは明確。伏線オブジェクトの休眠とタイムラインの弱さが主なリスク。第2章前にメモリーカードを活性化すべき。",
   },
   publisher: {
     titleIdeas: ["残留ノイズ", "デコヒーレンス日記", "東京量子の幽霊"],

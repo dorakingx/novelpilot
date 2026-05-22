@@ -10,7 +10,9 @@ import {
   CheckCircle2,
   Circle,
   Loader2,
+  Pencil,
   RefreshCw,
+  ThumbsUp,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -19,6 +21,8 @@ interface AgentCardProps {
   isLast: boolean;
   isRunning: boolean;
   onRegenerate: (agentId: AgentId) => void;
+  onApprove: (agentId: AgentId) => void;
+  onEditOutput: (agentId: AgentId) => void;
 }
 
 function statusConfig(status: AgentStep["status"]) {
@@ -63,6 +67,8 @@ export function AgentCard({
   isLast,
   isRunning,
   onRegenerate,
+  onApprove,
+  onEditOutput,
 }: AgentCardProps) {
   const [expanded, setExpanded] = useState(false);
   const config = statusConfig(agent.status);
@@ -74,7 +80,7 @@ export function AgentCard({
         : JSON.stringify(agent.output, null, 2)
       : null;
 
-  const canRegenerate =
+  const canAct =
     !isRunning &&
     (agent.status === "completed" || agent.status === "failed");
 
@@ -101,28 +107,56 @@ export function AgentCard({
           agent.status === "running" && "animate-pulse"
         )}
       >
-        <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-sm">{agent.name}</h3>
-              <Badge variant={config.variant} className="text-xs">
-                {config.label}
-              </Badge>
+        <CardHeader className="flex flex-col gap-2 pb-2">
+          <div className="flex flex-row items-start justify-between gap-2">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="font-semibold text-sm">{agent.name}</h3>
+                <Badge variant={config.variant} className="text-xs">
+                  {config.label}
+                </Badge>
+                {agent.approved && (
+                  <Badge
+                    variant="outline"
+                    className="text-xs border-emerald-500/50 text-emerald-400"
+                  >
+                    Approved
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {agent.role}
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {agent.role}
-            </p>
           </div>
-          {canRegenerate && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onRegenerate(agent.id)}
-              className="shrink-0"
-            >
-              <RefreshCw className="size-3.5 mr-1" />
-              Regenerate
-            </Button>
+          {canAct && (
+            <div className="flex flex-wrap gap-1">
+              <Button
+                variant={agent.approved ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => onApprove(agent.id)}
+              >
+                <ThumbsUp className="size-3.5 mr-1" />
+                Approve
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onRegenerate(agent.id)}
+              >
+                <RefreshCw className="size-3.5 mr-1" />
+                Regenerate
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onEditOutput(agent.id)}
+                disabled={agent.output == null}
+              >
+                <Pencil className="size-3.5 mr-1" />
+                Edit Output
+              </Button>
+            </div>
           )}
         </CardHeader>
 

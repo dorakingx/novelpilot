@@ -1,4 +1,31 @@
-import type { StoryProject } from "./types";
+import type { ContinuityIssue, StoryProject } from "./types";
+
+function formatContinuityIssue(issue: ContinuityIssue): string[] {
+  return [
+    `### [${issue.severity.toUpperCase()}] ${issue.category}: ${issue.issue}`,
+    "",
+    `**Evidence:** ${issue.evidence || "—"}`,
+    "",
+    `**Suggested fix:** ${issue.suggestedFix || "—"}`,
+    "",
+  ];
+}
+
+function formatForeshadowingSection(
+  title: string,
+  items: StoryProject["storyBible"]["foreshadowingTracker"]
+): string[] {
+  if (!items.length) return [];
+  const lines = [title, ""];
+  for (const f of items) {
+    lines.push(`### ${f.item} (${f.status})`);
+    lines.push(`- Introduced: ${f.introducedIn}`);
+    lines.push(`- Payoff chapter: ${f.payoffChapter}`);
+    lines.push(`- Suggested payoff: ${f.suggestedPayoff}`);
+    lines.push(`- Emotional purpose: ${f.emotionalPurpose}`, "");
+  }
+  return lines;
+}
 
 export function exportStoryBibleMarkdown(project: StoryProject): string {
   const b = project.storyBible;
@@ -52,7 +79,7 @@ export function exportStoryBibleMarkdown(project: StoryProject): string {
     lines.push(`**Ending:** ${p.ending}`, "");
     lines.push("**Twists:**", ...p.twists.map((t) => `- ${t}`), "");
     lines.push(
-      "**Foreshadowing:**",
+      "**Foreshadowing plan:**",
       ...p.foreshadowingPlan.map((f) => `- ${f}`),
       ""
     );
@@ -72,6 +99,10 @@ export function exportStoryBibleMarkdown(project: StoryProject): string {
       );
     }
   }
+
+  lines.push(
+    ...formatForeshadowingSection("## Foreshadowing Tracker", b.foreshadowingTracker)
+  );
 
   if (b.styleGuide) {
     const sg = b.styleGuide;
@@ -100,24 +131,127 @@ export function exportManuscriptMarkdown(project: StoryProject): string {
 
 export function exportContinuityMarkdown(project: StoryProject): string {
   const r = project.reports.continuity;
-  if (!r) return "# Continuity Report\n\n_No report yet._";
+  if (!r) return "# Continuity Detective Report\n\n_No report yet._";
 
-  const section = (heading: string, items: string[]) => {
-    if (!items.length) return [];
-    return [heading, "", ...items.map((i) => `- ${i}`), ""];
-  };
+  const lines: string[] = [
+    `# Continuity Detective: ${project.title}`,
+    "",
+    r.overallDiagnosis,
+    "",
+  ];
+
+  if (r.issues.length) {
+    lines.push("## Issues", "");
+    for (const issue of r.issues) {
+      lines.push(...formatContinuityIssue(issue));
+    }
+  }
+
+  lines.push(
+    ...formatForeshadowingSection(
+      "## Unresolved Foreshadowing",
+      r.unresolvedForeshadowing
+    )
+  );
+
+  if (r.missingPayoffs.length) {
+    lines.push("## Missing Payoffs", "", ...r.missingPayoffs.map((m) => `- ${m}`), "");
+  }
+
+  if (r.repeatedMotifs.length) {
+    lines.push(
+      "## Repeated Motifs",
+      "",
+      ...r.repeatedMotifs.map((m) => `- ${m}`),
+      ""
+    );
+  }
+
+  return lines.join("\n");
+}
+
+export function exportFullDemoMarkdown(project: StoryProject): string {
+  const sections = [
+    `# NovelPilot Full Demo: ${project.title}`,
+    "",
+    "## User Prompt",
+    "",
+    project.userPrompt,
+    "",
+    "---",
+    "",
+    exportStoryBibleMarkdown(project),
+    "",
+    "---",
+    "",
+    "## Chapter 1 Draft",
+    "",
+    exportManuscriptMarkdown(project),
+    "",
+    "---",
+    "",
+  ];
+
+  const editor = project.reports.editor;
+  if (editor) {
+    sections.push("## Style Editor Report", "");
+    sections.push("**Strengths:**", ...editor.strengths.map((s) => `- ${s}`), "");
+    sections.push(
+      "**Revision suggestions:**",
+      ...editor.revisionSuggestions.map((s) => `- ${s}`),
+      ""
+    );
+  }
+
+  sections.push("---", "", exportContinuityMarkdown(project), "", "---", "");
+
+  const pub = project.reports.publisher;
+  if (pub) {
+    sections.push("## Publisher Package", "");
+    sections.push(`**Logline:** ${pub.logline}`, "");
+    sections.push(`**Tagline:** ${pub.tagline}`, "");
+    sections.push(`**Short summary:** ${pub.shortSummary}`, "");
+    sections.push(`**Long summary:** ${pub.longSummary}`, "");
+    sections.push(
+      "**Title ideas:**",
+      ...pub.titleIdeas.map((t) => `- ${t}`),
+      ""
+    );
+    sections.push(`**Social post:** ${pub.socialPost}`, "");
+    sections.push(`**Submission:** ${pub.submissionDescription}`, "");
+  }
+
+  return sections.join("\n");
+}
+
+export function buildDevDemoSummary(project: StoryProject): string {
+  const continuity = project.reports.continuity;
+  const issueCount = continuity?.issues.length ?? 0;
+  const foreshadowCount =
+    project.storyBible.foreshadowingTracker.length ||
+    (continuity?.unresolvedForeshadowing.length ?? 0);
+  const logline =
+    project.reports.publisher?.logline ||
+    project.storyBible.concept?.logline ||
+    "—";
+  const completedAgents = project.agents.filter(
+    (a) => a.status === "completed"
+  ).length;
 
   return [
-    `# Continuity Report: ${project.title}`,
-    "",
-    ...section("## Inconsistencies", r.inconsistencies),
-    ...section("## Unresolved Foreshadowing", r.unresolvedForeshadowing),
-    ...section("## Character Issues", r.characterIssues),
-    ...section("## Timeline Issues", r.timelineIssues),
-    ...section("## Suggestions", r.suggestions),
-    ...(r.repeatedMotifs?.length
-      ? section("## Repeated Motifs", r.repeatedMotifs)
-      : []),
+    `NovelPilot — Gemma 4 Multi-Agent Writing Room`,
+    ``,
+    `Project: ${project.title}`,
+    `Logline: ${logline}`,
+    ``,
+    `Pipeline: ${completedAgents}/9 agents completed`,
+    `Foreshadowing threads tracked: ${foreshadowCount}`,
+    `Continuity Detective issues: ${issueCount}`,
+    ``,
+    `One prompt → story bible, cast, world, plot, chapter outline, chapter 1 draft, style edit, continuity audit, publisher package.`,
+    ``,
+    `Gemma 4 acts as structured creative reasoning across agents—not just paragraph completion.`,
+    `Demo: https://github.com/dorakingx/novelpilot`,
   ].join("\n");
 }
 

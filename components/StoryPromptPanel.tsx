@@ -11,12 +11,13 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { ProjectSettings } from "@/lib/types";
-import { Loader2, Sparkles, Square } from "lucide-react";
+import { Gavel, Loader2, Sparkles, Square } from "lucide-react";
 
 interface StoryPromptPanelProps {
   settings: ProjectSettings;
   onSettingsChange: (partial: Partial<ProjectSettings>) => void;
   onGenerate: () => void;
+  onRunJudgeDemo: () => void;
   onStop: () => void;
   isRunning: boolean;
 }
@@ -25,6 +26,7 @@ export function StoryPromptPanel({
   settings,
   onSettingsChange,
   onGenerate,
+  onRunJudgeDemo,
   onStop,
   isRunning,
 }: StoryPromptPanelProps) {
@@ -155,6 +157,18 @@ export function StoryPromptPanel({
               </>
             )}
           </Button>
+          <Button
+            variant="secondary"
+            onClick={onRunJudgeDemo}
+            disabled={isRunning}
+            className="w-full"
+          >
+            <Gavel className="mr-2 size-4" />
+            Run Judge Demo
+          </Button>
+          <p className="text-xs text-center text-muted-foreground px-1">
+            Best for hackathon judges: runs a complete demo pipeline.
+          </p>
           <Button
             variant="outline"
             onClick={onStop}

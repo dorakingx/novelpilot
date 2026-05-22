@@ -8,6 +8,7 @@ import {
   resetFromAgent,
   setAgentStatus,
 } from "./agents";
+import { JUDGE_DEMO_SETTINGS } from "./demo";
 import type {
   AgentId,
   GenerateAgentResponse,
@@ -109,11 +110,23 @@ export function useStoryProject() {
     []
   );
 
+  const startGeneration = useCallback(
+    async (nextSettings: ProjectSettings) => {
+      setSettings(nextSettings);
+      const initial = createInitialProject(nextSettings);
+      setProject(initial);
+      await runPipeline(initial);
+    },
+    [runPipeline]
+  );
+
   const generateStory = useCallback(async () => {
-    const initial = createInitialProject(settings);
-    setProject(initial);
-    await runPipeline(initial);
-  }, [settings, runPipeline]);
+    await startGeneration(settings);
+  }, [settings, startGeneration]);
+
+  const runJudgeDemo = useCallback(async () => {
+    await startGeneration(JUDGE_DEMO_SETTINGS);
+  }, [startGeneration]);
 
   const stopGeneration = useCallback(() => {
     abortRef.current?.abort();
@@ -127,6 +140,33 @@ export function useStoryProject() {
       await runPipeline(reset, agentId);
     },
     [project, isRunning, runPipeline]
+  );
+
+  const approveAgent = useCallback((agentId: AgentId) => {
+    setProject((p) => {
+      if (!p) return p;
+      const agents = p.agents.map((a) =>
+        a.id === agentId ? { ...a, approved: true } : a
+      );
+      return { ...p, agents, updatedAt: new Date().toISOString() };
+    });
+  }, []);
+
+  const updateAgentOutput = useCallback(
+    (agentId: AgentId, output: unknown) => {
+      setProject((p) => {
+        if (!p) return p;
+        let updated = mergeAgentOutput(p, agentId, output);
+        updated = {
+          ...updated,
+          agents: updated.agents.map((a) =>
+            a.id === agentId ? { ...a, approved: false } : a
+          ),
+        };
+        return updated;
+      });
+    },
+    []
   );
 
   const updateSettings = useCallback(
@@ -143,7 +183,10 @@ export function useStoryProject() {
     isRunning,
     mockMode,
     generateStory,
+    runJudgeDemo,
     stopGeneration,
     regenerateAgent,
+    approveAgent,
+    updateAgentOutput,
   };
 }

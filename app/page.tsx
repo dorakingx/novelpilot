@@ -2,13 +2,16 @@
 
 import { AgentTimeline } from "@/components/AgentTimeline";
 import { ContinuityReport } from "@/components/ContinuityReport";
+import { DemoModeBanner } from "@/components/DemoModeBanner";
 import { ExportPanel } from "@/components/ExportPanel";
+import { ForeshadowingTracker } from "@/components/ForeshadowingTracker";
 import { ManuscriptPreview } from "@/components/ManuscriptPreview";
 import { StoryBiblePreview } from "@/components/StoryBiblePreview";
 import { StoryPromptPanel } from "@/components/StoryPromptPanel";
+import { WhyGemma4Panel } from "@/components/WhyGemma4Panel";
 import { Badge } from "@/components/ui/badge";
 import { useStoryProject } from "@/lib/useStoryProject";
-import { BookOpen, Cpu } from "lucide-react";
+import { BookOpen } from "lucide-react";
 
 export default function Home() {
   const {
@@ -18,8 +21,11 @@ export default function Home() {
     isRunning,
     mockMode,
     generateStory,
+    runJudgeDemo,
     stopGeneration,
     regenerateAgent,
+    approveAgent,
+    updateAgentOutput,
   } = useStoryProject();
 
   return (
@@ -31,25 +37,19 @@ export default function Home() {
               <BookOpen className="size-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">
-                NovelPilot
-              </h1>
+              <h1 className="text-xl font-bold tracking-tight">NovelPilot</h1>
               <p className="text-xs text-muted-foreground">
-                Gemma 4-powered novel creation workflow
+                Gemma 4 autonomous writing room
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="gap-1">
-              <Cpu className="size-3" />
-              {mockMode ? "Mock Mode" : "Gemma 4 Live"}
-            </Badge>
-            {project && (
-              <Badge variant="secondary">{project.title}</Badge>
-            )}
-          </div>
+          {project && (
+            <Badge variant="secondary">{project.title}</Badge>
+          )}
         </div>
       </header>
+
+      <DemoModeBanner mockMode={mockMode} />
 
       <main className="flex-1 mx-auto w-full max-w-[1600px] px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -58,9 +58,11 @@ export default function Home() {
               settings={settings}
               onSettingsChange={updateSettings}
               onGenerate={generateStory}
+              onRunJudgeDemo={runJudgeDemo}
               onStop={stopGeneration}
               isRunning={isRunning}
             />
+            <WhyGemma4Panel />
           </aside>
 
           <section className="lg:col-span-5">
@@ -68,11 +70,15 @@ export default function Home() {
               project={project}
               isRunning={isRunning}
               onRegenerate={regenerateAgent}
+              onApprove={approveAgent}
+              onEditOutput={updateAgentOutput}
+              onRunJudgeDemo={runJudgeDemo}
             />
           </section>
 
           <aside className="lg:col-span-4 space-y-4">
             <StoryBiblePreview project={project} />
+            <ForeshadowingTracker project={project} />
             <ManuscriptPreview project={project} />
             <ContinuityReport project={project} />
             <ExportPanel project={project} />
@@ -80,9 +86,10 @@ export default function Home() {
         </div>
       </main>
 
-      <footer className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground">
-        Nine specialized agents — Concept → Character → World → Plot → Outline →
-        Draft → Edit → Continuity → Publish
+      <footer className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground px-4">
+        Premise Architect → Character Director → World Builder → Plot Strategist
+        → Chapter Architect → Prose Writer → Style Editor → Continuity Detective
+        → Publisher Agent
       </footer>
     </div>
   );

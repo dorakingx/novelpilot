@@ -1,3 +1,4 @@
+import { parseContinuityReport, parseForeshadowingItems } from "./parse-agent-output";
 import type {
   AgentId,
   AgentStep,
@@ -21,48 +22,48 @@ export interface AgentDefinition {
 export const AGENT_DEFINITIONS: AgentDefinition[] = [
   {
     id: "concept",
-    name: "Concept Agent",
-    role: "Distills the user prompt into a compelling story concept with theme, conflict, and hook.",
+    name: "Premise Architect",
+    role: "Distills your prompt into logline, theme, central conflict, and a unique hook.",
   },
   {
     id: "character",
-    name: "Character Agent",
-    role: "Creates protagonist, antagonist, and supporting cast with desires, fears, and arcs.",
+    name: "Character Director",
+    role: "Casts protagonist, antagonist, and supporting characters with desire, fear, flaw, and arc.",
   },
   {
     id: "worldbuilding",
-    name: "Worldbuilding Agent",
-    role: "Builds setting, rules, atmosphere, locations, and symbolic objects.",
+    name: "World Builder",
+    role: "Builds setting, rules, social context, atmosphere, locations, and symbols.",
   },
   {
     id: "plot",
-    name: "Plot Agent",
-    role: "Structures beginning, middle, climax, ending, twists, and foreshadowing plan.",
+    name: "Plot Strategist",
+    role: "Structures beginning, middle, climax, ending, twists, and foreshadowing seeds.",
   },
   {
     id: "chapter-outline",
-    name: "Chapter Outline Agent",
-    role: "Breaks the plot into chapters with purpose, emotional turns, and key events.",
+    name: "Chapter Architect",
+    role: "Breaks the plot into chapters and maps foreshadowing threads with payoff plans.",
   },
   {
     id: "drafting",
-    name: "Drafting Agent",
-    role: "Writes chapter 1 fiction draft in the selected language and tone.",
+    name: "Prose Writer",
+    role: "Writes chapter 1 as literary fiction in your chosen language and tone.",
   },
   {
     id: "editor",
-    name: "Editor Agent",
-    role: "Reviews the draft for strengths, weaknesses, pacing, and revision suggestions.",
+    name: "Style Editor",
+    role: "Reviews draft pacing, dialogue, emotion, and concrete revision suggestions.",
   },
   {
     id: "continuity",
-    name: "Continuity Agent",
-    role: "Checks inconsistencies, foreshadowing, character behavior, and timeline.",
+    name: "Continuity Detective",
+    role: "Audits inconsistencies, timeline, motifs, and unresolved foreshadowing.",
   },
   {
     id: "publisher",
     name: "Publisher Agent",
-    role: "Packages title ideas, summaries, logline, tagline, and marketing copy.",
+    role: "Packages title ideas, summaries, logline, tagline, and submission copy.",
   },
 ];
 
@@ -220,6 +221,10 @@ export function mergeAgentOutput(
           ? o.foreshadowingPlan.map(String)
           : [],
       };
+      const plotTracker = parseForeshadowingItems(o.foreshadowingTracker);
+      if (plotTracker.length > 0) {
+        bible.foreshadowingTracker = plotTracker;
+      }
       break;
     }
     case "chapter-outline": {
@@ -248,6 +253,10 @@ export function mergeAgentOutput(
           dialogueNotes: String(sg.dialogueNotes ?? ""),
           taboos: Array.isArray(sg.taboos) ? sg.taboos.map(String) : [],
         };
+      }
+      const chapterTracker = parseForeshadowingItems(o.foreshadowingTracker);
+      if (chapterTracker.length > 0) {
+        bible.foreshadowingTracker = chapterTracker;
       }
       break;
     }
@@ -287,26 +296,7 @@ export function mergeAgentOutput(
       break;
     }
     case "continuity": {
-      reports.continuity = {
-        inconsistencies: Array.isArray(o.inconsistencies)
-          ? o.inconsistencies.map(String)
-          : [],
-        unresolvedForeshadowing: Array.isArray(o.unresolvedForeshadowing)
-          ? o.unresolvedForeshadowing.map(String)
-          : [],
-        characterIssues: Array.isArray(o.characterIssues)
-          ? o.characterIssues.map(String)
-          : [],
-        timelineIssues: Array.isArray(o.timelineIssues)
-          ? o.timelineIssues.map(String)
-          : [],
-        suggestions: Array.isArray(o.suggestions)
-          ? o.suggestions.map(String)
-          : [],
-        repeatedMotifs: Array.isArray(o.repeatedMotifs)
-          ? o.repeatedMotifs.map(String)
-          : [],
-      };
+      reports.continuity = parseContinuityReport(o, bible);
       break;
     }
     case "publisher": {
@@ -364,6 +354,7 @@ export function resetFromAgent(
       error: undefined,
       startedAt: undefined,
       completedAt: undefined,
+      approved: undefined,
     };
   });
 
@@ -381,6 +372,9 @@ export function resetFromAgent(
   if (idx <= getAgentIndex("character")) bible.characters = [];
   if (idx <= getAgentIndex("worldbuilding")) bible.worldbuilding = null;
   if (idx <= getAgentIndex("plot")) bible.plot = null;
+  if (idx <= getAgentIndex("plot")) {
+    bible.foreshadowingTracker = [];
+  }
   if (idx <= getAgentIndex("chapter-outline")) {
     bible.chapters = [];
     bible.styleGuide = null;

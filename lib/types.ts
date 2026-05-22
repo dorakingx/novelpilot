@@ -29,6 +29,17 @@ export type AgentId =
   | "continuity"
   | "publisher";
 
+export type ForeshadowingStatus = "planned" | "unresolved" | "paid-off";
+
+export interface ForeshadowingItem {
+  item: string;
+  introducedIn: string;
+  status: ForeshadowingStatus;
+  suggestedPayoff: string;
+  payoffChapter: string;
+  emotionalPurpose: string;
+}
+
 export interface Character {
   name: string;
   role: string;
@@ -95,6 +106,7 @@ export interface StoryBible {
   plot: PlotStructure | null;
   chapters: Chapter[];
   styleGuide: StyleGuide | null;
+  foreshadowingTracker: ForeshadowingItem[];
 }
 
 export interface EditorReport {
@@ -106,13 +118,29 @@ export interface EditorReport {
   revisionSuggestions: string[];
 }
 
+export type ContinuityCategory =
+  | "character"
+  | "timeline"
+  | "foreshadowing"
+  | "worldbuilding"
+  | "motif";
+
+export type ContinuitySeverity = "low" | "medium" | "high";
+
+export interface ContinuityIssue {
+  category: ContinuityCategory;
+  severity: ContinuitySeverity;
+  issue: string;
+  evidence: string;
+  suggestedFix: string;
+}
+
 export interface ContinuityReport {
-  inconsistencies: string[];
-  unresolvedForeshadowing: string[];
-  characterIssues: string[];
-  timelineIssues: string[];
-  suggestions: string[];
-  repeatedMotifs?: string[];
+  issues: ContinuityIssue[];
+  unresolvedForeshadowing: ForeshadowingItem[];
+  repeatedMotifs: string[];
+  missingPayoffs: string[];
+  overallDiagnosis: string;
 }
 
 export interface PublisherPackage {
@@ -141,6 +169,7 @@ export interface AgentStep {
   error?: string;
   startedAt?: string;
   completedAt?: string;
+  approved?: boolean;
 }
 
 export interface StoryProject {
@@ -192,6 +221,7 @@ export const EMPTY_STORY_BIBLE: StoryBible = {
   plot: null,
   chapters: [],
   styleGuide: null,
+  foreshadowingTracker: [],
 };
 
 export const EMPTY_REPORTS: ProjectReports = {
