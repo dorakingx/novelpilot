@@ -4,7 +4,6 @@ import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/clipboard";
-import { hasManuscript } from "@/lib/format-manuscript";
 import {
   buildDevDemoSummary,
   downloadFile,
@@ -20,17 +19,26 @@ import { useState } from "react";
 
 interface ExportPanelProps {
   project: StoryProject | null;
+  projectComplete?: boolean;
+  canReadNovel?: boolean;
+  isGeneratingPdf?: boolean;
+  readLabel?: string;
   onOpenReader?: () => void;
   onDownloadPdf?: () => void;
 }
 
 export function ExportPanel({
   project,
+  projectComplete = false,
+  canReadNovel = false,
+  isGeneratingPdf = false,
+  readLabel = "Read Finished Novel",
   onOpenReader,
   onDownloadPdf,
 }: ExportPanelProps) {
   const [copied, setCopied] = useState(false);
   const disabled = !project;
+  const showReadActions = projectComplete || canReadNovel;
 
   const slug =
     project?.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() ?? "story";
@@ -51,18 +59,20 @@ export function ExportPanel({
         Full demo markdown and DEV submission helpers.
       </p>
       <div className="space-y-3">
-        {onOpenReader && (
+        {showReadActions && onOpenReader && (
           <ReadNovelButton
             onClick={onOpenReader}
-            disabled={!hasManuscript(project)}
+            disabled={!canReadNovel}
+            label={readLabel}
             variant="glass"
             className="w-full"
           />
         )}
-        {onDownloadPdf && (
+        {showReadActions && onDownloadPdf && (
           <DownloadPdfButton
             onClick={onDownloadPdf}
-            disabled={!hasManuscript(project)}
+            disabled={!canReadNovel}
+            loading={isGeneratingPdf}
             className="w-full"
           />
         )}

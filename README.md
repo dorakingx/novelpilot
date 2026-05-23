@@ -18,8 +18,11 @@ Judges can open the live app and click **Run Judge Demo** to experience the full
 3. Wait for the nine-agent pipeline to complete
 4. NovelPilot automatically opens the **Completed Novel** reader
 5. Click **Download PDF** (browser Save as PDF) to save the chapter
-6. Optional: click **Back to Workspace** to inspect Story Bible, Foreshadowing Tracker, and Continuity Detective
-7. Click **Export Full Demo Markdown** for submission bundle
+6. Optional: click **Back to Agent Workspace** to inspect Story Bible, Foreshadowing Tracker, and Continuity Detective
+7. Click **Read Finished Novel** anytime to reopen the completed reader
+8. Click **Export Full Demo Markdown** for submission bundle
+
+After the pipeline completes, NovelPilot automatically opens the finished novel reader. Users can return to the agent workspace to review the pipeline, then reopen the reader at any time using **Read Finished Novel**.
 
 The default judging experience does not require an API key; Live OpenRouter mode is optional.
 
@@ -32,8 +35,9 @@ The default judging experience does not require an API key; Live OpenRouter mode
 3. Watch nine agents complete: Premise Architect through Publisher Agent.
 4. NovelPilot automatically opens the finished **Completed Novel** reader.
 5. Click **Download PDF** to save via your browser’s Save as PDF option.
-6. Click **Back to Workspace** to review Foreshadowing Tracker and Continuity Detective.
-7. Click **Export Full Demo Markdown** for a DEV/Hackathon submission bundle.
+6. Click **Back to Agent Workspace** to review Foreshadowing Tracker and Continuity Detective.
+7. Click **Read Finished Novel** to reopen the completed reader at any time.
+8. Click **Export Full Demo Markdown** for a DEV/Hackathon submission bundle.
 
 No API key required for Judge Demo — curated sample outputs demonstrate the full pipeline.
 

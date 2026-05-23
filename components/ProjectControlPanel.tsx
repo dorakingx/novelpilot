@@ -4,7 +4,6 @@ import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { hasManuscript } from "@/lib/format-manuscript";
 import {
   downloadFile,
   exportFullDemoMarkdown,
@@ -19,11 +18,15 @@ interface ProjectControlPanelProps {
   llmProvider: string;
   llmModel: string;
   isRunning: boolean;
+  projectComplete: boolean;
+  canReadNovel: boolean;
+  isGeneratingPdf: boolean;
   onStop: () => void;
   onNewStory: () => void;
   onRunJudgeDemo: () => void;
   onOpenReader?: () => void;
   onDownloadPdf?: () => void;
+  readLabel?: string;
 }
 
 export function ProjectControlPanel({
@@ -33,11 +36,15 @@ export function ProjectControlPanel({
   llmProvider,
   llmModel,
   isRunning,
+  projectComplete,
+  canReadNovel,
+  isGeneratingPdf,
   onStop,
   onNewStory,
   onRunJudgeDemo,
   onOpenReader,
   onDownloadPdf,
+  readLabel = "Read Finished Novel",
 }: ProjectControlPanelProps) {
   const slug =
     project.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "story";
@@ -49,6 +56,8 @@ export function ProjectControlPanel({
       "text/markdown"
     );
   };
+
+  const showReadActions = projectComplete || canReadNovel;
 
   return (
     <div className="surface-card premium-border rounded-2xl p-5 space-y-4">
@@ -128,17 +137,19 @@ export function ProjectControlPanel({
           <Gavel className="mr-2 size-4" />
           Run Judge Demo
         </Button>
-        {onOpenReader && (
+        {showReadActions && onOpenReader && (
           <ReadNovelButton
             onClick={onOpenReader}
-            disabled={!hasManuscript(project)}
+            disabled={!canReadNovel}
+            label={readLabel}
             className="w-full"
           />
         )}
-        {onDownloadPdf && (
+        {showReadActions && onDownloadPdf && (
           <DownloadPdfButton
             onClick={onDownloadPdf}
-            disabled={!hasManuscript(project)}
+            disabled={!canReadNovel}
+            loading={isGeneratingPdf}
             className="w-full"
           />
         )}

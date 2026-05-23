@@ -14,6 +14,14 @@ export function getProjectStatus(
 }
 
 export function isProjectComplete(project: StoryProject | null): boolean {
-  if (!project?.manuscript?.trim()) return false;
-  return project.agents.every((a) => a.status === "completed");
+  return Boolean(
+    project &&
+      project.manuscript?.trim() &&
+      project.agents.length > 0 &&
+      project.agents.every((agent) => agent.status === "completed")
+  );
+}
+
+export function canReadNovel(project: StoryProject | null): boolean {
+  return Boolean(project?.manuscript?.trim());
 }

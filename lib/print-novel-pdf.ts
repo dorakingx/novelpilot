@@ -10,3 +10,7 @@ export function printNovelPdf(project: StoryProject): void {
     document.title = oldTitle;
   }, 1000);
 }
+
+export function downloadNovelPdf(project: StoryProject): void {
+  printNovelPdf(project);
+}

@@ -8,6 +8,7 @@ import { ForeshadowingTracker } from "@/components/ForeshadowingTracker";
 import { ManuscriptPreview } from "@/components/ManuscriptPreview";
 import { PipelineCompleteCard } from "@/components/PipelineCompleteCard";
 import { ProjectControlPanel } from "@/components/ProjectControlPanel";
+import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { StoryBiblePreview } from "@/components/StoryBiblePreview";
 import type { ProjectStatus } from "@/lib/project-status";
 import type { AgentId, ProjectSettings, StoryProject } from "@/lib/types";
@@ -17,6 +18,9 @@ interface AgentWorkspaceProps {
   settings: ProjectSettings;
   isRunning: boolean;
   projectStatus: ProjectStatus;
+  projectComplete: boolean;
+  canReadNovel: boolean;
+  isGeneratingPdf: boolean;
   mockMode: boolean;
   llmProvider: string;
   llmModel: string;
@@ -35,6 +39,9 @@ export function AgentWorkspace({
   settings,
   isRunning,
   projectStatus,
+  projectComplete,
+  canReadNovel,
+  isGeneratingPdf,
   mockMode,
   llmProvider,
   llmModel,
@@ -47,6 +54,8 @@ export function AgentWorkspace({
   onOpenReader,
   onDownloadPdf,
 }: AgentWorkspaceProps) {
+  const readLabel = projectComplete ? "Read Finished Novel" : "Read Manuscript";
+
   const handleReviewContinuity = () => {
     document
       .getElementById("continuity-report")
@@ -56,7 +65,17 @@ export function AgentWorkspace({
   return (
     <>
       <main className="flex-1 mx-auto w-full max-w-[1600px] px-4 py-6 space-y-6">
-        <AgentPipelineBar agents={project.agents} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <AgentPipelineBar agents={project.agents} />
+          {projectComplete && onOpenReader && (
+            <ReadNovelButton
+              onClick={onOpenReader}
+              disabled={!canReadNovel}
+              label={readLabel}
+              className="shrink-0"
+            />
+          )}
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <aside className="lg:col-span-3 space-y-4 order-1">
@@ -70,11 +89,15 @@ export function AgentWorkspace({
               llmProvider={llmProvider}
               llmModel={llmModel}
               isRunning={isRunning}
+              projectComplete={projectComplete}
+              canReadNovel={canReadNovel}
+              isGeneratingPdf={isGeneratingPdf}
               onStop={onStop}
               onNewStory={onNewStory}
               onRunJudgeDemo={onRunJudgeDemo}
               onOpenReader={onOpenReader}
               onDownloadPdf={onDownloadPdf}
+              readLabel={readLabel}
             />
           </aside>
 
@@ -82,11 +105,14 @@ export function AgentWorkspace({
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden lg:block">
               Writing room
             </p>
-            {projectStatus === "Completed" && (
+            {projectComplete && (
               <PipelineCompleteCard
                 project={project}
                 onOpenReader={onOpenReader}
                 onDownloadPdf={onDownloadPdf}
+                isGeneratingPdf={isGeneratingPdf}
+                canReadNovel={canReadNovel}
+                readLabel={readLabel}
                 onReviewContinuity={handleReviewContinuity}
               />
             )}
@@ -109,6 +135,10 @@ export function AgentWorkspace({
             <ManuscriptPreview
               project={project}
               isRunning={isRunning}
+              projectComplete={projectComplete}
+              canReadNovel={canReadNovel}
+              isGeneratingPdf={isGeneratingPdf}
+              readLabel={readLabel}
               onOpenReader={onOpenReader}
               onDownloadPdf={onDownloadPdf}
             />
@@ -117,6 +147,10 @@ export function AgentWorkspace({
             </div>
             <ExportPanel
               project={project}
+              projectComplete={projectComplete}
+              canReadNovel={canReadNovel}
+              isGeneratingPdf={isGeneratingPdf}
+              readLabel={readLabel}
               onOpenReader={onOpenReader}
               onDownloadPdf={onDownloadPdf}
             />

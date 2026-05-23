@@ -7,7 +7,6 @@ import {
   getChapterTitle,
   splitManuscriptParagraphs,
 } from "@/lib/format-manuscript";
-import { printNovelPdf } from "@/lib/print-novel-pdf";
 import type { StoryProject } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -17,6 +16,7 @@ import {
   Copy,
   FileDown,
   FileText,
+  Loader2,
   Moon,
   Plus,
   Sun,
@@ -36,14 +36,18 @@ interface CompletedNovelReaderProps {
   project: StoryProject;
   onBackToWorkspace: () => void;
   onNewStory: () => void;
+  onDownloadPdf: () => void;
   onExportMarkdown?: () => void;
+  isGeneratingPdf?: boolean;
 }
 
 export function CompletedNovelReader({
   project,
   onBackToWorkspace,
   onNewStory,
+  onDownloadPdf,
   onExportMarkdown,
+  isGeneratingPdf = false,
 }: CompletedNovelReaderProps) {
   const [theme, setTheme] = useState<ReaderTheme>("paper");
   const [fontSize, setFontSize] = useState<FontSize>("medium");
@@ -62,10 +66,6 @@ export function CompletedNovelReader({
       setTimeout(() => setCopied(false), 2000);
     }
   }, [project.manuscript]);
-
-  const handleDownloadPdf = useCallback(() => {
-    printNovelPdf(project);
-  }, [project]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -112,8 +112,8 @@ export function CompletedNovelReader({
               className="shrink-0"
             >
               <ArrowLeft className="mr-1.5 size-4" />
-              <span className="hidden sm:inline">Back to Workspace</span>
-              <span className="sm:hidden">Back</span>
+              <span className="hidden sm:inline">Back to Agent Workspace</span>
+              <span className="sm:hidden">Workspace</span>
             </Button>
             <Button variant="glass" size="sm" onClick={onNewStory}>
               <Plus className="mr-1.5 size-4" />
@@ -122,11 +122,16 @@ export function CompletedNovelReader({
             <Button
               variant="premium"
               size="sm"
-              onClick={handleDownloadPdf}
+              onClick={onDownloadPdf}
+              disabled={isGeneratingPdf}
               title="Use your browser's Save as PDF option."
             >
-              <FileDown className="mr-1.5 size-4" />
-              Download PDF
+              {isGeneratingPdf ? (
+                <Loader2 className="mr-1.5 size-4 animate-spin" />
+              ) : (
+                <FileDown className="mr-1.5 size-4" />
+              )}
+              {isGeneratingPdf ? "Generating PDF..." : "Download PDF"}
             </Button>
             {onExportMarkdown && (
               <Button variant="glass" size="sm" onClick={onExportMarkdown}>

@@ -2,11 +2,12 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { FileDown } from "lucide-react";
+import { FileDown, Loader2 } from "lucide-react";
 
 interface DownloadPdfButtonProps {
   onClick: () => void;
   disabled?: boolean;
+  loading?: boolean;
   variant?: "premium" | "glass";
   className?: string;
   size?: "default" | "sm" | "lg";
@@ -15,22 +16,26 @@ interface DownloadPdfButtonProps {
 export function DownloadPdfButton({
   onClick,
   disabled = false,
+  loading = false,
   variant = "glass",
   className,
   size = "default",
 }: DownloadPdfButtonProps) {
-  if (disabled) return null;
-
   return (
     <Button
       variant={variant}
       size={size}
       className={cn(className)}
       onClick={onClick}
+      disabled={disabled || loading}
       title="Use your browser's Save as PDF option."
     >
-      <FileDown className="mr-2 size-4" />
-      Download PDF
+      {loading ? (
+        <Loader2 className="mr-2 size-4 animate-spin" />
+      ) : (
+        <FileDown className="mr-2 size-4" />
+      )}
+      {loading ? "Generating PDF..." : "Download PDF"}
     </Button>
   );
 }

@@ -5,7 +5,6 @@ import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { downloadFile, exportFullDemoMarkdown } from "@/lib/export";
-import { hasManuscript } from "@/lib/format-manuscript";
 import type { StoryProject } from "@/lib/types";
 import { CheckCircle2, FileSearch, FileText, Sparkles } from "lucide-react";
 
@@ -13,6 +12,9 @@ interface PipelineCompleteCardProps {
   project: StoryProject;
   onOpenReader?: () => void;
   onDownloadPdf?: () => void;
+  isGeneratingPdf?: boolean;
+  canReadNovel: boolean;
+  readLabel?: string;
   onReviewContinuity?: () => void;
 }
 
@@ -20,13 +22,15 @@ export function PipelineCompleteCard({
   project,
   onOpenReader,
   onDownloadPdf,
+  isGeneratingPdf = false,
+  canReadNovel,
+  readLabel = "Read Finished Novel",
   onReviewContinuity,
 }: PipelineCompleteCardProps) {
   const foreshadowCount = project.storyBible.foreshadowingTracker.length;
   const issueCount = project.reports.continuity?.issues.length ?? 0;
   const slug =
     project.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "story";
-  const canRead = hasManuscript(project);
 
   return (
     <div className="surface-elevated rounded-2xl p-6 mb-6">
@@ -35,11 +39,12 @@ export function PipelineCompleteCard({
         <div className="space-y-4 flex-1 min-w-0">
           <div>
             <h3 className="text-lg font-semibold text-[#F8FAFC]">
-              Your story is ready.
+              Your novel is ready.
             </h3>
             <p className="text-sm text-[#94A3B8] mt-1">
-              Read the finished chapter in Reader Mode, export your demo bundle,
-              or review the continuity audit.
+              The full agent pipeline has completed. You can read the finished
+              story, download a polished PDF, or return to review the agent
+              outputs.
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-sm">
@@ -51,14 +56,16 @@ export function PipelineCompleteCard({
             {onOpenReader && (
               <ReadNovelButton
                 onClick={onOpenReader}
-                disabled={!canRead}
+                disabled={!canReadNovel}
+                label={readLabel}
                 className="w-full sm:w-auto"
               />
             )}
             {onDownloadPdf && (
               <DownloadPdfButton
                 onClick={onDownloadPdf}
-                disabled={!canRead}
+                disabled={!canReadNovel}
+                loading={isGeneratingPdf}
                 variant="premium"
                 size="lg"
                 className="w-full sm:w-auto"
@@ -87,7 +94,7 @@ export function PipelineCompleteCard({
                 onClick={onReviewContinuity}
               >
                 <FileSearch className="mr-2 size-4" />
-                Review Continuity Report
+                Review Agent Outputs
               </Button>
             )}
           </div>

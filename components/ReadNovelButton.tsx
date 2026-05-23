@@ -21,14 +21,13 @@ export function ReadNovelButton({
   size = "default",
   label = "Read Finished Novel",
 }: ReadNovelButtonProps) {
-  if (disabled) return null;
-
   return (
     <Button
       variant={variant}
       size={size}
       className={cn(className)}
       onClick={onClick}
+      disabled={disabled}
     >
       <BookOpen className="mr-2 size-4" />
       {label}

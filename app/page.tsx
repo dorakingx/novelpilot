@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AgentWorkspace } from "@/components/AgentWorkspace";
 import { CompletedNovelReader } from "@/components/CompletedNovelReader";
 import { DemoModeBanner } from "@/components/DemoModeBanner";
@@ -8,28 +8,23 @@ import { StartScreen } from "@/components/StartScreen";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { downloadFile, exportFullDemoMarkdown } from "@/lib/export";
-import { hasManuscript } from "@/lib/format-manuscript";
-import { printNovelPdf } from "@/lib/print-novel-pdf";
-import { getProjectStatus, isProjectComplete } from "@/lib/project-status";
+import { downloadNovelPdf } from "@/lib/print-novel-pdf";
+import {
+  canReadNovel,
+  getProjectStatus,
+  isProjectComplete,
+} from "@/lib/project-status";
 import { useStoryProject } from "@/lib/useStoryProject";
 import type { AgentId } from "@/lib/types";
 import { BookOpen, Plus } from "lucide-react";
 
 type AppPhase = "launcher" | "workspace" | "reader";
 
-function deriveAutoPhase(
-  project: ReturnType<typeof useStoryProject>["project"],
-  isRunning: boolean
-): AppPhase {
-  if (!project && !isRunning) return "launcher";
-  if (project) return "workspace";
-  return "launcher";
-}
-
 export default function Home() {
-  const [manualPhase, setManualPhase] = useState<AppPhase | null>(null);
+  const [phase, setPhase] = useState<AppPhase>("launcher");
+  const [hasAutoOpenedReader, setHasAutoOpenedReader] = useState(false);
   const [pendingPrint, setPendingPrint] = useState(false);
-  const autoOpenDoneRef = useRef(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const {
     settings,
@@ -49,64 +44,78 @@ export default function Home() {
   } = useStoryProject();
 
   const projectStatus = getProjectStatus(project, isRunning);
-  const canRead = hasManuscript(project);
-  const autoPhase = deriveAutoPhase(project, isRunning);
-  const phase = manualPhase ?? autoPhase;
+  const projectComplete = isProjectComplete(project);
+  const canRead = canReadNovel(project);
 
   useEffect(() => {
-    if (
-      !autoOpenDoneRef.current &&
-      manualPhase === null &&
-      isProjectComplete(project) &&
-      !isRunning &&
-      canRead
-    ) {
-      autoOpenDoneRef.current = true;
-      setManualPhase("reader");
+    if (!project && !isRunning) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset phase when project clears
+      setPhase("launcher");
+      setHasAutoOpenedReader(false);
+      setPendingPrint(false);
     }
-  }, [project, isRunning, canRead, manualPhase]);
+  }, [project, isRunning]);
 
   useEffect(() => {
-    if (project && !isProjectComplete(project) && manualPhase === "reader") {
+    if (project && phase === "launcher") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- enter workspace when project starts
+      setPhase("workspace");
+    }
+  }, [project, phase]);
+
+  useEffect(() => {
+    if (isProjectComplete(project) && !hasAutoOpenedReader && !isRunning) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time auto-open on completion
+      setPhase("reader");
+      setHasAutoOpenedReader(true);
+    }
+  }, [project, hasAutoOpenedReader, isRunning]);
+
+  useEffect(() => {
+    if (project && !isProjectComplete(project) && phase === "reader") {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- leave reader when pipeline becomes incomplete
-      setManualPhase("workspace");
+      setPhase("workspace");
     }
-  }, [project, manualPhase]);
+  }, [project, phase]);
 
   useEffect(() => {
     if (phase === "reader" && pendingPrint && project) {
       const timer = setTimeout(() => {
-        printNovelPdf(project);
+        setIsGeneratingPdf(true);
+        downloadNovelPdf(project);
         setPendingPrint(false);
+        setTimeout(() => setIsGeneratingPdf(false), 600);
       }, 300);
       return () => clearTimeout(timer);
     }
   }, [phase, pendingPrint, project]);
 
-  const handleOpenReader = useCallback(() => {
-    if (canRead) setManualPhase("reader");
-  }, [canRead]);
+  const openReader = useCallback(() => {
+    if (canReadNovel(project)) setPhase("reader");
+  }, [project]);
 
   const handleBackToWorkspace = useCallback(() => {
-    setManualPhase("workspace");
+    setPhase("workspace");
   }, []);
 
   const handleNewStory = useCallback(() => {
     resetProject();
-    setManualPhase(null);
-    autoOpenDoneRef.current = false;
+    setPhase("launcher");
+    setHasAutoOpenedReader(false);
     setPendingPrint(false);
   }, [resetProject]);
 
   const handleDownloadPdf = useCallback(() => {
-    if (!canRead) return;
-    if (phase === "reader" && project) {
-      printNovelPdf(project);
-    } else {
+    if (!canReadNovel(project) || !project) return;
+    if (phase !== "reader") {
       setPendingPrint(true);
-      setManualPhase("reader");
+      setPhase("reader");
+      return;
     }
-  }, [canRead, phase, project]);
+    setIsGeneratingPdf(true);
+    downloadNovelPdf(project);
+    setTimeout(() => setIsGeneratingPdf(false), 600);
+  }, [phase, project]);
 
   const handleExportMarkdown = useCallback(() => {
     if (!project) return;
@@ -121,8 +130,8 @@ export default function Home() {
 
   const handleRegenerateAgent = useCallback(
     (agentId: AgentId) => {
-      setManualPhase(null);
-      autoOpenDoneRef.current = false;
+      setPhase("workspace");
+      setHasAutoOpenedReader(false);
       regenerateAgent(agentId);
     },
     [regenerateAgent]
@@ -134,7 +143,9 @@ export default function Home() {
         project={project}
         onBackToWorkspace={handleBackToWorkspace}
         onNewStory={handleNewStory}
+        onDownloadPdf={handleDownloadPdf}
         onExportMarkdown={handleExportMarkdown}
+        isGeneratingPdf={isGeneratingPdf}
       />
     );
   }
@@ -214,6 +225,9 @@ export default function Home() {
               settings={settings}
               isRunning={isRunning}
               projectStatus={projectStatus}
+              projectComplete={projectComplete}
+              canReadNovel={canRead}
+              isGeneratingPdf={isGeneratingPdf}
               mockMode={mockMode}
               llmProvider={llmProvider}
               llmModel={llmModel}
@@ -223,7 +237,7 @@ export default function Home() {
               onRegenerate={handleRegenerateAgent}
               onApprove={approveAgent}
               onEditOutput={updateAgentOutput}
-              onOpenReader={handleOpenReader}
+              onOpenReader={openReader}
               onDownloadPdf={handleDownloadPdf}
             />
           )}

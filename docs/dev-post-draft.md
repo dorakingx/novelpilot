@@ -39,7 +39,7 @@ Each step receives the accumulated Story Bible and previous structured outputs.
 
 ## What I built
 
-The UI starts as a simple prompt launcher. Once the user begins, it transforms into an agent workspace where the writing room runs step by step. When all agents complete, NovelPilot **automatically transitions** into a finished novel reader. The user can read the story in the browser and download it as a PDF using the browser’s Save as PDF flow.
+The UI starts as a simple prompt launcher. Once the user begins, it transforms into an agent workspace where the writing room runs step by step. When all agents complete, NovelPilot **automatically transitions** into a finished novel reader. The user can read the story in the browser and download it as a PDF using the browser’s Save as PDF flow. The final reader is not a one-way screen — after completion, users can freely move between the agent workspace and the finished novel reader.
 
 NovelPilot is a Next.js web app where judges and writers can:
 
@@ -90,9 +90,10 @@ The client orchestrates the pipeline: one HTTP request per agent, visible progre
 2. Click **Run Judge Demo**.  
 3. Watch the timeline fill: Premise Architect → … → Publisher Agent.  
 4. NovelPilot **automatically opens** the finished novel reader.  
-5. Open **Foreshadowing Tracker** or **Continuity Detective** via Back to Workspace.  
-6. **Download PDF** — use your browser’s Save as PDF option.  
-7. **Export Full Demo Markdown** — one file for submission.
+5. Open **Foreshadowing Tracker** or **Continuity Detective** via Back to Agent Workspace.  
+6. Click **Read Finished Novel** to return to the completed reader anytime.  
+7. **Download PDF** — use your browser’s Save as PDF option.  
+8. **Export Full Demo Markdown** — one file for submission.
 
 No demo video — the live app is the demo.
 
