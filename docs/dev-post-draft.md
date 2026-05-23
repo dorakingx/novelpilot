@@ -39,14 +39,15 @@ Each step receives the accumulated Story Bible and previous structured outputs.
 
 ## What I built
 
-The UI starts as a simple prompt launcher. Once the user begins, it transforms into an agent workspace where the writing room runs step by step.
+The UI starts as a simple prompt launcher. Once the user begins, it transforms into an agent workspace where the writing room runs step by step. When agents finish, **Reader Mode** lets users read the generated story as a finished browser-based novel — not only inspect the pipeline.
 
 NovelPilot is a Next.js web app where judges and writers can:
 
 1. Enter one story prompt (or click **Run Judge Demo** for an instant sci-fi mystery).
 2. Watch a vertical **agent timeline** run nine steps sequentially.
 3. Explore outputs in a **story bible**, **foreshadowing tracker**, **manuscript preview**, and **continuity detective** panel.
-4. Export a **full demo markdown** file for hackathon or DEV submission.
+4. Click **Read Novel** for full-screen Reader Mode.
+5. Export a **full demo markdown** file for hackathon or DEV submission.
 
 The MVP generates a complete story bible, plot, three-chapter outline, **chapter 1 draft**, style editor notes, structured continuity report, and publisher marketing copy.
 
@@ -90,6 +91,7 @@ The client orchestrates the pipeline: one HTTP request per agent, visible progre
 4. Open **Foreshadowing Tracker** — see threads like “cracked silver watch” with payoff chapter and emotional purpose.  
 5. Read **Continuity Detective** — structured issues, not bullet fluff.  
 6. **Export Full Demo Markdown** — one file for submission.
+7. **Read Novel** — full-screen Reader Mode for the finished chapter.
 
 No demo video — the live app is the demo.
 

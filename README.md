@@ -23,6 +23,7 @@ Judges can open the live app and click **Run Judge Demo** to experience the full
    - Continuity Detective
    - Publisher package
 5. Click **Export Full Demo Markdown**
+6. Click **Read Novel** to read the generated chapter in Reader Mode
 
 The default judging experience does not require an API key; Live OpenRouter mode is optional.
 
@@ -35,6 +36,7 @@ The default judging experience does not require an API key; Live OpenRouter mode
 3. Watch nine agents complete: Premise Architect through Publisher Agent.
 4. Review **Foreshadowing Tracker** and **Continuity Detective** on the right.
 5. Click **Export Full Demo Markdown** for a DEV/Hackathon submission bundle.
+6. Click **Read Novel** to open the distraction-free Reader Mode.
 
 No API key required for Judge Demo — curated sample outputs demonstrate the full pipeline.
 
@@ -88,6 +90,7 @@ NovelPilot uses a two-stage flow:
 - **Continuity Detective** with severity, category, evidence, and suggested fixes
 - Human-in-the-loop: Approve, Regenerate, Edit Output per agent
 - Export: Full Demo Markdown, DEV summary, bible, manuscript, JSON
+- **Browser Reader Mode** — read the generated novel in a polished, distraction-free full-screen view
 - English and Japanese output
 - Mock mode (no API key) and live Gemma 4 mode
 

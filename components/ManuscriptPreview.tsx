@@ -1,28 +1,51 @@
 "use client";
 
 import { PanelPlaceholder } from "@/components/PanelPlaceholder";
+import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  getChapterTitle,
+  hasManuscript,
+  splitManuscriptParagraphs,
+} from "@/lib/format-manuscript";
 import type { StoryProject } from "@/lib/types";
 import { PenLine } from "lucide-react";
 
 interface ManuscriptPreviewProps {
   project: StoryProject | null;
   isRunning?: boolean;
+  onOpenReader?: () => void;
 }
 
 export function ManuscriptPreview({
   project,
   isRunning,
+  onOpenReader,
 }: ManuscriptPreviewProps) {
-  const chapterTitle =
-    project?.storyBible.chapters[0]?.title ?? "Chapter 1";
+  const chapterTitle = project ? getChapterTitle(project) : "Chapter 1";
   const draft = project?.manuscript;
+  const canRead = hasManuscript(project);
 
   return (
     <div className="surface-card premium-border rounded-2xl p-5">
-      <h3 className="text-base font-semibold">Manuscript Preview</h3>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-semibold text-[#F8FAFC]">Manuscript</h3>
+          <p className="text-xs text-[#94A3B8] mt-1 leading-relaxed">
+            Preview the generated chapter, or open Reader Mode for
+            distraction-free reading.
+          </p>
+        </div>
+        {onOpenReader && (
+          <ReadNovelButton
+            onClick={onOpenReader}
+            disabled={!canRead}
+            className="shrink-0 w-full sm:w-auto"
+          />
+        )}
+      </div>
       {project && (
-        <p className="text-xs text-muted-foreground mt-1 mb-3">{project.title}</p>
+        <p className="text-xs text-[#94A3B8] mb-3 truncate">{project.title}</p>
       )}
       <ScrollArea className="h-[320px]">
         {draft ? (
@@ -39,10 +62,10 @@ export function ManuscriptPreview({
               </h2>
             </header>
             <div
-              className="space-y-5 text-[16px] leading-[1.9] whitespace-pre-wrap"
+              className="space-y-5 text-[16px] leading-[1.9] break-words"
               style={{ fontFamily: "var(--font-lora), Georgia, serif" }}
             >
-              {draft.split("\n\n").map((para, i) => (
+              {splitManuscriptParagraphs(draft).map((para, i) => (
                 <p key={i}>{para}</p>
               ))}
             </div>

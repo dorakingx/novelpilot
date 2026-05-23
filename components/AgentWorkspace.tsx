@@ -26,6 +26,7 @@ interface AgentWorkspaceProps {
   onRegenerate: (agentId: AgentId) => void;
   onApprove: (agentId: AgentId) => void;
   onEditOutput: (agentId: AgentId, output: unknown) => void;
+  onOpenReader?: () => void;
 }
 
 export function AgentWorkspace({
@@ -42,7 +43,14 @@ export function AgentWorkspace({
   onRegenerate,
   onApprove,
   onEditOutput,
+  onOpenReader,
 }: AgentWorkspaceProps) {
+  const handleReviewContinuity = () => {
+    document
+      .getElementById("continuity-report")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <>
       <main className="flex-1 mx-auto w-full max-w-[1600px] px-4 py-6 space-y-6">
@@ -63,6 +71,7 @@ export function AgentWorkspace({
               onStop={onStop}
               onNewStory={onNewStory}
               onRunJudgeDemo={onRunJudgeDemo}
+              onOpenReader={onOpenReader}
             />
           </aside>
 
@@ -71,7 +80,11 @@ export function AgentWorkspace({
               Writing room
             </p>
             {projectStatus === "Completed" && (
-              <PipelineCompleteCard project={project} />
+              <PipelineCompleteCard
+                project={project}
+                onOpenReader={onOpenReader}
+                onReviewContinuity={handleReviewContinuity}
+              />
             )}
             <AgentTimeline
               project={project}
@@ -89,9 +102,15 @@ export function AgentWorkspace({
             </p>
             <StoryBiblePreview project={project} isRunning={isRunning} />
             <ForeshadowingTracker project={project} isRunning={isRunning} />
-            <ManuscriptPreview project={project} isRunning={isRunning} />
-            <ContinuityReport project={project} isRunning={isRunning} />
-            <ExportPanel project={project} />
+            <ManuscriptPreview
+              project={project}
+              isRunning={isRunning}
+              onOpenReader={onOpenReader}
+            />
+            <div id="continuity-report">
+              <ContinuityReport project={project} isRunning={isRunning} />
+            </div>
+            <ExportPanel project={project} onOpenReader={onOpenReader} />
           </aside>
         </div>
       </main>

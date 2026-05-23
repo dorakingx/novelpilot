@@ -1,15 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { AgentWorkspace } from "@/components/AgentWorkspace";
 import { DemoModeBanner } from "@/components/DemoModeBanner";
+import { NovelReader } from "@/components/NovelReader";
 import { StartScreen } from "@/components/StartScreen";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { hasManuscript } from "@/lib/format-manuscript";
 import { getProjectStatus } from "@/lib/project-status";
 import { useStoryProject } from "@/lib/useStoryProject";
 import { BookOpen, Plus } from "lucide-react";
 
 export default function Home() {
+  const [readerOpen, setReaderOpen] = useState(false);
+
   const {
     settings,
     updateSettings,
@@ -29,6 +34,11 @@ export default function Home() {
 
   const projectStatus = getProjectStatus(project, isRunning);
   const showStartScreen = !project && !isRunning;
+  const canRead = hasManuscript(project);
+
+  const handleOpenReader = () => {
+    if (canRead) setReaderOpen(true);
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -114,9 +124,17 @@ export default function Home() {
               onRegenerate={regenerateAgent}
               onApprove={approveAgent}
               onEditOutput={updateAgentOutput}
+              onOpenReader={handleOpenReader}
             />
           )}
         </div>
+      )}
+
+      {readerOpen && project && canRead && (
+        <NovelReader
+          project={project}
+          onClose={() => setReaderOpen(false)}
+        />
       )}
     </div>
   );

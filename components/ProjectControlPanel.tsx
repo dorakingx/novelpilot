@@ -1,7 +1,9 @@
 "use client";
 
+import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { hasManuscript } from "@/lib/format-manuscript";
 import {
   downloadFile,
   exportFullDemoMarkdown,
@@ -19,6 +21,7 @@ interface ProjectControlPanelProps {
   onStop: () => void;
   onNewStory: () => void;
   onRunJudgeDemo: () => void;
+  onOpenReader?: () => void;
 }
 
 export function ProjectControlPanel({
@@ -31,6 +34,7 @@ export function ProjectControlPanel({
   onStop,
   onNewStory,
   onRunJudgeDemo,
+  onOpenReader,
 }: ProjectControlPanelProps) {
   const slug =
     project.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "story";
@@ -121,6 +125,13 @@ export function ProjectControlPanel({
           <Gavel className="mr-2 size-4" />
           Run Judge Demo
         </Button>
+        {onOpenReader && (
+          <ReadNovelButton
+            onClick={onOpenReader}
+            disabled={!hasManuscript(project)}
+            className="w-full"
+          />
+        )}
         <Button
           variant="premium"
           onClick={handleExportFullDemo}

@@ -1,7 +1,9 @@
 "use client";
 
+import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/clipboard";
+import { hasManuscript } from "@/lib/format-manuscript";
 import {
   buildDevDemoSummary,
   downloadFile,
@@ -17,9 +19,10 @@ import { useState } from "react";
 
 interface ExportPanelProps {
   project: StoryProject | null;
+  onOpenReader?: () => void;
 }
 
-export function ExportPanel({ project }: ExportPanelProps) {
+export function ExportPanel({ project, onOpenReader }: ExportPanelProps) {
   const [copied, setCopied] = useState(false);
   const disabled = !project;
 
@@ -42,6 +45,14 @@ export function ExportPanel({ project }: ExportPanelProps) {
         Full demo markdown and DEV submission helpers.
       </p>
       <div className="space-y-3">
+        {onOpenReader && (
+          <ReadNovelButton
+            onClick={onOpenReader}
+            disabled={!hasManuscript(project)}
+            variant="glass"
+            className="w-full"
+          />
+        )}
         <Button
           variant="premium"
           className="w-full"
