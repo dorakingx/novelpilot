@@ -108,11 +108,12 @@ Copy `.env.example` to `.env.local`:
 GEMMA_PROVIDER=openrouter
 GEMMA_API_KEY=
 GEMMA_API_URL=https://openrouter.ai/api/v1/chat/completions
-# If this model is unavailable on OpenRouter, choose a currently available Gemma model from https://openrouter.ai/models and update GEMMA_MODEL.
-GEMMA_MODEL=google/gemma-3-27b-it
+GEMMA_MODEL=google/gemma-4-31b-it
 OPENROUTER_APP_NAME=NovelPilot
 NEXT_PUBLIC_APP_NAME=NovelPilot
 ```
+
+The Gemma 4 Challenge requires a Gemma 4 model. If the default OpenRouter model name changes, choose a currently available Gemma 4 model from [OpenRouter's model list](https://openrouter.ai/models) and set `GEMMA_MODEL` accordingly.
 
 ### Mock mode
 
@@ -120,7 +121,15 @@ If `GEMMA_API_KEY` is empty, the app uses curated sample outputs. The banner sho
 
 ### Live mode (OpenRouter — recommended)
 
-NovelPilot calls Gemma models through [OpenRouter](https://openrouter.ai) chat completions by default. Set `GEMMA_API_KEY` to your OpenRouter API key and restart the dev server. The banner shows **Live mode** with provider and model name.
+NovelPilot calls Gemma 4 through [OpenRouter](https://openrouter.ai) chat completions by default. Set `GEMMA_API_KEY` to your OpenRouter API key and restart the dev server. The banner shows **Live mode** with provider and model name.
+
+Recommended:
+
+```env
+GEMMA_PROVIDER=openrouter
+GEMMA_API_URL=https://openrouter.ai/api/v1/chat/completions
+GEMMA_MODEL=google/gemma-4-31b-it
+```
 
 See [Using OpenRouter](#using-openrouter) below.
 
@@ -135,12 +144,12 @@ Set `GEMMA_PROVIDER=google` and point `GEMMA_API_URL` / `GEMMA_MODEL` at Google'
    - `GEMMA_PROVIDER=openrouter`
    - `GEMMA_API_KEY=` your OpenRouter key
    - `GEMMA_API_URL=https://openrouter.ai/api/v1/chat/completions`
-   - `GEMMA_MODEL=google/gemma-3-27b-it`
+   - `GEMMA_MODEL=google/gemma-4-31b-it`
    - `OPENROUTER_APP_NAME=NovelPilot`
 3. Redeploy (Vercel) or restart `npm run dev`.
 4. Open the app and confirm the banner shows **Live mode: using openrouter / …**
 
-If the model name is unavailable on OpenRouter, pick a currently available Gemma model from [OpenRouter's model list](https://openrouter.ai/models) and update `GEMMA_MODEL`.
+The Gemma 4 Challenge requires a Gemma 4 model. If the default OpenRouter model name changes, choose a currently available Gemma 4 model from [OpenRouter's model list](https://openrouter.ai/models) and set `GEMMA_MODEL` accordingly.
 
 ## Deploying to Vercel
 
@@ -151,7 +160,7 @@ If the model name is unavailable on OpenRouter, pick a currently available Gemma
    - `GEMMA_PROVIDER=openrouter`
    - `GEMMA_API_KEY`
    - `GEMMA_API_URL=https://openrouter.ai/api/v1/chat/completions`
-   - `GEMMA_MODEL=google/gemma-3-27b-it`
+   - `GEMMA_MODEL=google/gemma-4-31b-it`
    - `OPENROUTER_APP_NAME=NovelPilot`
 5. Deploy.
 6. Open the deployed URL and click **Run Judge Demo**.

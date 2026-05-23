@@ -8,6 +8,7 @@ import {
   resetFromAgent,
   setAgentStatus,
 } from "./agents";
+import { DEFAULT_GEMMA_MODEL } from "./gemma-model";
 import { JUDGE_DEMO_SETTINGS } from "./demo";
 import { formatLiveGenerationError } from "./format-generation-error";
 import type {
@@ -32,7 +33,7 @@ export function useStoryProject() {
   const [isRunning, setIsRunning] = useState(false);
   const [mockMode, setMockMode] = useState(true);
   const [llmProvider, setLlmProvider] = useState("openrouter");
-  const [llmModel, setLlmModel] = useState("google/gemma-3-27b-it");
+  const [llmModel, setLlmModel] = useState(DEFAULT_GEMMA_MODEL);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {

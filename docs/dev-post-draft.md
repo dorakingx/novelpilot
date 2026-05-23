@@ -58,7 +58,7 @@ Real writing rooms have roles: premise, cast, world, plot, outline, draft, edit,
 
 ## Why Gemma 4
 
-NovelPilot uses Gemma 4 through a provider-agnostic API layer (`GEMMA_API_KEY`, `GEMMA_API_URL`, `GEMMA_MODEL`). The model is used for:
+NovelPilot uses Gemma 4 through a provider-agnostic API layer (`GEMMA_API_KEY`, `GEMMA_API_URL`, `GEMMA_MODEL`). The default OpenRouter model is `google/gemma-4-31b-it` — pick a currently available Gemma 4 model from OpenRouter if that ID changes. The model is used for:
 
 - **Structured JSON** per agent (loglines, character sheets, foreshadowing items, continuity issues).
 - **Long-context chaining** — each agent receives the story bible and prior agent outputs.
@@ -110,7 +110,7 @@ Human-in-the-loop: **Approve**, **Regenerate**, **Edit Output** (JSON modal) per
 | Mode | When | Behavior |
 |------|------|----------|
 | Demo | No `GEMMA_API_KEY` | Curated EN/JA sample JSON per agent |
-| Live | API key set | Real Gemma 4 `generateContent` calls |
+| Live | API key set | Real Gemma 4 via OpenRouter (`GEMMA_MODEL=google/gemma-4-31b-it`) |
 
 A banner at the top makes the mode obvious to judges.
 

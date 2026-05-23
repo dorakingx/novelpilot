@@ -1,3 +1,4 @@
+import { DEFAULT_GEMMA_MODEL } from "./gemma-model";
 import { getMockOutputAsJson } from "./mock-outputs";
 import type { AgentId, Language } from "./types";
 
@@ -7,7 +8,7 @@ const DEFAULT_OPENROUTER_URL =
   "https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_GOOGLE_URL =
   "https://generativelanguage.googleapis.com/v1beta/models";
-const DEFAULT_MODEL = "google/gemma-3-27b-it";
+const DEFAULT_MODEL = DEFAULT_GEMMA_MODEL;
 
 const SYSTEM_MESSAGE =
   "You are NovelPilot's Gemma-powered structured creative writing engine. Return only valid JSON when requested.";
