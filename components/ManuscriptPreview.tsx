@@ -19,7 +19,7 @@ export function ManuscriptPreview({
   const draft = project?.manuscript;
 
   return (
-    <div className="glass-card premium-border rounded-2xl p-5">
+    <div className="surface-card premium-border rounded-2xl p-5">
       <h3 className="text-base font-semibold">Manuscript Preview</h3>
       {project && (
         <p className="text-xs text-muted-foreground mt-1 mb-3">{project.title}</p>

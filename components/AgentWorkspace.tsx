@@ -96,7 +96,7 @@ export function AgentWorkspace({
         </div>
       </main>
 
-      <footer className="border-t border-white/5 py-4 text-center text-xs text-muted-foreground px-4 glass-card border-x-0 border-b-0 rounded-none">
+      <footer className="border-t border-white/12 py-4 text-center text-xs text-[#94A3B8] px-4 bg-[#111827]">
         Premise Architect → Character Director → World Builder → Plot Strategist
         → Chapter Architect → Prose Writer → Style Editor → Continuity Detective
         → Publisher Agent

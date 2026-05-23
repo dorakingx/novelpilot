@@ -29,7 +29,7 @@ export function StoryBiblePreview({
 }: StoryBiblePreviewProps) {
   if (!project) {
     return (
-      <div className="glass-card premium-border rounded-2xl p-5">
+      <div className="surface-card premium-border rounded-2xl p-5">
         <h3 className="text-base font-semibold">Story Bible</h3>
         <PanelPlaceholder
           message="Story Bible is forming…"
@@ -42,7 +42,7 @@ export function StoryBiblePreview({
 
   if (!hasBibleContent(project)) {
     return (
-      <div className="glass-card premium-border rounded-2xl p-5">
+      <div className="surface-card premium-border rounded-2xl p-5">
         <h3 className="text-base font-semibold">Story Dossier</h3>
         <p className="text-xs text-muted-foreground mt-1">
           Concept, cast, world, plot, and style
@@ -63,14 +63,14 @@ export function StoryBiblePreview({
   const b = project.storyBible;
 
   return (
-    <div className="glass-card premium-border rounded-2xl p-5">
+    <div className="surface-card premium-border rounded-2xl p-5">
       <h3 className="text-base font-semibold">Story Dossier</h3>
       <p className="text-xs text-muted-foreground mt-1 mb-3">
         Structured bible from your writing room
       </p>
       <Tabs defaultValue="concept" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-auto flex-wrap gap-1 bg-black/20 border border-white/5 p-1">
-            <TabsTrigger value="concept" className="text-xs data-[state=active]:bg-[oklch(0.78_0.14_75/15%)]">
+        <TabsList className="grid w-full grid-cols-3 h-auto flex-wrap gap-1 bg-[#172033] border border-white/12 p-1">
+            <TabsTrigger value="concept" className="text-xs data-[state=active]:bg-[rgba(245,197,66,0.16)] data-[state=active]:text-[#F8FAFC]">
               Concept
             </TabsTrigger>
             <TabsTrigger value="characters" className="text-xs">
@@ -88,7 +88,7 @@ export function StoryBiblePreview({
           </TabsList>
 
           <ScrollArea className="h-[280px] mt-3 pr-3">
-            <TabsContent value="concept" className="mt-0 space-y-2 text-sm">
+            <TabsContent value="concept" className="mt-0 space-y-2 text-sm text-[#E2E8F0]">
               {b.concept ? (
                 <>
                   <p>

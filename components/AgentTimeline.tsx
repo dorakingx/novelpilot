@@ -71,31 +71,30 @@ export function AgentTimeline({
     <>
       <div
         className={cn(
-          "glass-card premium-border rounded-2xl overflow-hidden",
-          isRunning &&
-            "ring-1 ring-[oklch(0.72_0.14_220/35%)] shadow-[0_0_40px_oklch(0.72_0.14_220/10%)]"
+          "surface-card premium-border rounded-2xl overflow-hidden",
+          isRunning && "ring-1 ring-[#38BDF8]/35"
         )}
       >
         <div className="p-6 border-b border-white/5">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+              <h2 className="text-xl font-semibold tracking-tight text-[#F8FAFC]">
+                {title}
+              </h2>
               <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
               <p className="text-xs text-muted-foreground mt-2">
                 {completed} of {total} agents complete
               </p>
             </div>
-            <span className="text-3xl font-bold tabular-nums gold-gradient-text">
+            <span className="text-3xl font-bold tabular-nums text-[#F5C542]">
               {progress}%
             </span>
           </div>
-          <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-black/30 border border-white/5">
+          <div className="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-[#172033] border border-white/12">
             <div
               className={cn(
                 "h-full rounded-full transition-all duration-700 ease-out",
-                isRunning
-                  ? "shimmer-bar"
-                  : "bg-gradient-to-r from-[oklch(0.78_0.14_75)] to-[oklch(0.72_0.14_220)]"
+                isRunning ? "shimmer-bar" : "bg-gradient-to-r from-[#F5C542] to-[#38BDF8]"
               )}
               style={{ width: `${progress}%` }}
             />
@@ -104,7 +103,7 @@ export function AgentTimeline({
 
         <div className="p-6 relative">
           <div
-            className="absolute left-[2.65rem] top-8 bottom-8 w-px bg-gradient-to-b from-white/10 via-[oklch(0.72_0.14_220/30%)] to-white/10 hidden sm:block"
+            className="absolute left-[2.65rem] top-8 bottom-8 w-px bg-white/12 hidden sm:block"
             aria-hidden
           />
           {project.agents.map((agent, i) => (

@@ -25,10 +25,10 @@ export function StorySettingsFields({
   pill = false,
 }: StorySettingsFieldsProps) {
   const labelClass = compact
-    ? "text-xs font-medium text-muted-foreground"
-    : "text-sm font-medium";
+    ? "text-xs font-medium text-[#94A3B8]"
+    : "text-sm font-medium text-[#94A3B8]";
   const triggerClass = pill
-    ? "w-full rounded-full h-9 bg-white/5 border-white/10 text-xs"
+    ? "w-full rounded-full h-9 text-xs"
     : "w-full";
 
   return (

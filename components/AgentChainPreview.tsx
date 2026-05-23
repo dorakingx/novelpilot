@@ -25,7 +25,7 @@ export function AgentChainPreview({ className }: { className?: string }) {
     >
       {CHAIN.map((label, i) => (
         <span key={label} className="flex items-center gap-1 sm:gap-2">
-          <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-muted-foreground transition-colors hover:border-[oklch(0.78_0.14_75/30%)] hover:text-[oklch(0.78_0.14_75)]">
+          <span className="rounded-full border border-white/12 bg-[#172033] px-2.5 py-1 text-[#CBD5E1]">
             {label}
           </span>
           {i < CHAIN.length - 1 && (

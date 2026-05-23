@@ -28,36 +28,28 @@ export function StartScreen({
   isRunning,
 }: StartScreenProps) {
   return (
-    <main className="flex-1 flex flex-col items-center justify-center px-4 py-16 sm:py-20 animate-fade-in relative overflow-hidden">
-      <div
-        className="pointer-events-none absolute inset-0 animate-gradient-shift opacity-60"
-        aria-hidden
-        style={{
-          background:
-            "radial-gradient(ellipse 60% 40% at 50% 0%, oklch(0.78 0.14 75 / 0.08), transparent 70%)",
-        }}
-      />
-      <div className="w-full max-w-[980px] space-y-10 relative z-10">
+    <main className="flex-1 flex flex-col items-center justify-center px-4 py-16 sm:py-20 animate-fade-in">
+      <div className="w-full max-w-[980px] space-y-10">
         <div className="text-center space-y-4">
-          <div className="inline-flex items-center justify-center size-16 rounded-2xl glass-card premium-border shadow-[0_0_40px_oklch(0.78_0.14_75/15%)] mb-2">
-            <BookOpen className="size-8 text-[oklch(0.78_0.14_75)]" />
+          <div className="inline-flex items-center justify-center size-16 rounded-2xl surface-card premium-border mb-2">
+            <BookOpen className="size-8 text-[#F5C542]" />
           </div>
-          <h1 className="text-4xl sm:text-6xl font-bold tracking-tight gold-gradient-text">
+          <h1 className="text-4xl sm:text-6xl font-bold tracking-tight text-[#F8FAFC]">
             NovelPilot
           </h1>
-          <p className="text-lg sm:text-xl text-foreground/90 font-medium">
+          <p className="text-lg sm:text-xl text-[#CBD5E1] font-medium">
             {LAUNCHER_TAGLINE}
           </p>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+          <p className="text-sm sm:text-base text-[#94A3B8] max-w-2xl mx-auto leading-relaxed">
             Launch a Gemma-powered writing room that plans, writes, edits, audits,
             and packages your story.
           </p>
           <AgentChainPreview className="pt-2" />
         </div>
 
-        <div className="glass-card premium-border glow-card rounded-2xl p-6 sm:p-8 space-y-6 shadow-[0_24px_80px_oklch(0_0_0/35%)]">
+        <div className="surface-card premium-border rounded-2xl p-6 sm:p-8 space-y-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground/90">
+            <label className="text-sm font-medium text-[#CBD5E1]">
               Your story prompt
             </label>
             <Textarea
@@ -66,7 +58,7 @@ export function StartScreen({
                 onSettingsChange({ userPrompt: e.target.value })
               }
               placeholder={PROMPT_PLACEHOLDER}
-              className="min-h-[180px] resize-y text-base leading-relaxed bg-black/20 border-white/10 rounded-xl"
+              className="min-h-[180px] resize-y text-base leading-relaxed"
               disabled={isRunning}
             />
           </div>
@@ -110,7 +102,7 @@ export function StartScreen({
               Run Judge Demo
             </Button>
           </div>
-          <p className="text-xs text-center text-muted-foreground">
+          <p className="text-xs text-center text-[#94A3B8]">
             Judge Demo runs the full pipeline with a curated sci-fi mystery — no
             API key required.
           </p>
@@ -120,23 +112,23 @@ export function StartScreen({
           {LAUNCHER_FEATURE_CARDS.map(({ title, icon: Icon, description }) => (
             <div
               key={title}
-              className="glass-card premium-border glow-card rounded-xl p-5 text-center"
+              className="surface-card premium-border rounded-xl p-5 text-center"
             >
-              <Icon className="size-7 mx-auto mb-3 text-[oklch(0.78_0.14_75)]" />
-              <p className="font-semibold text-sm">{title}</p>
-              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+              <Icon className="size-7 mx-auto mb-3 text-[#F5C542]" />
+              <p className="font-semibold text-sm text-[#F8FAFC]">{title}</p>
+              <p className="text-xs text-[#94A3B8] mt-1.5 leading-relaxed">
                 {description}
               </p>
             </div>
           ))}
         </div>
 
-        <div className="glass-card premium-border rounded-xl p-5 border-[oklch(0.78_0.14_75/20%)] text-center sm:text-left">
-          <p className="text-sm font-medium flex items-center justify-center sm:justify-start gap-2">
-            <Sparkles className="size-4 text-[oklch(0.78_0.14_75)]" />
+        <div className="surface-card premium-border rounded-xl p-5 text-center sm:text-left">
+          <p className="text-sm font-medium text-[#CBD5E1] flex items-center justify-center sm:justify-start gap-2">
+            <Sparkles className="size-4 text-[#F5C542]" />
             Why Gemma 4?
           </p>
-          <ul className="mt-3 text-xs text-muted-foreground space-y-1.5 list-disc pl-5 inline-block text-left">
+          <ul className="mt-3 text-xs text-[#94A3B8] space-y-1.5 list-disc pl-5 inline-block text-left">
             <li>Structured JSON across nine specialized agents</li>
             <li>Long-context story memory for continuity and foreshadowing</li>
             <li>Reasoning-heavy audits, not a single completion call</li>

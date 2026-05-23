@@ -36,7 +36,7 @@ export function ExportPanel({ project }: ExportPanelProps) {
   };
 
   return (
-    <div className="glass-card premium-border rounded-2xl p-5">
+    <div className="surface-card premium-border rounded-2xl p-5">
       <h3 className="text-base font-semibold">Export</h3>
       <p className="text-xs text-muted-foreground mt-1 mb-4">
         Full demo markdown and DEV submission helpers.

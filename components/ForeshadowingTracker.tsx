@@ -8,7 +8,6 @@ import type {
   ForeshadowingStatus,
   StoryProject,
 } from "@/lib/types";
-import { cn } from "@/lib/utils";
 import { Search } from "lucide-react";
 
 interface ForeshadowingTrackerProps {
@@ -16,14 +15,16 @@ interface ForeshadowingTrackerProps {
   isRunning?: boolean;
 }
 
-function statusClass(status: ForeshadowingStatus): string {
+function statusVariant(
+  status: ForeshadowingStatus
+): "completed" | "running" | "outline" {
   switch (status) {
     case "paid-off":
-      return "border-[oklch(0.78_0.14_75/40%)] text-[oklch(0.78_0.14_75)] bg-[oklch(0.78_0.14_75/10%)]";
+      return "completed";
     case "unresolved":
-      return "border-[oklch(0.72_0.14_220/40%)] text-[oklch(0.72_0.14_220)] bg-[oklch(0.72_0.14_220/10%)]";
+      return "running";
     default:
-      return "border-white/10 text-muted-foreground";
+      return "outline";
   }
 }
 
@@ -34,9 +35,11 @@ export function ForeshadowingTracker({
   const items = project?.storyBible.foreshadowingTracker ?? [];
 
   return (
-    <div className="glass-card premium-border rounded-2xl p-5">
-      <h3 className="text-base font-semibold">Foreshadowing Tracker</h3>
-      <p className="text-xs text-muted-foreground mt-1 mb-3">
+    <div className="surface-card premium-border rounded-2xl p-5">
+      <h3 className="text-base font-semibold text-[#F8FAFC]">
+        Foreshadowing Tracker
+      </h3>
+      <p className="text-xs text-[#94A3B8] mt-1 mb-3">
         Story threads with planned payoffs
       </p>
       <ScrollArea className="h-[260px] pr-3">
@@ -45,26 +48,28 @@ export function ForeshadowingTracker({
             {items.map((f: ForeshadowingItem, i) => (
               <div
                 key={`${f.item}-${i}`}
-                className="relative rounded-lg border border-white/8 bg-black/20 p-3 pl-4 space-y-2"
+                className="relative rounded-lg border border-white/12 bg-[#172033] p-3 pl-4 space-y-2"
               >
                 <div
-                  className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-[oklch(0.78_0.14_75)] to-[oklch(0.72_0.14_220)]"
+                  className="absolute left-0 top-0 bottom-0 w-1 bg-[#F5C542]"
                   aria-hidden
                 />
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-medium text-sm">{f.item}</p>
+                  <p className="font-medium text-sm text-[#F8FAFC]">{f.item}</p>
                   <Badge
-                    variant="outline"
-                    className={cn("text-xs capitalize", statusClass(f.status))}
+                    variant={statusVariant(f.status)}
+                    className="text-xs capitalize"
                   >
                     {f.status}
                   </Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-[#94A3B8]">
                   Introduced: {f.introducedIn} → Payoff: {f.payoffChapter}
                 </p>
-                <p className="text-xs leading-relaxed">{f.suggestedPayoff}</p>
-                <p className="text-xs italic text-[oklch(0.78_0.14_75/80%)]">
+                <p className="text-xs leading-relaxed text-[#CBD5E1]">
+                  {f.suggestedPayoff}
+                </p>
+                <p className="text-xs italic text-[#F5C542]">
                   {f.emotionalPurpose}
                 </p>
               </div>

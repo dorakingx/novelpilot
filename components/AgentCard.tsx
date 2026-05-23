@@ -32,19 +32,19 @@ function statusConfig(status: AgentStep["status"]) {
       return {
         label: "Running",
         icon: Loader2,
-        iconClass: "animate-spin text-[oklch(0.72_0.14_220)]",
-        nodeClass:
-          "border-[oklch(0.72_0.14_220)] bg-[oklch(0.72_0.14_220/15%)] agent-pulse",
-        cardClass:
-          "border-[oklch(0.72_0.14_220/40%)] shadow-[0_0_24px_oklch(0.72_0.14_220/12%)]",
+        iconClass: "animate-spin text-[#38BDF8]",
+        nodeClass: "border-[#38BDF8] bg-[rgba(56,189,248,0.16)] agent-pulse",
+        cardClass: "border-l-2 border-l-[#38BDF8] border-white/12",
+        badgeVariant: "running" as const,
       };
     case "completed":
       return {
         label: "Completed",
         icon: CheckCircle2,
-        iconClass: "text-[oklch(0.78_0.14_75)]",
-        nodeClass: "border-[oklch(0.78_0.14_75)] bg-[oklch(0.78_0.14_75/15%)]",
-        cardClass: "border-[oklch(0.78_0.14_75/25%)]",
+        iconClass: "text-[#86EFAC]",
+        nodeClass: "border-[#22C55E] bg-[rgba(34,197,94,0.16)]",
+        cardClass: "border-white/12",
+        badgeVariant: "completed" as const,
       };
     case "failed":
       return {
@@ -53,14 +53,16 @@ function statusConfig(status: AgentStep["status"]) {
         iconClass: "text-destructive",
         nodeClass: "border-destructive/50 bg-destructive/10",
         cardClass: "border-destructive/40",
+        badgeVariant: "error" as const,
       };
     default:
       return {
         label: "Pending",
         icon: Circle,
-        iconClass: "text-muted-foreground",
-        nodeClass: "border-white/10 bg-white/5",
-        cardClass: "border-white/5 opacity-75",
+        iconClass: "text-[#94A3B8]",
+        nodeClass: "border-white/12 bg-[#172033]",
+        cardClass: "border-white/12",
+        badgeVariant: "outline" as const,
       };
   }
 }
@@ -126,7 +128,7 @@ export function AgentCard({
 
       <div
         className={cn(
-          "mb-4 flex-1 rounded-xl glass-card premium-border p-4 transition-all",
+          "mb-4 flex-1 rounded-xl surface-card premium-border p-4 transition-all",
           config.cardClass
         )}
       >
@@ -136,23 +138,19 @@ export function AgentCard({
               <div className="flex flex-wrap items-center gap-2">
                 <AgentRoleIcon
                   agentId={agent.id}
-                  className="size-4 text-[oklch(0.78_0.14_75/80%)] shrink-0"
+                  className="size-4 text-[#F5C542] shrink-0"
                 />
-                <h3 className="font-semibold text-sm">{agent.name}</h3>
+                <h3 className="font-semibold text-sm text-[#F8FAFC]">
+                  {agent.name}
+                </h3>
                 <Badge
-                  variant="outline"
-                  className={cn(
-                    "text-[10px] uppercase tracking-wide",
-                    agent.status === "running" &&
-                      "border-[oklch(0.72_0.14_220/40%)] text-[oklch(0.72_0.14_220)]",
-                    agent.status === "completed" &&
-                      "border-[oklch(0.78_0.14_75/40%)] text-[oklch(0.78_0.14_75)]"
-                  )}
+                  variant={config.badgeVariant}
+                  className="text-[10px] uppercase tracking-wide"
                 >
                   {config.label}
                 </Badge>
                 {agent.approved && (
-                  <Badge className="text-[10px] border-[oklch(0.78_0.14_75/40%)] bg-[oklch(0.78_0.14_75/10%)] text-[oklch(0.78_0.14_75)]">
+                  <Badge variant="completed" className="text-[10px]">
                     Approved
                   </Badge>
                 )}
@@ -204,7 +202,7 @@ export function AgentCard({
                   <button
                     type="button"
                     onClick={() => setExpanded(!expanded)}
-                    className="flex items-center gap-1 text-xs text-[oklch(0.72_0.14_220)] hover:text-[oklch(0.78_0.14_75)] transition-colors mb-2"
+                    className="flex items-center gap-1 text-xs text-[#38BDF8] hover:text-[#F5C542] transition-colors mb-2"
                   >
                     <ChevronDown
                       className={cn(
@@ -223,7 +221,7 @@ export function AgentCard({
                     )}
                   >
                     <pre className="overflow-hidden">
-                      <code className="block max-h-48 overflow-auto rounded-lg bg-black/30 border border-white/5 p-3 text-xs font-mono whitespace-pre-wrap text-foreground/90">
+                      <code className="block max-h-48 overflow-auto rounded-lg bg-[#172033] border border-white/12 p-3 text-xs font-mono whitespace-pre-wrap text-[#E2E8F0]">
                         {outputStr}
                       </code>
                     </pre>

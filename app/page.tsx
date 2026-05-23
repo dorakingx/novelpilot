@@ -48,10 +48,10 @@ export default function Home() {
         />
       ) : (
         <div className="animate-fade-in flex flex-col flex-1">
-          <header className="glass-card premium-border border-x-0 border-t-0 sticky top-0 z-20 backdrop-blur-xl">
+          <header className="sticky top-0 z-20 border-b border-white/12 bg-[#111827]">
             <div className="mx-auto max-w-[1600px] px-4 py-3 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[oklch(0.78_0.14_75/15%)] text-[oklch(0.78_0.14_75)]">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[rgba(245,197,66,0.16)] text-[#F5C542]">
                   <BookOpen className="size-5" />
                 </div>
                 <div className="min-w-0">
@@ -73,31 +73,17 @@ export default function Home() {
                 <Badge
                   variant={
                     projectStatus === "Failed"
-                      ? "destructive"
+                      ? "error"
                       : projectStatus === "Completed"
-                        ? "default"
+                        ? "completed"
                         : projectStatus === "Running"
-                          ? "secondary"
+                          ? "running"
                           : "outline"
-                  }
-                  className={
-                    projectStatus === "Running"
-                      ? "border-[oklch(0.72_0.14_220/40%)] text-[oklch(0.72_0.14_220)]"
-                      : projectStatus === "Completed"
-                        ? "border-[oklch(0.78_0.14_75/40%)] bg-[oklch(0.78_0.14_75/15%)]"
-                        : ""
                   }
                 >
                   {projectStatus}
                 </Badge>
-                <Badge
-                  variant="outline"
-                  className={
-                    mockMode
-                      ? "border-[oklch(0.78_0.14_75/30%)] text-[oklch(0.78_0.14_75)]"
-                      : "border-[oklch(0.72_0.14_220/30%)] text-[oklch(0.72_0.14_220)]"
-                  }
-                >
+                <Badge variant={mockMode ? "demo" : "live"}>
                   {mockMode ? "Demo Mode" : "Live Mode"}
                 </Badge>
                 <Button

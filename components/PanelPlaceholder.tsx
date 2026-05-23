@@ -17,21 +17,21 @@ export function PanelPlaceholder({
   return (
     <div
       className={cn(
-        "rounded-xl border border-dashed border-white/10 bg-white/[0.02] p-6 text-center space-y-3",
+        "rounded-xl border border-dashed border-white/12 bg-[#172033] p-6 text-center space-y-3",
         className
       )}
     >
       {Icon && (
-        <Icon className="size-8 mx-auto text-muted-foreground/60" aria-hidden />
+        <Icon className="size-8 mx-auto text-[#94A3B8]" aria-hidden />
       )}
-      <p className="text-sm text-muted-foreground leading-relaxed">{message}</p>
+      <p className="text-sm text-[#CBD5E1] leading-relaxed">{message}</p>
       <div
-        className="flex flex-col gap-2 max-w-[200px] mx-auto opacity-40"
+        className="flex flex-col gap-2 max-w-[200px] mx-auto"
         aria-hidden
       >
-        <div className="h-2 rounded-full bg-white/10 animate-pulse" />
-        <div className="h-2 rounded-full bg-white/10 w-4/5 mx-auto animate-pulse" />
-        <div className="h-2 rounded-full bg-white/10 w-3/5 mx-auto animate-pulse" />
+        <div className="h-2 rounded-full bg-white/10" />
+        <div className="h-2 rounded-full bg-white/10 w-4/5 mx-auto" />
+        <div className="h-2 rounded-full bg-white/10 w-3/5 mx-auto" />
       </div>
     </div>
   );

@@ -2,7 +2,6 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   downloadFile,
   exportFullDemoMarkdown,
@@ -45,7 +44,7 @@ export function ProjectControlPanel({
   };
 
   return (
-    <div className="glass-card premium-border glow-card rounded-2xl p-5 space-y-4">
+    <div className="surface-card premium-border rounded-2xl p-5 space-y-4">
       <div>
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           Project
@@ -57,36 +56,34 @@ export function ProjectControlPanel({
         <p className="text-xs font-medium text-muted-foreground mb-1.5">
           Original prompt
         </p>
-        <ScrollArea className="max-h-24 rounded-lg bg-black/20 border border-white/5 p-2.5">
-          <p className="text-sm text-foreground/85 leading-relaxed">
+        <div className="max-h-24 overflow-y-auto rounded-lg bg-[#172033] border border-white/12 p-2.5">
+          <p className="text-sm text-[#CBD5E1] leading-relaxed">
             {project.userPrompt}
           </p>
-        </ScrollArea>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-1.5">
-        <Badge variant="outline" className="border-white/10 bg-white/5">
+        <Badge variant="outline" className="border-white/12 bg-[#172033] text-[#CBD5E1]">
           {settings.language}
         </Badge>
-        <Badge variant="outline" className="border-white/10 bg-white/5">
+        <Badge variant="outline" className="border-white/12 bg-[#172033] text-[#CBD5E1]">
           {settings.genre}
         </Badge>
-        <Badge variant="outline" className="border-white/10 bg-white/5">
+        <Badge variant="outline" className="border-white/12 bg-[#172033] text-[#CBD5E1]">
           {settings.tone}
         </Badge>
-        <Badge variant="outline" className="border-white/10 bg-white/5">
+        <Badge variant="outline" className="border-white/12 bg-[#172033] text-[#CBD5E1]">
           {settings.targetLength}
         </Badge>
       </div>
 
-      <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 text-xs space-y-1">
+      <div className="rounded-lg border border-white/12 bg-[#172033] p-3 text-xs space-y-1 text-[#CBD5E1]">
         <p>
           Mode:{" "}
           <span
             className={
-              mockMode
-                ? "text-[oklch(0.78_0.14_75)] font-medium"
-                : "text-[oklch(0.72_0.14_220)] font-medium"
+              mockMode ? "text-[#FCD34D] font-medium" : "text-[#7DD3FC] font-medium"
             }
           >
             {mockMode ? "Demo" : "Live"}
