@@ -50,7 +50,7 @@ NovelPilot is a Next.js web app where judges and writers can:
 5. **Download PDF** via browser Save as PDF.
 6. Export a **full demo markdown** file for hackathon or DEV submission.
 
-The MVP generates a complete story bible, plot, three-chapter outline, **chapter 1 draft**, style editor notes, structured continuity report, and publisher marketing copy.
+The MVP generates a complete story bible, plot, three-chapter outline, **complete multi-chapter short novel draft**, style editor notes, structured continuity report, and publisher marketing copy.
 
 ## Why I built it
 
@@ -75,7 +75,7 @@ Without structured outputs, the UI could not render a Foreshadowing Tracker or a
 3. **World Builder** — setting, rules, atmosphere, symbols  
 4. **Plot Strategist** — acts, twists, foreshadowing seeds  
 5. **Chapter Architect** — chapter list + **foreshadowing tracker**  
-6. **Prose Writer** — chapter 1 literary fiction (not a summary)  
+6. **Prose Writer** — drafts all outlined chapters as literary fiction (not summaries)  
 7. **Style Editor** — strengths, pacing, revision suggestions  
 8. **Continuity Detective** — issues with category, severity, evidence, fix  
 9. **Publisher Agent** — titles, logline, tagline, social post  
@@ -89,10 +89,10 @@ The client orchestrates the pipeline: one HTTP request per agent, visible progre
 1. Open the **live Vercel deployment** (link at top of this post).  
 2. Click **Run Judge Demo**.  
 3. Watch the timeline fill: Premise Architect → … → Publisher Agent.  
-4. NovelPilot **automatically opens** the finished novel reader.  
+4. NovelPilot **automatically opens** the finished multi-chapter story reader.  
 5. Open **Foreshadowing Tracker** or **Continuity Detective** via Back to Agent Workspace.  
 6. Click **Read Finished Novel** to return to the completed reader anytime.  
-7. **Download PDF** — use your browser’s Save as PDF option.  
+7. **Download PDF** — use your browser’s Save as PDF option; the PDF contains the completed story.  
 8. **Export Full Demo Markdown** — one file for submission.
 
 No demo video — the live app is the demo.
@@ -160,7 +160,6 @@ This is the differentiator: NovelPilot understands **story structure**, not just
 
 ## Future work
 
-- Draft all chapters, not only chapter 1  
 - SSE streaming per agent  
 - Project persistence  
 - Genre-specific prompt packs  

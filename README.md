@@ -17,12 +17,12 @@ Judges can open the live app and click **Run Judge Demo** to experience the full
 2. Click **Run Judge Demo**
 3. Wait for the nine-agent pipeline to complete
 4. NovelPilot automatically opens the **Completed Novel** reader
-5. Click **Download PDF** (browser Save as PDF) to save the chapter
+5. Click **Download PDF** (browser Save as PDF) to save the full story
 6. Optional: click **Back to Agent Workspace** to inspect Story Bible, Foreshadowing Tracker, and Continuity Detective
 7. Click **Read Finished Novel** anytime to reopen the completed reader
 8. Click **Export Full Demo Markdown** for submission bundle
 
-After the pipeline completes, NovelPilot automatically opens the finished novel reader. Users can return to the agent workspace to review the pipeline, then reopen the reader at any time using **Read Finished Novel**.
+After the agents complete, NovelPilot opens the finished multi-chapter story reader. Users can return to the agent workspace to review the pipeline, then reopen the reader at any time using **Read Finished Novel**.
 
 The default judging experience does not require an API key; Live OpenRouter mode is optional.
 
@@ -33,8 +33,8 @@ The default judging experience does not require an API key; Live OpenRouter mode
 1. Open the live app (Vercel URL above).
 2. Click **Run Judge Demo** on the prompt launcher screen.
 3. Watch nine agents complete: Premise Architect through Publisher Agent.
-4. NovelPilot automatically opens the finished **Completed Novel** reader.
-5. Click **Download PDF** to save via your browser’s Save as PDF option.
+4. NovelPilot automatically opens the finished **Completed Novel** reader with all chapters.
+5. Click **Download PDF** to save the full multi-chapter story via your browser’s Save as PDF option.
 6. Click **Back to Agent Workspace** to review Foreshadowing Tracker and Continuity Detective.
 7. Click **Read Finished Novel** to reopen the completed reader at any time.
 8. Click **Export Full Demo Markdown** for a DEV/Hackathon submission bundle.
@@ -71,7 +71,7 @@ flowchart LR
 | World Builder | Setting, rules, atmosphere, symbols |
 | Plot Strategist | Structure, twists, foreshadowing seeds |
 | Chapter Architect | Chapter outline + **Foreshadowing Tracker** |
-| Prose Writer | Chapter 1 literary draft |
+| Prose Writer | Complete multi-chapter literary draft |
 | Style Editor | Pacing, dialogue, revision notes |
 | Continuity Detective | Structured issues + unresolved threads |
 | Publisher Agent | Titles, summaries, submission copy |
@@ -90,10 +90,11 @@ NovelPilot uses a two-stage flow:
 - **Foreshadowing Tracker** with planned / unresolved / paid-off status
 - **Continuity Detective** with severity, category, evidence, and suggested fixes
 - Human-in-the-loop: Approve, Regenerate, Edit Output per agent
+- **Complete multi-chapter manuscript generation** (3-chapter short novel in MVP scope)
 - Export: Full Demo Markdown, DEV summary, bible, manuscript, JSON
-- **Browser Reader Mode** — read the generated novel in a polished, distraction-free full-screen view
+- **Completed Novel Reader** — read the full generated story in a polished, distraction-free full-screen view with chapter navigation
 - **Automatic transition** to the completed novel reader when all agents finish
-- **PDF download** via browser Save as PDF / print flow (Japanese-friendly)
+- **Polished PDF export** of the full story via browser Save as PDF / print flow (Japanese-friendly)
 - English and Japanese output
 - Mock mode (no API key) and live Gemma 4 mode
 

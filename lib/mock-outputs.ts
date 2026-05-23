@@ -1,4 +1,125 @@
-import type { AgentId, ForeshadowingItem, Language } from "./types";
+import { buildCompleteManuscript } from "./format-manuscript";
+import type { AgentId, ChapterDraft, ForeshadowingItem, Language } from "./types";
+
+const DRAFTING_CHAPTERS_EN: ChapterDraft[] = [
+  {
+    number: 1,
+    title: "Residual Noise",
+    draft: `The notification arrived at 2:17 a.m., a polite chime that felt obscene against the lab's humming silence. MISSING PERSON — AYA MORI — LAST SEEN: DECOHERENCE CHAMBER B.
+
+Ren stared at the screen until the letters blurred. Forty-eight hours, the message said, as if time were a substance you could measure in a beaker and pour away.
+
+He did not remember yesterday. He did not remember whether he had eaten, or called his mother, or walked home under the vending-machine lights that always flickered on the annex's north side. What he had was a thin, reliable catalog of facts: his name, his department, the location of the men's restroom on the third floor. Everything else arrived in fragments — a woman's laugh, the scent of rain on heated pavement — without context, like debris washed up after a storm he could not name.
+
+Ren stood. His locker door stuck, as it always did, and when it finally gave, something clattered to the tile. Safety goggles, lenses fogged from the inside as though someone had breathed a secret into them. He did not own goggles. He was not scheduled for Chamber B.
+
+On his workstation, a new file pulsed: decoherence_log_4471.tmp. Ren opened it. Waveforms scrolled, beautiful and indifferent. Between them, in a margin note he did not remember writing, a line appeared in his own hand: *Don't trust the backup.*
+
+He closed the file. The lab felt larger then, corridors stretching into fluorescent eternity. Somewhere, a centrifuge spun. Somewhere, Aya Mori was not.
+
+Ren put the goggles in his pocket and went looking for a memory that would not admit whether it belonged to him.`,
+  },
+  {
+    number: 2,
+    title: "Calibration Ghost",
+    draft: `By morning the security office smelled of burnt coffee and ozone. A timestamp glowed on the wall monitor: 02:14 — four minutes before the missing-person alert Ren had received in the dark.
+
+"Your handwriting," Mika said. She did not look at him when she slid the printout across the desk. The calibration entries matched samples from his thesis notebooks down to the pressure of his pen.
+
+Ren heard himself explain that handwriting could be forged, that logs could be injected, that anyone with admin access could wear his voice in the system. The words sounded borrowed.
+
+"I saw you," Mika said quietly. "After hours. Tuesday. You were arguing with someone near Chamber B. I thought it was Aya."
+
+Ren's throat tightened. He wanted to ask what they had argued about, but the question felt like pulling a thread that might unravel the whole sweater of his life.
+
+In the archive room, footnotes in older logs resolved into a cipher when he held them at an angle — coordinates, not equations. A vending machine on the north annex corridor had accepted exact change at 01:58, a joke the lab used when someone bypassed the night lock.
+
+He found the unlabeled memory card in his coat pocket, though he did not remember putting it there. When he pressed it to the reader, a faint pulse of audio breathed through the speaker: Aya's voice, one word, almost kind. "Listen."
+
+Ren closed his eyes and listened, afraid the next word would be his own.`,
+  },
+  {
+    number: 3,
+    title: "Chamber B",
+    draft: `The footage was worse than Ren had imagined and better than he had feared — worse because his face filled the frame at the chamber door; better because Aya walked beside him, alive, her hand on his sleeve as if she were guiding him through a ritual he had agreed to long ago.
+
+Dr. Sato stood at the console without surprise. "You signed the consent form," she said. "You asked us to edit the traumatic interval. Aya volunteered to witness."
+
+Ren remembered nothing — and yet the cherry blossom petal taped inside his locker, discovered only now, carried ink in Aya's hand: *If you forget, trust the witness, not the backup.*
+
+The silver watch on the evidence table had cracked at 02:11. The minute hand pointed to the moment his memory had been overwritten — not stolen, he understood with a sick clarity, but curated, with his own signature at the bottom of the form he had begged for after the first collapse.
+
+Mika waited in the corridor, arms folded. "What will you do?"
+
+Ren looked at the live feed of Chamber B, empty now, humming. The lab had buried inconvenient data before. He could disappear into rationalization, or he could upload the raw logs to the faculty server and let the decoherence spread where it would.
+
+He chose the upload. The progress bar crawled like a sunrise he did not deserve.
+
+Outside, Tokyo rain glossed the pavement. Ren did not know if he was hero, victim, or accomplice — only that the story had to be whole, even if he was not. Somewhere, he hoped, Aya would read the truth and decide whether to come back.
+
+The notification chimed again. Not missing persons. CONFIRMATION — DATA INTEGRITY REVIEW INITIATED. Ren exhaled, and for the first time in three days, the noise in his head felt like his own.`,
+  },
+];
+
+const DRAFTING_CHAPTERS_JA: ChapterDraft[] = [
+  {
+    number: 1,
+    title: "残留ノイズ",
+    draft: `通知は午前2時17分に届いた。研究室の唸りを背にして、丁寧なチャイムが不条理に響く。行方不明 — 森 彩 — 最後の目撃：デコヒーレンス室B。
+
+蓮は文字が滲むまで画面を見つめた。四十八時間、メッセージは言った。まるで時間はビーカーで測り、注いで捨てられる物質のように。
+
+彼は昨日を覚えていない。食べたか、母に電話したか、別館北側でいつも明滅する自販機の灯りの下を歩いたか。手元にあるのは薄くて頼りになる事実の目録だけだった。名前、所属、三階男子トイレの場所。それ以外は断片として漂う。女の笑い声、熱したアスファルトの雨の匂い。嵐の名前も、文脈もない。
+
+蓮は立った。ロッカーはいつも通り引っかかり、ようやく開いたとき、何かがタイルに落ちた。保護ゴーグル。内側のレンズは曇っていて、誰かが秘密を息で書いたかのようだった。彼はゴーグルを持っていない。室Bの予定もない。
+
+ワークステーションに新しいファイルが脈打っていた。decoherence_log_4471.tmp。蓮は開いた。波形が流れ、美しく、無関心だった。そのあいだ、覚えのない手書きの注釈が、彼自身の筆跡で現れる。*バックアップを信じるな。*
+
+ファイルを閉じた。研究室はそのとき大きくなった。廊下が蛍光灯の永遠へ伸びる。どこかで遠心分離機が回る。どこかで、森彩はいない。
+
+蓮はゴーグルをポケットに入れ、自分のものかどうかも告げない記憶を探しに行った。`,
+  },
+  {
+    number: 2,
+    title: "校正の幽霊",
+    draft: `朝、警備室は焦げたコーヒーとオゾンの匂いがした。壁のモニターにタイムスタンプ：02:14 — 蓮が夜中に受け取った失踪アラートの四分前。
+
+「あなたの筆跡よ」と美香は言った。彼を見ずに印刷物を机に滑らせる。校正記録は論文ノートの筆圧まで一致していた。
+
+蓮は声を出した。筆跡は偽造できる、ログは注入できる、管理者なら誰でも自分の声を着られる、と。言葉は借り物のように聞こえた。
+
+「見たの」と美香は小声で言った。「深夜に。室Bの近くで誰かと言い争っていた。彩だと思った」
+
+蓮の喉が狭くなった。何を争ったのか聞きたかったが、糸を引けば人生全体がほどける気がした。
+
+アーカイブ室で、古いログの脚注を角度を変えると暗号のように座標が浮かぶ。別館北の自販機が01:58に釣り銭なしで動いた — 夜のロックを抜ける合図の冗談だった。
+
+コートのポケットから無印のメモリーカードが出てきた。覚えはない。リーダーに当てると、スピーカーから微かな音：彩の声、一言、優しげに。「聞いて」
+
+蓮は目を閉じて聞いた。次の言葉が自分のものであることを恐れながら。`,
+  },
+  {
+    number: 3,
+    title: "室B",
+    draft: `映像は想像より残酷で、恐れよりは誠実だった — 残酷なのは、室Bのドア前に彼の顔が画面いっぱいにあったから。誠実なのは、彩が生きて歩き、彼の袖に手を置き、ずっと前から合意していた儀式のように導いていたからだ。
+
+佐藤博士は驚かなかった。「同意書に署名したでしょう」と言った。「トラウマの区間を編集してほしいと頼んだ。彩が立会人になった」
+
+蓮は何も思い出せない — それでもロッカー内の桜の花びらに、今ようやく気づいたインクの文字：彩の筆跡。*忘れたら、バックアップではなく立会人を信じて。*
+
+証拠台の銀の懐中時計は02:11で割れていた。短針は記憶が上書きされた瞬間を指していた — 盗まれたのではなく、最初の崩壊のあと彼自身が懇願して署名したフォームの下で、選ばれたのだと、吐き気のする明晰さとともに理解した。
+
+美香は廊下で腕を組んで待っていた。「どうする？」
+
+蓮は空の室Bのライブ映像を見た。研究室は都合の悪いデータを埋めたことがある。合理化の中に消えるか、生ログを学部サーバに上げ、デコヒーレンスを広げるか。
+
+上げることを選んだ。プログレスバーは望んでいない夜明けのように進んだ。
+
+外は東京の雨が舗装を光らせた。蓮は自分が英雄か被害者か共犯かわからない — 物語だけは全体でなければならない、たとえ自分がそうでなくても。どこかで、彩が真実を読み、戻るか決めることを願った。
+
+通知が再び鳴った。失踪ではない。確認 — データ整合性レビュー開始。蓮は息を吐き、三日ぶりに頭の中のノイズが自分のものに感じられた。`,
+  },
+];
 
 const FORESHADOWING_TRACKER_EN: ForeshadowingItem[] = [
   {
@@ -219,85 +340,60 @@ const MOCK_EN: Record<AgentId, unknown> = {
     foreshadowingTracker: FORESHADOWING_TRACKER_EN,
   },
   drafting: {
-    chapterNumber: 1,
-    title: "Residual Noise",
-    draft: `The notification arrived at 2:17 a.m., a polite chime that felt obscene against the lab's humming silence. MISSING PERSON — AYA MORI — LAST SEEN: DECOHERENCE CHAMBER B.
-
-Ren stared at the screen until the letters blurred. Forty-eight hours, the message said, as if time were a substance you could measure in a beaker and pour away.
-
-He did not remember yesterday. He did not remember whether he had eaten, or called his mother, or walked home under the vending-machine lights that always flickered on the annex's north side. What he had was a thin, reliable catalog of facts: his name, his department, the location of the men's restroom on the third floor. Everything else arrived in fragments — a woman's laugh, the scent of rain on heated pavement — without context, like debris washed up after a storm he could not name.
-
-Ren stood. His locker door stuck, as it always did, and when it finally gave, something clattered to the tile. Safety goggles, lenses fogged from the inside as though someone had breathed a secret into them. He did not own goggles. He was not scheduled for Chamber B.
-
-On his workstation, a new file pulsed: decoherence_log_4471.tmp. Ren opened it. Waveforms scrolled, beautiful and indifferent. Between them, in a margin note he did not remember writing, a line appeared in his own hand: *Don't trust the backup.*
-
-He closed the file. The lab felt larger then, corridors stretching into fluorescent eternity. Somewhere, a centrifuge spun. Somewhere, Aya Mori was not.
-
-Ren put the goggles in his pocket and went looking for a memory that would not admit whether it belonged to him.`,
+    chapters: DRAFTING_CHAPTERS_EN,
+    completeManuscript: buildCompleteManuscript(DRAFTING_CHAPTERS_EN),
   },
   editor: {
     strengths: [
-      "Strong atmospheric opening with clear genre signals",
-      "Ren's voice is consistent and emotionally restrained",
+      "Strong atmospheric opening with clear genre signals across all three chapters",
+      "Ren's voice stays consistent; the emotional arc from unease to painful clarity lands",
+      "Chapter 3 confrontation delivers a satisfying moral choice and thematic payoff",
     ],
     weakPoints: [
-      "The missing-person notification could show one concrete sensory anchor sooner",
+      "Chapter 2 could use one more beat of Ren's physical reaction after Mika's confession",
     ],
     pacingIssues: [
-      "Middle section of chapter 1 lingers slightly on exposition before the locker reveal",
+      "Chapter 1 middle section lingers slightly before the locker reveal",
+      "Chapter 3 upload sequence could breathe one paragraph longer before the final notification",
     ],
-    dialogueIssues: ["Minimal dialogue in chapter 1 — intentional but consider one line from Mika in revision"],
+    dialogueIssues: [
+      "Mika's lines in chapter 2 are effective; Dr. Sato's exposition in chapter 3 could be slightly more subtextual",
+    ],
     emotionalClarityIssues: [
-      "Ren's guilt could be hinted one beat earlier via physical symptom",
+      "Ren's guilt is clear by chapter 3; a subtle body cue in chapter 1 would strengthen the through-line",
     ],
     revisionSuggestions: [
-      "Add a brief flash of Ren touching the locker and expecting nothing — then the goggles",
-      "End with a sharper hook: audio whisper from the memory card",
+      "Sharpen the cherry blossom petal discovery in chapter 3 with one sensory detail",
+      "Consider a single line of Ren doubting the upload in the final paragraph for nuance",
     ],
   },
   continuity: {
     issues: [
       {
         category: "foreshadowing",
-        severity: "high",
-        issue: "Unlabeled memory card is mentioned but never activated in chapter 1.",
-        evidence: "Chapter outline flags the card; draft ends before any interaction.",
-        suggestedFix: "End chapter 1 with Ren hearing a faint audio pulse from the card.",
+        severity: "low",
+        issue: "Vending-machine exact-change gag is implied in chapter 2 but not explicitly tied to lock bypass on-page.",
+        evidence: "Outline plans the gag; chapter 2 mentions exact change at 01:58 without stating the lab joke.",
+        suggestedFix: "Add one line of internal recognition from Ren about the night-lock signal.",
       },
       {
         category: "timeline",
-        severity: "medium",
-        issue: "48-hour disappearance window is stated once but not tracked on-page.",
-        evidence: "Missing-person alert cites 48 hours; no subsequent clock anchor.",
-        suggestedFix: "Add a security log timestamp in chapter 2 opening.",
-      },
-      {
-        category: "character",
-        severity: "medium",
-        issue: "Ren's obsessive rationalization appears only after the locker reveal.",
-        evidence: "Early paragraphs are observational; guilt emerges late.",
-        suggestedFix: "Give Ren one premature explanation he almost believes in paragraph 2.",
-      },
-      {
-        category: "worldbuilding",
         severity: "low",
-        issue: "Quantum decoherence rules are implied but not grounded in one concrete rule.",
-        evidence: "Logs are mysterious; no stated constraint on who may observe data.",
-        suggestedFix: "One line of signage or policy about unauthorized observation.",
+        issue: "48-hour window is anchored in chapters 1–2 but not referenced in chapter 3.",
+        evidence: "Alert in chapter 1; timestamp in chapter 2; chapter 3 uses different clock markers.",
+        suggestedFix: "Mention elapsed hours once in the Chamber B scene.",
       },
     ],
     unresolvedForeshadowing: FORESHADOWING_TRACKER_EN.filter(
       (f) => f.status === "unresolved"
     ),
     repeatedMotifs: [
-      "Fluorescent light / humming machines — effective, monitor density",
+      "Fluorescent light / humming machines — effective across chapters",
+      "Notifications bookend the manuscript — strong structural rhyme",
     ],
-    missingPayoffs: [
-      "Cherry blossom petal not yet planted in chapter 1",
-      "Silver watch not yet introduced on-page",
-    ],
+    missingPayoffs: [],
     overallDiagnosis:
-      "Strong atmospheric setup with clear genre identity. Primary risks are dormant foreshadowing objects and a soft timeline anchor. The memory-card thread should surface before chapter 2.",
+      "Complete three-chapter arc resolves the central conflict with memory-card activation, cherry blossom message, silver watch reveal, and Ren's upload decision. Cross-chapter continuity is strong; minor polish on vending-machine and timeline callbacks would tighten the short novel.",
   },
   publisher: {
     titleIdeas: [
@@ -315,7 +411,7 @@ Ren put the goggles in his pocket and went looking for a memory that would not a
     socialPost:
       "New WIP: melancholic sci-fi mystery in modern Tokyo. Amnesia, quantum labs, and a disappearance that might be written in the protagonist's own hand. #SciFi #Mystery #NovelPilot",
     submissionDescription:
-      "RESIDUAL NOISE is a literary science-fiction mystery (approx. short-novel outline with complete chapter 1) set in near-future Tokyo. It combines quantum-physics speculation with a character-driven amnesia plot in the tradition of Ishiguro's restraint and Chiang's conceptual rigor. Complete materials: story bible, three-chapter outline, sample chapter, editorial and continuity reports.",
+      "RESIDUAL NOISE is a literary science-fiction mystery (complete three-chapter short novel) set in near-future Tokyo. It combines quantum-physics speculation with a character-driven amnesia plot in the tradition of Ishiguro's restraint and Chiang's conceptual rigor. Complete materials: story bible, three-chapter outline, full manuscript, editorial and continuity reports.",
   },
 };
 
@@ -450,70 +546,44 @@ const MOCK_JA: Record<AgentId, unknown> = {
     foreshadowingTracker: FORESHADOWING_TRACKER_JA,
   },
   drafting: {
-    chapterNumber: 1,
-    title: "残留ノイズ",
-    draft: `通知は午前2時17分に届いた。研究室の唸りを背にして、丁寧なチャイムが不条理に響く。行方不明 — 森 彩 — 最後の目撃：デコヒーレンス室B。
-
-蓮は文字が滲むまで画面を見つめた。四十八時間、メッセージは言った。まるで時間はビーカーで測り、注いで捨てられる物質のように。
-
-彼は昨日を覚えていない。食べたか、母に電話したか、別館北側でいつも明滅する自販機の灯りの下を歩いたか。手元にあるのは薄くて頼りになる事実の目録だけだった。名前、所属、三階男子トイレの場所。それ以外は断片として漂う。女の笑い声、熱したアスファルトの雨の匂い。嵐の名前も、文脈もない。
-
-蓮は立った。ロッカーはいつも通り引っかかり、ようやく開いたとき、何かがタイルに落ちた。保護ゴーグル。内側のレンズは曇っていて、誰かが秘密を息で書いたかのようだった。彼はゴーグルを持っていない。室Bの予定もない。
-
-ワークステーションに新しいファイルが脈打っていた。decoherence_log_4471.tmp。蓮は開いた。波形が流れ、美しく、無関心だった。そのあいだ、覚えのない手書きの注釈が、彼自身の筆跡で現れる。*バックアップを信じるな。*
-
-ファイルを閉じた。研究室はそのとき大きくなった。廊下が蛍光灯の永遠へ伸びる。どこかで遠心分離機が回る。どこかで、森彩はいない。
-
-蓮はゴーグルをポケットに入れ、自分のものかどうかも告げない記憶を探しに行った。`,
+    chapters: DRAFTING_CHAPTERS_JA,
+    completeManuscript: buildCompleteManuscript(DRAFTING_CHAPTERS_JA),
   },
   editor: {
     strengths: [
-      "冒頭の雰囲気が強く、ジャンルが明確",
-      "蓮の声が一貫し、感情が抑制されている",
+      "三章を通じて雰囲気とジャンルが明確",
+      "蓮の声が一貫し、感情の弧が不安から痛みを伴う明晰さへ着地",
+      "第3章の対峙とアップロードの選択がテーマ的に満足感がある",
     ],
-    weakPoints: ["失踪通知の直後、もう一つ具体的な感覚描写があるとよい"],
-    pacingIssues: ["第1章中盤、ロッカー発見前の説明がやや長い"],
-    dialogueIssues: ["第1章は会話が少ない — 意図的だが美香の一行を検討"],
-    emotionalClarityIssues: ["罪悪感を身体感覚でもう一拍早く示す"],
+    weakPoints: ["第2章、美香の告白のあと蓮の身体反応をもう一拍足すとよい"],
+    pacingIssues: [
+      "第1章中盤、ロッカー発見前の説明がやや長い",
+      "第3章のアップロード場面を一段落だけ呼吸させる余地あり",
+    ],
+    dialogueIssues: ["第3章佐藤の説明をもう少しサブテキスト化できる"],
+    emotionalClarityIssues: ["第1章に身体の手がかりを一行入れると三章の線が強化される"],
     revisionSuggestions: [
-      "ロッカーを開けて何もないと思う — その直後にゴーグル",
-      "章末にメモリーカードからの囁きでフックを強化",
+      "第3章の桜の花びら発見に感覚描写を一行",
+      "最終段落にアップロードへの一瞬の迷いを入れると深みが出る",
     ],
   },
   continuity: {
     issues: [
       {
         category: "foreshadowing",
-        severity: "high",
-        issue: "無印メモリーカードが言及されるが第1章で起動されない。",
-        evidence: "アウトラインにカードあり。草案は接触前に終わる。",
-        suggestedFix: "第1章末にカードから微かな音声パルスを聞かせる。",
-      },
-      {
-        category: "timeline",
-        severity: "medium",
-        issue: "48時間の失踪枠が一度だけ示され、以降追跡されない。",
-        evidence: "アラートのみ。時刻のアンカーがない。",
-        suggestedFix: "第2章冒頭にセキュリティログのタイムスタンプを追加。",
-      },
-      {
-        category: "character",
-        severity: "medium",
-        issue: "蓮の合理的執着がロッカー発見後にしか現れない。",
-        evidence: "前半は観察的。罪悪感が遅い。",
-        suggestedFix: "第2段落で蓮が信じかけた説明を一行入れる。",
+        severity: "low",
+        issue: "自販機の釣り銭ギャグが第2章で暗示されるが、ロック回避の冗談として明示されていない。",
+        evidence: "アウトラインにギャグあり。01:58の記述のみ。",
+        suggestedFix: "蓮の内心で夜のロック合図と認識する一行を追加。",
       },
     ],
     unresolvedForeshadowing: FORESHADOWING_TRACKER_JA.filter(
       (f) => f.status === "unresolved"
     ),
-    repeatedMotifs: ["蛍光灯 / 機械の唸り — 効果的、密度に注意"],
-    missingPayoffs: [
-      "桜の花びらは第1章未配置",
-      "銀の懐中時計は未登場",
-    ],
+    repeatedMotifs: ["蛍光灯 / 機械の唸り — 三章で効果的", "通知が首尾を担う"],
+    missingPayoffs: [],
     overallDiagnosis:
-      "雰囲気とジャンルは明確。伏線オブジェクトの休眠とタイムラインの弱さが主なリスク。第2章前にメモリーカードを活性化すべき。",
+      "三章完結で中心葛藤が解決。メモリーカード、桜の花びら、銀の懐中時計、アップロードの決断が揃っている。自販機と時間軸のコールバックを磨けば短編小説としてさらに締まる。",
   },
   publisher: {
     titleIdeas: ["残留ノイズ", "デコヒーレンス日記", "東京量子の幽霊"],
@@ -527,7 +597,7 @@ const MOCK_JA: Record<AgentId, unknown> = {
     socialPost:
       "新作WIP：現代東京のメランコリックSFミステリー。記憶喪失、量子ラボ、主人公自身の手で書かれたかもしれない失踪。#SF #ミステリー",
     submissionDescription:
-      "『残留ノイズ』は近未来東京を舞台にした文学的科学SFミステリー（短編小説相当のアウトラインと第1章完稿）。アウトライン、サンプル章、編集・連続性レポート付き。",
+      "『残留ノイズ』は近未来東京を舞台にした文学的科学SFミステリー（三章完結の短編小説）。ストーリーバイブル、三章アウトライン、全稿、編集・連続性レポート付き。",
   },
 };
 

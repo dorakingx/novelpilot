@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
   getChapterTitle,
+  getDraftedChapters,
   splitManuscriptParagraphs,
 } from "@/lib/format-manuscript";
 import type { StoryProject } from "@/lib/types";
@@ -53,11 +54,17 @@ export function CompletedNovelReader({
   const [fontSize, setFontSize] = useState<FontSize>("medium");
   const [copied, setCopied] = useState(false);
 
-  const chapterTitle = getChapterTitle(project);
-  const paragraphs = splitManuscriptParagraphs(project.manuscript);
+  const draftedChapters = getDraftedChapters(project);
+  const subtitle = getChapterTitle(project);
   const isJa = project.language === "ja";
   const foreshadowCount = project.storyBible.foreshadowingTracker.length;
   const issueCount = project.reports.continuity?.issues.length ?? 0;
+
+  const scrollToChapter = (number: number) => {
+    document
+      .getElementById(`reader-chapter-${number}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const handleCopy = useCallback(async () => {
     const ok = await copyToClipboard(project.manuscript);
@@ -86,6 +93,17 @@ export function CompletedNovelReader({
   const borderClass =
     theme === "paper" ? "border-black/10" : "border-white/12";
 
+  const proseClass = cn(
+    "reader-prose px-6 sm:px-10 py-8 sm:py-10 break-words",
+    FONT_SIZE_CLASS[fontSize],
+    isJa && "tracking-[0.02em]"
+  );
+
+  const proseStyle = {
+    fontFamily: "var(--font-lora), Georgia, serif",
+    lineHeight: 2,
+  } as const;
+
   return (
     <div className="min-h-screen flex flex-col bg-[#080B12]">
       <header className="no-print sticky top-0 z-10 border-b border-white/12 bg-[#111827]/95 backdrop-blur-sm px-3 sm:px-4 py-2.5 sm:py-3">
@@ -101,7 +119,7 @@ export function CompletedNovelReader({
             <p className="text-sm font-semibold text-[#F8FAFC] truncate">
               {project.title}
             </p>
-            <p className="text-xs text-[#94A3B8] truncate">{chapterTitle}</p>
+            <p className="text-xs text-[#94A3B8] truncate">{subtitle}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 ml-auto order-2 sm:order-3">
@@ -152,6 +170,26 @@ export function CompletedNovelReader({
           <Badge variant="live">Publisher package ready</Badge>
         </div>
       </div>
+
+      {draftedChapters.length > 1 && (
+        <nav
+          className="no-print mx-auto max-w-[820px] w-full px-4 sm:px-8 pb-2"
+          aria-label="Chapter navigation"
+        >
+          <div className="flex flex-wrap gap-2">
+            {draftedChapters.map((ch) => (
+              <button
+                key={ch.number}
+                type="button"
+                onClick={() => scrollToChapter(ch.number)}
+                className="rounded-full border border-white/12 bg-[#172033] px-3 py-1 text-xs text-[#CBD5E1] hover:border-[#F5C542]/50 hover:text-[#F8FAFC] transition-colors"
+              >
+                {isJa ? `第${ch.number}章` : `Chapter ${ch.number}`}
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
 
       <div className="no-print mx-auto max-w-[820px] w-full px-4 sm:px-8 pb-2 flex flex-wrap items-center gap-2 justify-end">
         <div
@@ -222,37 +260,54 @@ export function CompletedNovelReader({
               >
                 {project.title}
               </h1>
-              <h2
-                className={cn(
-                  "mt-2 text-lg sm:text-xl font-medium",
-                  mutedClass
-                )}
-                style={{ fontFamily: "var(--font-lora), Georgia, serif" }}
-              >
-                {chapterTitle}
-              </h2>
               <p className={cn("mt-4 text-sm", mutedClass)}>
-                {[project.genre, project.tone, project.language]
+                {[project.genre, project.tone, project.language, subtitle]
                   .filter(Boolean)
                   .join(" · ")}
               </p>
             </header>
 
-            <div
-              className={cn(
-                "reader-prose px-6 sm:px-10 py-8 sm:py-10 space-y-6 sm:space-y-8 break-words",
-                FONT_SIZE_CLASS[fontSize],
-                isJa && "tracking-[0.02em]"
-              )}
-              style={{
-                fontFamily: "var(--font-lora), Georgia, serif",
-                lineHeight: 2,
-              }}
-            >
-              {paragraphs.map((para, i) => (
-                <p key={i}>{para}</p>
-              ))}
-            </div>
+            {draftedChapters.length > 0 ? (
+              draftedChapters.map((ch, index) => (
+                <section
+                  key={ch.number}
+                  id={`reader-chapter-${ch.number}`}
+                  className={cn(
+                    proseClass,
+                    "space-y-6 sm:space-y-8",
+                    index > 0 && "chapter-print-break border-t",
+                    index > 0 && borderClass
+                  )}
+                  style={proseStyle}
+                >
+                  <h2
+                    className={cn(
+                      "text-xl sm:text-2xl font-medium pt-2",
+                      mutedClass
+                    )}
+                    style={{ fontFamily: "var(--font-lora), Georgia, serif" }}
+                  >
+                    {isJa
+                      ? `第${ch.number}章：${ch.title}`
+                      : `Chapter ${ch.number}: ${ch.title}`}
+                  </h2>
+                  {splitManuscriptParagraphs(ch.draft!).map((para, i) => (
+                    <p key={i}>{para}</p>
+                  ))}
+                </section>
+              ))
+            ) : (
+              <div
+                className={cn(proseClass, "space-y-6 sm:space-y-8")}
+                style={proseStyle}
+              >
+                {splitManuscriptParagraphs(project.manuscript).map(
+                  (para, i) => (
+                    <p key={i}>{para}</p>
+                  )
+                )}
+              </div>
+            )}
           </article>
           <footer className="reader-prose no-screen-only text-center text-sm mt-8 text-[#6B7280]">
             Generated with NovelPilot

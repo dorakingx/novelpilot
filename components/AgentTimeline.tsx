@@ -2,6 +2,7 @@
 
 import { AgentOutputEditor } from "@/components/AgentOutputEditor";
 import { AgentCard } from "@/components/AgentCard";
+import { getChapterDraftCoverage } from "@/lib/format-manuscript";
 import type { ProjectStatus } from "@/lib/project-status";
 import type { AgentId, StoryProject } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -66,6 +67,7 @@ export function AgentTimeline({
     editingAgentId != null
       ? project.agents.find((a) => a.id === editingAgentId) ?? null
       : null;
+  const draftCoverage = getChapterDraftCoverage(project);
 
   return (
     <>
@@ -112,6 +114,11 @@ export function AgentTimeline({
               agent={agent}
               isLast={i === project.agents.length - 1}
               isRunning={isRunning}
+              draftWarning={
+                agent.id === "drafting" && agent.status === "completed"
+                  ? draftCoverage.warning
+                  : undefined
+              }
               onRegenerate={onRegenerate}
               onApprove={onApprove}
               onEditOutput={(id) => setEditingAgentId(id)}

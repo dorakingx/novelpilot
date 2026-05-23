@@ -40,9 +40,14 @@ const SCHEMAS: Record<AgentId, string> = {
   "foreshadowingTracker": [{ "item", "introducedIn", "status", "suggestedPayoff", "payoffChapter", "emotionalPurpose" }]
 }`,
   drafting: `{
-  "chapterNumber": 1,
-  "title": "string",
-  "draft": "full chapter 1 prose fiction — not a summary"
+  "chapters": [
+    {
+      "number": 1,
+      "title": "string",
+      "draft": "full prose fiction for chapter 1 — not a summary"
+    }
+  ],
+  "completeManuscript": "full combined manuscript with all chapters in order"
 }`,
   editor: `{
   "strengths": [], "weakPoints": [], "pacingIssues": [],
@@ -84,15 +89,17 @@ ${lang}`,
     "chapter-outline": `You are the Chapter Architect. Create 3 chapters for MVP scope.
 You MUST include foreshadowingTracker with 4-6 items: each with item, introducedIn, status (planned/unresolved/paid-off), suggestedPayoff, payoffChapter, emotionalPurpose.
 ${lang}`,
-    drafting: `You are the Prose Writer. Write ONLY chapter 1 as literary fiction prose.
-Do not summarize. Show scenes. Match tone. Under 1200 words for flash, ~2500 for short story, ~3500 for novella outline scope.
+    drafting: `You are the Prose Writer. Write full prose fiction for EVERY chapter in the chapter outline. Do not summarize. Each chapter must be an actual scene-based chapter with dialogue, atmosphere, emotional progression, and narrative momentum. Maintain continuity across chapters. Return all chapter drafts and a combined completeManuscript.
+Use the existing chapter outline exactly. Write one draft per chapter. The number of chapter drafts must match the number of outlined chapters.
+Length guidance: flash fiction — each chapter around 500–800 words; short story — each chapter around 900–1500 words; novella outline scope — each chapter around 1200–2000 words. Keep the MVP at 3 chapters unless the outline already contains a different number. Do not generate a full-length book.
 ${lang}`,
-    editor: `You are the Style Editor. Critique the chapter 1 draft against the story bible. Be specific and constructive.
+    editor: `You are the Style Editor. Critique the complete manuscript against the story bible. Consider pacing across chapters, dialogue, emotional arc, prose style, and ending payoff. Be specific and constructive.
 ${lang}`,
-    continuity: `You are the Continuity Detective. Audit draft vs characters, plot, outline, and foreshadowingTracker.
+    continuity: `You are the Continuity Detective. Audit the complete manuscript against characters, plot, chapter outline, and foreshadowingTracker.
+Check continuity across all chapters, unresolved foreshadowing, missing payoffs, inconsistent character behavior, timeline issues, and whether the ending resolves the central conflict.
 Return structured issues with category, severity, evidence, and suggestedFix. Include overallDiagnosis and missingPayoffs.
 ${lang}`,
-    publisher: `You are the Publisher Agent. Create marketing and submission package from the full project.
+    publisher: `You are the Publisher Agent. Create marketing and submission package from the completed manuscript and story bible.
 ${lang}`,
   };
 

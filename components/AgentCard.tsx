@@ -7,6 +7,7 @@ import type { AgentId, AgentStep } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
+  AlertTriangle,
   CheckCircle2,
   ChevronDown,
   Circle,
@@ -21,6 +22,7 @@ interface AgentCardProps {
   agent: AgentStep;
   isLast: boolean;
   isRunning: boolean;
+  draftWarning?: string;
   onRegenerate: (agentId: AgentId) => void;
   onApprove: (agentId: AgentId) => void;
   onEditOutput: (agentId: AgentId) => void;
@@ -81,6 +83,7 @@ export function AgentCard({
   agent,
   isLast,
   isRunning,
+  draftWarning,
   onRegenerate,
   onApprove,
   onEditOutput,
@@ -158,6 +161,12 @@ export function AgentCard({
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {agent.role}
               </p>
+              {draftWarning && (
+                <p className="flex items-start gap-1.5 text-xs text-amber-400/90 mt-2">
+                  <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
+                  <span>{draftWarning}</span>
+                </p>
+              )}
             </div>
           </div>
 

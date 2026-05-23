@@ -61,6 +61,17 @@ export interface Chapter {
   draft?: string;
 }
 
+export interface ChapterDraft {
+  number: number;
+  title: string;
+  draft: string;
+}
+
+export interface DraftingOutput {
+  chapters: ChapterDraft[];
+  completeManuscript: string;
+}
+
 export interface StoryConcept {
   logline: string;
   coreTheme: string;

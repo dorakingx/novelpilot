@@ -1,7 +1,9 @@
+import { buildCompleteManuscript } from "./format-manuscript";
 import { parseContinuityReport, parseForeshadowingItems } from "./parse-agent-output";
 import type {
   AgentId,
   AgentStep,
+  Chapter,
   Character,
   ProjectSettings,
   StoryBible,
@@ -48,7 +50,7 @@ export const AGENT_DEFINITIONS: AgentDefinition[] = [
   {
     id: "drafting",
     name: "Prose Writer",
-    role: "Writes chapter 1 as literary fiction in your chosen language and tone.",
+    role: "Writes full prose for all outlined chapters as a complete short novel in your chosen language and tone.",
   },
   {
     id: "editor",
@@ -160,13 +162,80 @@ function parseCharacter(raw: Record<string, unknown>): Character {
   };
 }
 
+function parseDraftingOutput(
+  o: Record<string, unknown>,
+  bible: StoryBible
+): { manuscript: string; bible: StoryBible; title?: string } {
+  if (Array.isArray(o.chapters) && o.chapters.length > 0) {
+    const drafts = o.chapters
+      .map((ch) => {
+        const c = ch as Record<string, unknown>;
+        return {
+          number: Number(c.number ?? 0),
+          title: String(c.title ?? ""),
+          draft: String(c.draft ?? ""),
+        };
+      })
+      .filter((d) => d.number > 0 && d.draft.trim());
+
+    const draftByNumber = new Map(drafts.map((d) => [d.number, d]));
+
+    const chapters: Chapter[] =
+      bible.chapters.length > 0
+        ? bible.chapters.map((ch) => {
+            const d = draftByNumber.get(ch.number);
+            if (d) {
+              return {
+                ...ch,
+                draft: d.draft,
+                title: d.title || ch.title,
+              };
+            }
+            return ch;
+          })
+        : drafts.map((d) => ({
+            number: d.number,
+            title: d.title,
+            purpose: "",
+            emotionalTurn: "",
+            keyEvents: [],
+            foreshadowing: [],
+            draft: d.draft,
+          }));
+
+    const completeFromOutput = String(o.completeManuscript ?? "").trim();
+    const draftedForManuscript = chapters
+      .filter((c) => c.draft?.trim())
+      .map((c) => ({
+        number: c.number,
+        title: c.title,
+        draft: c.draft!,
+      }));
+    const manuscript =
+      completeFromOutput || buildCompleteManuscript(draftedForManuscript);
+
+    const title = drafts[0]?.title;
+    return { manuscript, bible: { ...bible, chapters }, title };
+  }
+
+  const draft = String(o.draft ?? "");
+  let chapters = bible.chapters;
+  if (chapters.length > 0) {
+    chapters = chapters.map((ch, i) =>
+      i === 0 ? { ...ch, draft } : ch
+    );
+  }
+  const title = String(o.title ?? "");
+  return { manuscript: draft, bible: { ...bible, chapters }, title };
+}
+
 export function mergeAgentOutput(
   project: StoryProject,
   agentId: AgentId,
   output: unknown
 ): StoryProject {
   const now = new Date().toISOString();
-  const bible = { ...project.storyBible };
+  let bible: StoryBible = { ...project.storyBible };
   let manuscript = project.manuscript;
   const reports: ProjectReports = { ...project.reports };
   const o = output as Record<string, unknown>;
@@ -261,16 +330,11 @@ export function mergeAgentOutput(
       break;
     }
     case "drafting": {
-      const draft = String(o.draft ?? "");
-      manuscript = draft;
-      if (bible.chapters.length > 0) {
-        bible.chapters = bible.chapters.map((ch, i) =>
-          i === 0 ? { ...ch, draft } : ch
-        );
-      }
-      const title = String(o.title ?? "");
-      if (title && project.title === "Untitled Project") {
-        project = { ...project, title };
+      const parsed = parseDraftingOutput(o, bible);
+      manuscript = parsed.manuscript;
+      bible = parsed.bible;
+      if (parsed.title && project.title === "Untitled Project") {
+        project = { ...project, title: parsed.title };
       }
       break;
     }
@@ -379,7 +443,14 @@ export function resetFromAgent(
     bible.chapters = [];
     bible.styleGuide = null;
   }
-  if (idx <= getAgentIndex("drafting")) manuscript = "";
+  if (idx <= getAgentIndex("drafting")) {
+    manuscript = "";
+    bible.chapters = bible.chapters.map((ch) => {
+      const { draft, ...rest } = ch;
+      void draft;
+      return rest;
+    });
+  }
   if (idx <= getAgentIndex("editor")) reports.editor = null;
   if (idx <= getAgentIndex("continuity")) reports.continuity = null;
   if (idx <= getAgentIndex("publisher")) reports.publisher = null;

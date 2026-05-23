@@ -1,3 +1,4 @@
+import { getDraftedChapters } from "./format-manuscript";
 import type { ContinuityIssue, StoryProject } from "./types";
 
 function formatContinuityIssue(issue: ContinuityIssue): string[] {
@@ -118,15 +119,18 @@ export function exportStoryBibleMarkdown(project: StoryProject): string {
 }
 
 export function exportManuscriptMarkdown(project: StoryProject): string {
-  const ch1 = project.storyBible.chapters[0];
-  const title = ch1?.title ?? "Chapter 1";
-  return [
-    `# ${project.title}`,
-    "",
-    `## ${title}`,
-    "",
-    project.manuscript || "_No draft yet._",
-  ].join("\n");
+  const drafted = getDraftedChapters(project);
+  const lines: string[] = [`# ${project.title}`, ""];
+
+  if (drafted.length > 0) {
+    for (const ch of drafted) {
+      lines.push(`## Chapter ${ch.number}: ${ch.title}`, "", ch.draft!, "");
+    }
+  } else {
+    lines.push(project.manuscript || "_No draft yet._");
+  }
+
+  return lines.join("\n");
 }
 
 export function exportContinuityMarkdown(project: StoryProject): string {
@@ -184,7 +188,7 @@ export function exportFullDemoMarkdown(project: StoryProject): string {
     "",
     "---",
     "",
-    "## Chapter 1 Draft",
+    "## Complete Manuscript",
     "",
     exportManuscriptMarkdown(project),
     "",
@@ -248,7 +252,7 @@ export function buildDevDemoSummary(project: StoryProject): string {
     `Foreshadowing threads tracked: ${foreshadowCount}`,
     `Continuity Detective issues: ${issueCount}`,
     ``,
-    `One prompt → story bible, cast, world, plot, chapter outline, chapter 1 draft, style edit, continuity audit, publisher package.`,
+    `One prompt → story bible, cast, world, plot, chapter outline, complete multi-chapter short novel draft, style edit, continuity audit, publisher package.`,
     ``,
     `Gemma 4 acts as structured creative reasoning across agents—not just paragraph completion.`,
     `Demo: https://github.com/dorakingx/novelpilot`,
