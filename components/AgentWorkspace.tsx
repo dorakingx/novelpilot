@@ -1,10 +1,12 @@
 "use client";
 
+import { AgentPipelineBar } from "@/components/AgentPipelineBar";
 import { AgentTimeline } from "@/components/AgentTimeline";
 import { ContinuityReport } from "@/components/ContinuityReport";
 import { ExportPanel } from "@/components/ExportPanel";
 import { ForeshadowingTracker } from "@/components/ForeshadowingTracker";
 import { ManuscriptPreview } from "@/components/ManuscriptPreview";
+import { PipelineCompleteCard } from "@/components/PipelineCompleteCard";
 import { ProjectControlPanel } from "@/components/ProjectControlPanel";
 import { StoryBiblePreview } from "@/components/StoryBiblePreview";
 import type { ProjectStatus } from "@/lib/project-status";
@@ -43,9 +45,14 @@ export function AgentWorkspace({
 }: AgentWorkspaceProps) {
   return (
     <>
-      <main className="flex-1 mx-auto w-full max-w-[1600px] px-4 py-6">
+      <main className="flex-1 mx-auto w-full max-w-[1600px] px-4 py-6 space-y-6">
+        <AgentPipelineBar agents={project.agents} />
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <aside className="lg:col-span-3 space-y-4">
+          <aside className="lg:col-span-3 space-y-4 order-1">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden lg:block">
+              Command deck
+            </p>
             <ProjectControlPanel
               project={project}
               settings={settings}
@@ -59,7 +66,13 @@ export function AgentWorkspace({
             />
           </aside>
 
-          <section className="lg:col-span-5">
+          <section className="lg:col-span-5 space-y-4 order-2">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden lg:block">
+              Writing room
+            </p>
+            {projectStatus === "Completed" && (
+              <PipelineCompleteCard project={project} />
+            )}
             <AgentTimeline
               project={project}
               isRunning={isRunning}
@@ -70,17 +83,20 @@ export function AgentWorkspace({
             />
           </section>
 
-          <aside className="lg:col-span-4 space-y-4">
-            <StoryBiblePreview project={project} />
-            <ForeshadowingTracker project={project} />
-            <ManuscriptPreview project={project} />
-            <ContinuityReport project={project} />
+          <aside className="lg:col-span-4 space-y-4 order-3">
+            <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden lg:block">
+              Artifacts
+            </p>
+            <StoryBiblePreview project={project} isRunning={isRunning} />
+            <ForeshadowingTracker project={project} isRunning={isRunning} />
+            <ManuscriptPreview project={project} isRunning={isRunning} />
+            <ContinuityReport project={project} isRunning={isRunning} />
             <ExportPanel project={project} />
           </aside>
         </div>
       </main>
 
-      <footer className="border-t border-border/40 py-4 text-center text-xs text-muted-foreground px-4">
+      <footer className="border-t border-white/5 py-4 text-center text-xs text-muted-foreground px-4 glass-card border-x-0 border-b-0 rounded-none">
         Premise Architect → Character Director → World Builder → Plot Strategist
         → Chapter Architect → Prose Writer → Style Editor → Continuity Detective
         → Publisher Agent

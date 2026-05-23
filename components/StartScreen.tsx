@@ -1,10 +1,12 @@
 "use client";
 
+import { AgentChainPreview } from "@/components/AgentChainPreview";
 import { StorySettingsFields } from "@/components/StorySettingsFields";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   LAUNCHER_FEATURE_CARDS,
+  LAUNCHER_TAGLINE,
   PROMPT_PLACEHOLDER,
 } from "@/lib/launcher-content";
 import type { ProjectSettings } from "@/lib/types";
@@ -26,36 +28,45 @@ export function StartScreen({
   isRunning,
 }: StartScreenProps) {
   return (
-    <main className="flex-1 flex flex-col items-center justify-center px-4 py-10 bg-gradient-to-b from-background via-muted/20 to-background">
-      <div className="w-full max-w-[900px] space-y-8">
-        <div className="text-center space-y-3">
-          <div className="inline-flex items-center justify-center size-14 rounded-2xl bg-primary/15 text-primary mb-2">
-            <BookOpen className="size-7" />
+    <main className="flex-1 flex flex-col items-center justify-center px-4 py-16 sm:py-20 animate-fade-in relative overflow-hidden">
+      <div
+        className="pointer-events-none absolute inset-0 animate-gradient-shift opacity-60"
+        aria-hidden
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 40% at 50% 0%, oklch(0.78 0.14 75 / 0.08), transparent 70%)",
+        }}
+      />
+      <div className="w-full max-w-[980px] space-y-10 relative z-10">
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center size-16 rounded-2xl glass-card premium-border shadow-[0_0_40px_oklch(0.78_0.14_75/15%)] mb-2">
+            <BookOpen className="size-8 text-[oklch(0.78_0.14_75)]" />
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
+          <h1 className="text-4xl sm:text-6xl font-bold tracking-tight gold-gradient-text">
             NovelPilot
           </h1>
-          <p className="text-lg text-muted-foreground">
-            Turn one prompt into a complete novel-writing pipeline.
+          <p className="text-lg sm:text-xl text-foreground/90 font-medium">
+            {LAUNCHER_TAGLINE}
           </p>
-          <p className="text-sm text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-            Describe your story idea. NovelPilot will launch nine Gemma-powered
-            agents to design the premise, characters, world, plot, chapter
-            outline, prose draft, editing report, continuity audit, foreshadowing
-            tracker, and publisher package.
+          <p className="text-sm sm:text-base text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+            Launch a Gemma-powered writing room that plans, writes, edits, audits,
+            and packages your story.
           </p>
+          <AgentChainPreview className="pt-2" />
         </div>
 
-        <div className="rounded-2xl border border-border/60 bg-card/90 backdrop-blur-md shadow-xl p-6 sm:p-8 space-y-6">
+        <div className="glass-card premium-border glow-card rounded-2xl p-6 sm:p-8 space-y-6 shadow-[0_24px_80px_oklch(0_0_0/35%)]">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Your story prompt</label>
+            <label className="text-sm font-medium text-foreground/90">
+              Your story prompt
+            </label>
             <Textarea
               value={settings.userPrompt}
               onChange={(e) =>
                 onSettingsChange({ userPrompt: e.target.value })
               }
               placeholder={PROMPT_PLACEHOLDER}
-              className="min-h-[180px] resize-y text-base leading-relaxed"
+              className="min-h-[180px] resize-y text-base leading-relaxed bg-black/20 border-white/10 rounded-xl"
               disabled={isRunning}
             />
           </div>
@@ -65,10 +76,12 @@ export function StartScreen({
             onSettingsChange={onSettingsChange}
             disabled={isRunning}
             compact
+            pill
           />
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Button
+              variant="premium"
               size="lg"
               className="flex-1 h-12 text-base"
               onClick={onGenerate}
@@ -87,8 +100,8 @@ export function StartScreen({
               )}
             </Button>
             <Button
+              variant="glass"
               size="lg"
-              variant="secondary"
               className="flex-1 h-12 text-base"
               onClick={onRunJudgeDemo}
               disabled={isRunning}
@@ -103,22 +116,24 @@ export function StartScreen({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {LAUNCHER_FEATURE_CARDS.map(({ title, icon: Icon, description }) => (
             <div
               key={title}
-              className="rounded-xl border border-border/50 bg-card/60 p-4 text-center"
+              className="glass-card premium-border glow-card rounded-xl p-5 text-center"
             >
-              <Icon className="size-6 mx-auto mb-2 text-primary" />
+              <Icon className="size-7 mx-auto mb-3 text-[oklch(0.78_0.14_75)]" />
               <p className="font-semibold text-sm">{title}</p>
-              <p className="text-xs text-muted-foreground mt-1">{description}</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                {description}
+              </p>
             </div>
           ))}
         </div>
 
-        <div className="rounded-xl border border-primary/20 bg-card/50 p-5 text-center sm:text-left">
+        <div className="glass-card premium-border rounded-xl p-5 border-[oklch(0.78_0.14_75/20%)] text-center sm:text-left">
           <p className="text-sm font-medium flex items-center justify-center sm:justify-start gap-2">
-            <Sparkles className="size-4 text-primary" />
+            <Sparkles className="size-4 text-[oklch(0.78_0.14_75)]" />
             Why Gemma 4?
           </p>
           <ul className="mt-3 text-xs text-muted-foreground space-y-1.5 list-disc pl-5 inline-block text-left">

@@ -1,41 +1,76 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PanelPlaceholder } from "@/components/PanelPlaceholder";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { StoryProject } from "@/lib/types";
+import { BookOpen } from "lucide-react";
 
 interface StoryBiblePreviewProps {
   project: StoryProject | null;
+  isRunning?: boolean;
 }
 
-export function StoryBiblePreview({ project }: StoryBiblePreviewProps) {
+function hasBibleContent(project: StoryProject): boolean {
+  const b = project.storyBible;
+  return Boolean(
+    b.concept ||
+      b.characters.length ||
+      b.worldbuilding ||
+      b.plot ||
+      b.chapters.length
+  );
+}
+
+export function StoryBiblePreview({
+  project,
+  isRunning,
+}: StoryBiblePreviewProps) {
   if (!project) {
     return (
-      <Card className="border-border/60 bg-card/80">
-        <CardHeader>
-          <CardTitle className="text-base">Story Bible</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Concept, characters, world, and plot will appear here as agents
-            complete.
-          </p>
-        </CardHeader>
-      </Card>
+      <div className="glass-card premium-border rounded-2xl p-5">
+        <h3 className="text-base font-semibold">Story Bible</h3>
+        <PanelPlaceholder
+          message="Story Bible is forming…"
+          icon={BookOpen}
+          className="mt-4"
+        />
+      </div>
+    );
+  }
+
+  if (!hasBibleContent(project)) {
+    return (
+      <div className="glass-card premium-border rounded-2xl p-5">
+        <h3 className="text-base font-semibold">Story Dossier</h3>
+        <p className="text-xs text-muted-foreground mt-1">
+          Concept, cast, world, plot, and style
+        </p>
+        <PanelPlaceholder
+          message={
+            isRunning
+              ? "Story Bible is forming as agents complete…"
+              : "Story Bible will appear as agents complete."
+          }
+          icon={BookOpen}
+          className="mt-4"
+        />
+      </div>
     );
   }
 
   const b = project.storyBible;
 
   return (
-    <Card className="border-border/60 bg-card/80">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Story Bible</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="concept" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-auto flex-wrap gap-1">
-            <TabsTrigger value="concept" className="text-xs">
+    <div className="glass-card premium-border rounded-2xl p-5">
+      <h3 className="text-base font-semibold">Story Dossier</h3>
+      <p className="text-xs text-muted-foreground mt-1 mb-3">
+        Structured bible from your writing room
+      </p>
+      <Tabs defaultValue="concept" className="w-full">
+        <TabsList className="grid w-full grid-cols-3 h-auto flex-wrap gap-1 bg-black/20 border border-white/5 p-1">
+            <TabsTrigger value="concept" className="text-xs data-[state=active]:bg-[oklch(0.78_0.14_75/15%)]">
               Concept
             </TabsTrigger>
             <TabsTrigger value="characters" className="text-xs">
@@ -186,7 +221,6 @@ export function StoryBiblePreview({ project }: StoryBiblePreviewProps) {
             </TabsContent>
           </ScrollArea>
         </Tabs>
-      </CardContent>
-    </Card>
+    </div>
   );
 }

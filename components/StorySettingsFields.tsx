@@ -14,6 +14,7 @@ interface StorySettingsFieldsProps {
   onSettingsChange: (partial: Partial<ProjectSettings>) => void;
   disabled?: boolean;
   compact?: boolean;
+  pill?: boolean;
 }
 
 export function StorySettingsFields({
@@ -21,10 +22,14 @@ export function StorySettingsFields({
   onSettingsChange,
   disabled = false,
   compact = false,
+  pill = false,
 }: StorySettingsFieldsProps) {
   const labelClass = compact
     ? "text-xs font-medium text-muted-foreground"
     : "text-sm font-medium";
+  const triggerClass = pill
+    ? "w-full rounded-full h-9 bg-white/5 border-white/10 text-xs"
+    : "w-full";
 
   return (
     <div
@@ -43,7 +48,7 @@ export function StorySettingsFields({
           }
           disabled={disabled}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className={triggerClass}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -62,7 +67,7 @@ export function StorySettingsFields({
           }
           disabled={disabled}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className={triggerClass}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -85,7 +90,7 @@ export function StorySettingsFields({
           }
           disabled={disabled}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className={triggerClass}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -109,7 +114,7 @@ export function StorySettingsFields({
           }
           disabled={disabled}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className={triggerClass}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

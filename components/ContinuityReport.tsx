@@ -1,52 +1,52 @@
 "use client";
 
+import { PanelPlaceholder } from "@/components/PanelPlaceholder";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type {
   ContinuityIssue,
   ContinuitySeverity,
   StoryProject,
 } from "@/lib/types";
+import { FileSearch } from "lucide-react";
 
 interface ContinuityReportProps {
   project: StoryProject | null;
+  isRunning?: boolean;
 }
 
-function severityVariant(
-  severity: ContinuitySeverity
-): "destructive" | "default" | "outline" {
+function severityClass(severity: ContinuitySeverity): string {
   switch (severity) {
     case "high":
-      return "destructive";
+      return "border-destructive/50 bg-destructive/15 text-destructive";
     case "medium":
-      return "default";
+      return "border-[oklch(0.78_0.14_75/40%)] bg-[oklch(0.78_0.14_75/10%)] text-[oklch(0.78_0.14_75)]";
     default:
-      return "outline";
+      return "border-white/10 text-muted-foreground";
   }
 }
 
 function IssueCard({ issue }: { issue: ContinuityIssue }) {
   return (
-    <div className="rounded-lg border border-border/50 p-3 space-y-2 text-sm">
+    <div className="rounded-lg border border-white/8 bg-black/20 p-3 space-y-2 text-sm">
       <div className="flex flex-wrap gap-2">
-        <Badge variant={severityVariant(issue.severity)} className="text-xs">
+        <Badge variant="outline" className={severityClass(issue.severity)}>
           {issue.severity}
         </Badge>
-        <Badge variant="outline" className="text-xs capitalize">
+        <Badge variant="outline" className="text-xs capitalize border-white/10">
           {issue.category}
         </Badge>
       </div>
       <p className="font-medium">{issue.issue}</p>
       {issue.evidence && (
         <p className="text-xs text-muted-foreground">
-          <span className="font-medium text-foreground/80">Evidence: </span>
+          <span className="font-semibold text-foreground/80">Evidence: </span>
           {issue.evidence}
         </p>
       )}
       {issue.suggestedFix && (
         <p className="text-xs">
-          <span className="font-medium text-primary">Fix: </span>
+          <span className="font-semibold text-[oklch(0.72_0.14_220)]">Fix: </span>
           {issue.suggestedFix}
         </p>
       )}
@@ -54,13 +54,7 @@ function IssueCard({ issue }: { issue: ContinuityIssue }) {
   );
 }
 
-function ReportList({
-  title,
-  items,
-}: {
-  title: string;
-  items: string[];
-}) {
+function ReportList({ title, items }: { title: string; items: string[] }) {
   if (!items.length) return null;
   return (
     <div>
@@ -76,7 +70,10 @@ function ReportList({
   );
 }
 
-export function ContinuityReport({ project }: ContinuityReportProps) {
+export function ContinuityReport({
+  project,
+  isRunning,
+}: ContinuityReportProps) {
   const report = project?.reports.continuity;
   const editor = project?.reports.editor;
   const publisher = project?.reports.publisher;
@@ -85,67 +82,76 @@ export function ContinuityReport({ project }: ContinuityReportProps) {
   const foreshadowCount = report?.unresolvedForeshadowing.length ?? 0;
 
   return (
-    <Card className="border-border/60 bg-card/80">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Continuity Detective</CardTitle>
-        {report && (
-          <p className="text-xs text-muted-foreground">
-            Continuity Detective found {issueCount} issue
-            {issueCount !== 1 ? "s" : ""} and {foreshadowCount} unresolved
-            foreshadowing thread{foreshadowCount !== 1 ? "s" : ""}.
-          </p>
+    <div className="glass-card premium-border rounded-2xl p-5">
+      <h3 className="text-base font-semibold">Continuity Detective</h3>
+      {report ? (
+        <p className="text-xs text-muted-foreground mt-1 mb-3">
+          {issueCount} issue{issueCount !== 1 ? "s" : ""}, {foreshadowCount}{" "}
+          unresolved thread{foreshadowCount !== 1 ? "s" : ""}
+        </p>
+      ) : (
+        <p className="text-xs text-muted-foreground mt-1 mb-3">
+          Audit board for structure and consistency
+        </p>
+      )}
+      <ScrollArea className="h-[280px] pr-3">
+        {report ? (
+          <div className="space-y-3">
+            {report.overallDiagnosis && (
+              <div className="rounded-lg border border-[oklch(0.72_0.14_220/30%)] bg-[oklch(0.72_0.14_220/8%)] p-3 text-sm leading-relaxed">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[oklch(0.72_0.14_220)] mb-1">
+                  Overall diagnosis
+                </p>
+                {report.overallDiagnosis}
+              </div>
+            )}
+            {report.issues.map((issue, i) => (
+              <IssueCard key={i} issue={issue} />
+            ))}
+            <ReportList title="Missing payoffs" items={report.missingPayoffs} />
+            <ReportList title="Repeated motifs" items={report.repeatedMotifs} />
+          </div>
+        ) : (
+          <PanelPlaceholder
+            message={
+              isRunning
+                ? "Continuity Detective is waiting for the draft and prior agents."
+                : "Continuity audit pending…"
+            }
+            icon={FileSearch}
+          />
         )}
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[280px] pr-3 space-y-4">
-          {report ? (
-            <div className="space-y-3">
-              {report.overallDiagnosis && (
-                <p className="text-sm leading-relaxed border-l-2 border-primary/50 pl-3">
-                  {report.overallDiagnosis}
-                </p>
-              )}
-              {report.issues.map((issue, i) => (
-                <IssueCard key={i} issue={issue} />
-              ))}
-              <ReportList title="Missing payoffs" items={report.missingPayoffs} />
-              <ReportList title="Repeated motifs" items={report.repeatedMotifs} />
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Continuity audit pending…
+
+        {editor && (
+          <div className="space-y-3 pt-4 mt-4 border-t border-white/5">
+            <p className="text-xs font-medium text-[oklch(0.78_0.14_75)]">
+              Style Editor
             </p>
-          )}
+            <ReportList title="Strengths" items={editor.strengths} />
+            <ReportList
+              title="Revision ideas"
+              items={editor.revisionSuggestions}
+            />
+          </div>
+        )}
 
-          {editor && (
-            <div className="space-y-3 pt-4 border-t border-border/40">
-              <p className="text-xs font-medium text-primary">Style Editor</p>
-              <ReportList title="Strengths" items={editor.strengths} />
-              <ReportList
-                title="Revision ideas"
-                items={editor.revisionSuggestions}
-              />
-            </div>
-          )}
-
-          {publisher && (
-            <div className="space-y-2 pt-4 border-t border-border/40">
-              <p className="text-xs font-medium text-primary">
-                Publisher Agent
+        {publisher && (
+          <div className="space-y-2 pt-4 mt-4 border-t border-white/5">
+            <p className="text-xs font-medium text-[oklch(0.78_0.14_75)]">
+              Publisher Agent
+            </p>
+            <p className="text-sm font-medium">{publisher.logline}</p>
+            <p className="text-xs text-muted-foreground italic">
+              {publisher.tagline}
+            </p>
+            {publisher.titleIdeas.length > 0 && (
+              <p className="text-xs">
+                Titles: {publisher.titleIdeas.join(" · ")}
               </p>
-              <p className="text-sm font-medium">{publisher.logline}</p>
-              <p className="text-xs text-muted-foreground italic">
-                {publisher.tagline}
-              </p>
-              {publisher.titleIdeas.length > 0 && (
-                <p className="text-xs">
-                  Titles: {publisher.titleIdeas.join(" · ")}
-                </p>
-              )}
-            </div>
-          )}
-        </ScrollArea>
-      </CardContent>
-    </Card>
+            )}
+          </div>
+        )}
+      </ScrollArea>
+    </div>
   );
 }

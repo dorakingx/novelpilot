@@ -18,10 +18,23 @@ const lora = Lora({
   subsets: ["latin"],
 });
 
+const siteDescription =
+  "One prompt. Nine Gemma-powered agents. A complete story pipeline.";
+
 export const metadata: Metadata = {
   title: "NovelPilot",
-  description:
-    "NovelPilot is a Gemma 4-powered AI writing agent that turns one prompt into a complete story creation pipeline.",
+  description: siteDescription,
+  openGraph: {
+    title: "NovelPilot",
+    description: siteDescription,
+    type: "website",
+    url: "https://novelpilot.vercel.app",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "NovelPilot",
+    description: siteDescription,
+  },
 };
 
 export default function RootLayout({
@@ -34,7 +47,7 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${lora.variable} dark h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
+      <body className="min-h-full flex flex-col studio-backdrop subtle-grid-bg text-foreground">
         {children}
       </body>
     </html>

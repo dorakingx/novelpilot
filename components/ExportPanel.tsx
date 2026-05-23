@@ -1,7 +1,6 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
   buildDevDemoSummary,
@@ -37,15 +36,14 @@ export function ExportPanel({ project }: ExportPanelProps) {
   };
 
   return (
-    <Card className="border-border/60 bg-card/80">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Export</CardTitle>
-        <p className="text-xs text-muted-foreground">
-          Full demo markdown and DEV submission helpers.
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <div className="glass-card premium-border rounded-2xl p-5">
+      <h3 className="text-base font-semibold">Export</h3>
+      <p className="text-xs text-muted-foreground mt-1 mb-4">
+        Full demo markdown and DEV submission helpers.
+      </p>
+      <div className="space-y-3">
         <Button
+          variant="premium"
           className="w-full"
           disabled={disabled}
           onClick={() => {
@@ -61,7 +59,7 @@ export function ExportPanel({ project }: ExportPanelProps) {
           Export Full Demo Markdown
         </Button>
         <Button
-          variant="secondary"
+          variant="glass"
           className="w-full"
           disabled={disabled}
           onClick={handleCopyDevSummary}
@@ -71,7 +69,7 @@ export function ExportPanel({ project }: ExportPanelProps) {
         </Button>
         <div className="grid grid-cols-2 gap-2 pt-1">
           <Button
-            variant="outline"
+            variant="glass"
             size="sm"
             disabled={disabled}
             onClick={() => {
@@ -87,7 +85,7 @@ export function ExportPanel({ project }: ExportPanelProps) {
             Bible
           </Button>
           <Button
-            variant="outline"
+            variant="glass"
             size="sm"
             disabled={disabled}
             onClick={() => {
@@ -103,7 +101,7 @@ export function ExportPanel({ project }: ExportPanelProps) {
             Manuscript
           </Button>
           <Button
-            variant="outline"
+            variant="glass"
             size="sm"
             disabled={disabled}
             onClick={() => {
@@ -119,7 +117,7 @@ export function ExportPanel({ project }: ExportPanelProps) {
             Continuity
           </Button>
           <Button
-            variant="outline"
+            variant="glass"
             size="sm"
             disabled={disabled}
             onClick={() => {
@@ -135,7 +133,7 @@ export function ExportPanel({ project }: ExportPanelProps) {
             JSON
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

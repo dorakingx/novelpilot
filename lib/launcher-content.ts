@@ -18,5 +18,8 @@ export const LAUNCHER_FEATURE_CARDS = [
   },
 ] as const;
 
+export const LAUNCHER_TAGLINE =
+  "One prompt. Nine agents. A complete story pipeline.";
+
 export const PROMPT_PLACEHOLDER =
   "Write a melancholic sci-fi mystery set in modern Tokyo. A graduate student who lost his memory investigates a disappearance in a quantum computing lab…";

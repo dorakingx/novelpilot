@@ -1,6 +1,7 @@
 "use client";
 
 import { Cpu, FlaskConical } from "lucide-react";
+
 interface DemoModeBannerProps {
   mockMode: boolean;
   provider?: string;
@@ -14,28 +15,40 @@ export function DemoModeBanner({
 }: DemoModeBannerProps) {
   return (
     <div
+      role="status"
       className={
         mockMode
-          ? "border-b border-amber-500/20 bg-amber-500/5"
-          : "border-b border-primary/20 bg-primary/5"
+          ? "border-b border-[oklch(0.78_0.14_75/20%)] bg-[oklch(0.78_0.14_75/6%)] backdrop-blur-sm"
+          : "border-b border-[oklch(0.72_0.14_220/25%)] bg-[oklch(0.72_0.14_220/6%)] backdrop-blur-sm"
       }
     >
       <div className="mx-auto max-w-[1600px] px-4 py-2 flex items-center gap-2 text-xs">
         {mockMode ? (
           <>
-            <FlaskConical className="size-3.5 text-amber-400 shrink-0" />
-            <span className="text-amber-200/90">
-              Demo mode: using curated sample outputs. Add{" "}
-              <code className="text-amber-300">GEMMA_API_KEY</code> for live
-              OpenRouter generation.
+            <FlaskConical
+              className="size-3.5 text-[oklch(0.78_0.14_75)] shrink-0"
+              aria-hidden
+            />
+            <span className="text-foreground/85">
+              Demo mode uses curated outputs. Add{" "}
+              <code className="text-[oklch(0.78_0.14_75)] font-mono text-[11px]">
+                GEMMA_API_KEY
+              </code>{" "}
+              for live OpenRouter generation.
             </span>
           </>
         ) : (
           <>
-            <Cpu className="size-3.5 text-primary shrink-0" />
+            <Cpu
+              className="size-3.5 text-[oklch(0.72_0.14_220)] shrink-0"
+              aria-hidden
+            />
             <span className="text-muted-foreground">
-              Live mode: using {provider}
-              {model ? ` / ${model}` : ""}
+              Live mode:{" "}
+              <span className="text-[oklch(0.72_0.14_220)] font-medium">
+                {provider}
+                {model ? ` / ${model}` : ""}
+              </span>
             </span>
           </>
         )}
