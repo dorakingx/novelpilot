@@ -2,25 +2,23 @@
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { BookOpen } from "lucide-react";
+import { FileDown } from "lucide-react";
 
-interface ReadNovelButtonProps {
+interface DownloadPdfButtonProps {
   onClick: () => void;
   disabled?: boolean;
   variant?: "premium" | "glass";
   className?: string;
   size?: "default" | "sm" | "lg";
-  label?: string;
 }
 
-export function ReadNovelButton({
+export function DownloadPdfButton({
   onClick,
   disabled = false,
-  variant = "premium",
+  variant = "glass",
   className,
   size = "default",
-  label = "Read Finished Novel",
-}: ReadNovelButtonProps) {
+}: DownloadPdfButtonProps) {
   if (disabled) return null;
 
   return (
@@ -29,9 +27,10 @@ export function ReadNovelButton({
       size={size}
       className={cn(className)}
       onClick={onClick}
+      title="Use your browser's Save as PDF option."
     >
-      <BookOpen className="mr-2 size-4" />
-      {label}
+      <FileDown className="mr-2 size-4" />
+      Download PDF
     </Button>
   );
 }

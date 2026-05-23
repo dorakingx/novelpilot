@@ -16,14 +16,10 @@ Judges can open the live app and click **Run Judge Demo** to experience the full
 1. Open https://novelpilot.vercel.app
 2. Click **Run Judge Demo**
 3. Wait for the nine-agent pipeline to complete
-4. Inspect:
-   - Story Bible
-   - Foreshadowing Tracker
-   - Chapter 1 draft
-   - Continuity Detective
-   - Publisher package
-5. Click **Export Full Demo Markdown**
-6. Click **Read Novel** to read the generated chapter in Reader Mode
+4. NovelPilot automatically opens the **Completed Novel** reader
+5. Click **Download PDF** (browser Save as PDF) to save the chapter
+6. Optional: click **Back to Workspace** to inspect Story Bible, Foreshadowing Tracker, and Continuity Detective
+7. Click **Export Full Demo Markdown** for submission bundle
 
 The default judging experience does not require an API key; Live OpenRouter mode is optional.
 
@@ -34,9 +30,10 @@ The default judging experience does not require an API key; Live OpenRouter mode
 1. Open the live app (Vercel URL above).
 2. Click **Run Judge Demo** on the prompt launcher screen.
 3. Watch nine agents complete: Premise Architect through Publisher Agent.
-4. Review **Foreshadowing Tracker** and **Continuity Detective** on the right.
-5. Click **Export Full Demo Markdown** for a DEV/Hackathon submission bundle.
-6. Click **Read Novel** to open the distraction-free Reader Mode.
+4. NovelPilot automatically opens the finished **Completed Novel** reader.
+5. Click **Download PDF** to save via your browser’s Save as PDF option.
+6. Click **Back to Workspace** to review Foreshadowing Tracker and Continuity Detective.
+7. Click **Export Full Demo Markdown** for a DEV/Hackathon submission bundle.
 
 No API key required for Judge Demo — curated sample outputs demonstrate the full pipeline.
 
@@ -91,6 +88,8 @@ NovelPilot uses a two-stage flow:
 - Human-in-the-loop: Approve, Regenerate, Edit Output per agent
 - Export: Full Demo Markdown, DEV summary, bible, manuscript, JSON
 - **Browser Reader Mode** — read the generated novel in a polished, distraction-free full-screen view
+- **Automatic transition** to the completed novel reader when all agents finish
+- **PDF download** via browser Save as PDF / print flow (Japanese-friendly)
 - English and Japanese output
 - Mock mode (no API key) and live Gemma 4 mode
 

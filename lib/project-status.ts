@@ -12,3 +12,8 @@ export function getProjectStatus(
   if (project.agents.every((a) => a.status === "completed")) return "Completed";
   return "Ready";
 }
+
+export function isProjectComplete(project: StoryProject | null): boolean {
+  if (!project?.manuscript?.trim()) return false;
+  return project.agents.every((a) => a.status === "completed");
+}

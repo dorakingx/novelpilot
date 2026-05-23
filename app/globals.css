@@ -238,4 +238,60 @@
       box-shadow: inset 0 0 0 2px rgba(56, 189, 248, 0.45);
     }
   }
+
+  .no-screen-only {
+    display: block;
+  }
+}
+
+@media print {
+  @page {
+    margin: 20mm;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .reader-print-root,
+  .reader-print-root * {
+    visibility: visible;
+  }
+
+  .reader-print-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  .no-print,
+  .no-screen-only {
+    display: none !important;
+  }
+
+  .reader-page {
+    box-shadow: none !important;
+    background: white !important;
+    color: black !important;
+    max-width: none !important;
+    padding: 0 !important;
+    border: none !important;
+  }
+
+  .reader-prose {
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.9;
+  }
+
+  .reader-prose p {
+    margin-bottom: 1em;
+    orphans: 3;
+    widows: 3;
+  }
 }

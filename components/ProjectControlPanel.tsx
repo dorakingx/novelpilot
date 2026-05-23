@@ -1,5 +1,6 @@
 "use client";
 
+import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ interface ProjectControlPanelProps {
   onNewStory: () => void;
   onRunJudgeDemo: () => void;
   onOpenReader?: () => void;
+  onDownloadPdf?: () => void;
 }
 
 export function ProjectControlPanel({
@@ -35,6 +37,7 @@ export function ProjectControlPanel({
   onNewStory,
   onRunJudgeDemo,
   onOpenReader,
+  onDownloadPdf,
 }: ProjectControlPanelProps) {
   const slug =
     project.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "story";
@@ -128,6 +131,13 @@ export function ProjectControlPanel({
         {onOpenReader && (
           <ReadNovelButton
             onClick={onOpenReader}
+            disabled={!hasManuscript(project)}
+            className="w-full"
+          />
+        )}
+        {onDownloadPdf && (
+          <DownloadPdfButton
+            onClick={onDownloadPdf}
             disabled={!hasManuscript(project)}
             className="w-full"
           />

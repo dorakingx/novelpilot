@@ -1,5 +1,6 @@
 "use client";
 
+import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,12 +12,14 @@ import { CheckCircle2, FileSearch, FileText, Sparkles } from "lucide-react";
 interface PipelineCompleteCardProps {
   project: StoryProject;
   onOpenReader?: () => void;
+  onDownloadPdf?: () => void;
   onReviewContinuity?: () => void;
 }
 
 export function PipelineCompleteCard({
   project,
   onOpenReader,
+  onDownloadPdf,
   onReviewContinuity,
 }: PipelineCompleteCardProps) {
   const foreshadowCount = project.storyBible.foreshadowingTracker.length;
@@ -49,6 +52,15 @@ export function PipelineCompleteCard({
               <ReadNovelButton
                 onClick={onOpenReader}
                 disabled={!canRead}
+                className="w-full sm:w-auto"
+              />
+            )}
+            {onDownloadPdf && (
+              <DownloadPdfButton
+                onClick={onDownloadPdf}
+                disabled={!canRead}
+                variant="premium"
+                size="lg"
                 className="w-full sm:w-auto"
               />
             )}

@@ -1,0 +1,259 @@
+"use client";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { copyToClipboard } from "@/lib/clipboard";
+import {
+  getChapterTitle,
+  splitManuscriptParagraphs,
+} from "@/lib/format-manuscript";
+import { printNovelPdf } from "@/lib/print-novel-pdf";
+import type { StoryProject } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import {
+  ArrowLeft,
+  BookOpen,
+  Check,
+  Copy,
+  FileDown,
+  FileText,
+  Moon,
+  Plus,
+  Sun,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+
+type ReaderTheme = "paper" | "dark";
+type FontSize = "small" | "medium" | "large";
+
+const FONT_SIZE_CLASS: Record<FontSize, string> = {
+  small: "text-base",
+  medium: "text-[17px] sm:text-[19px]",
+  large: "text-lg sm:text-xl",
+};
+
+interface CompletedNovelReaderProps {
+  project: StoryProject;
+  onBackToWorkspace: () => void;
+  onNewStory: () => void;
+  onExportMarkdown?: () => void;
+}
+
+export function CompletedNovelReader({
+  project,
+  onBackToWorkspace,
+  onNewStory,
+  onExportMarkdown,
+}: CompletedNovelReaderProps) {
+  const [theme, setTheme] = useState<ReaderTheme>("paper");
+  const [fontSize, setFontSize] = useState<FontSize>("medium");
+  const [copied, setCopied] = useState(false);
+
+  const chapterTitle = getChapterTitle(project);
+  const paragraphs = splitManuscriptParagraphs(project.manuscript);
+  const isJa = project.language === "ja";
+  const foreshadowCount = project.storyBible.foreshadowingTracker.length;
+  const issueCount = project.reports.continuity?.issues.length ?? 0;
+
+  const handleCopy = useCallback(async () => {
+    const ok = await copyToClipboard(project.manuscript);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [project.manuscript]);
+
+  const handleDownloadPdf = useCallback(() => {
+    printNovelPdf(project);
+  }, [project]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onBackToWorkspace();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onBackToWorkspace]);
+
+  const pageClass =
+    theme === "paper"
+      ? "bg-[#FFF7E6] text-[#1F2937]"
+      : "bg-[#111827] text-[#F8FAFC]";
+
+  const mutedClass =
+    theme === "paper" ? "text-[#6B7280]" : "text-[#CBD5E1]";
+
+  const borderClass =
+    theme === "paper" ? "border-black/10" : "border-white/12";
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#080B12]">
+      <header className="no-print sticky top-0 z-10 border-b border-white/12 bg-[#111827]/95 backdrop-blur-sm px-3 sm:px-4 py-2.5 sm:py-3">
+        <div className="mx-auto max-w-[860px] flex flex-wrap items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 shrink-0">
+            <BookOpen className="size-5 text-[#F5C542]" />
+            <span className="font-semibold text-[#F8FAFC] hidden sm:inline">
+              NovelPilot
+            </span>
+          </div>
+
+          <div className="min-w-0 flex-1 order-3 sm:order-2 basis-full sm:basis-auto">
+            <p className="text-sm font-semibold text-[#F8FAFC] truncate">
+              {project.title}
+            </p>
+            <p className="text-xs text-[#94A3B8] truncate">{chapterTitle}</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 ml-auto order-2 sm:order-3">
+            <Button
+              variant="glass"
+              size="sm"
+              onClick={onBackToWorkspace}
+              className="shrink-0"
+            >
+              <ArrowLeft className="mr-1.5 size-4" />
+              <span className="hidden sm:inline">Back to Workspace</span>
+              <span className="sm:hidden">Back</span>
+            </Button>
+            <Button variant="glass" size="sm" onClick={onNewStory}>
+              <Plus className="mr-1.5 size-4" />
+              New Story
+            </Button>
+            <Button
+              variant="premium"
+              size="sm"
+              onClick={handleDownloadPdf}
+              title="Use your browser's Save as PDF option."
+            >
+              <FileDown className="mr-1.5 size-4" />
+              Download PDF
+            </Button>
+            {onExportMarkdown && (
+              <Button variant="glass" size="sm" onClick={onExportMarkdown}>
+                <FileText className="mr-1.5 size-4" />
+                <span className="hidden sm:inline">Export Markdown</span>
+                <span className="sm:hidden">Export</span>
+              </Button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="no-print mx-auto max-w-[820px] w-full px-4 sm:px-8 py-4">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="completed">9 agents completed</Badge>
+          <Badge variant="running">{foreshadowCount} foreshadowing threads</Badge>
+          <Badge variant="warning">{issueCount} continuity issues</Badge>
+          <Badge variant="live">Publisher package ready</Badge>
+        </div>
+      </div>
+
+      <div className="no-print mx-auto max-w-[820px] w-full px-4 sm:px-8 pb-2 flex flex-wrap items-center gap-2 justify-end">
+        <div
+          className="flex rounded-lg border border-white/12 overflow-hidden"
+          role="group"
+          aria-label="Font size"
+        >
+          {(["small", "medium", "large"] as const).map((size) => (
+            <button
+              key={size}
+              type="button"
+              onClick={() => setFontSize(size)}
+              className={cn(
+                "px-2 py-1 text-xs font-medium capitalize transition-colors min-w-[2.25rem]",
+                fontSize === size
+                  ? "bg-[#F5C542] text-[#0B1020]"
+                  : "bg-[#172033] text-[#CBD5E1] hover:bg-[#1a2740]"
+              )}
+            >
+              {size[0].toUpperCase()}
+            </button>
+          ))}
+        </div>
+        <Button
+          variant="glass"
+          size="sm"
+          onClick={() => setTheme((t) => (t === "paper" ? "dark" : "paper"))}
+          aria-label={
+            theme === "paper" ? "Switch to dark theme" : "Switch to paper theme"
+          }
+        >
+          {theme === "paper" ? (
+            <Moon className="size-4" />
+          ) : (
+            <Sun className="size-4" />
+          )}
+        </Button>
+        <Button variant="glass" size="sm" onClick={handleCopy}>
+          {copied ? (
+            <Check className="size-4 text-[#86EFAC]" />
+          ) : (
+            <Copy className="size-4" />
+          )}
+        </Button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto overflow-x-hidden pb-16">
+        <div className="reader-print-root mx-auto max-w-[820px] px-4 sm:px-8 py-4 sm:py-8">
+          <article
+            lang={isJa ? "ja" : "en"}
+            className={cn(
+              "reader-page rounded-2xl shadow-lg overflow-hidden max-w-[820px] mx-auto",
+              pageClass
+            )}
+          >
+            <header
+              className={cn(
+                "px-6 sm:px-10 pt-8 sm:pt-10 pb-6 border-b",
+                borderClass
+              )}
+            >
+              <p className={cn("text-xs uppercase tracking-[0.2em]", mutedClass)}>
+                {isJa ? "完成した小説" : "Completed Novel"}
+              </p>
+              <h1
+                className="mt-3 text-2xl sm:text-3xl font-medium leading-snug"
+                style={{ fontFamily: "var(--font-lora), Georgia, serif" }}
+              >
+                {project.title}
+              </h1>
+              <h2
+                className={cn(
+                  "mt-2 text-lg sm:text-xl font-medium",
+                  mutedClass
+                )}
+                style={{ fontFamily: "var(--font-lora), Georgia, serif" }}
+              >
+                {chapterTitle}
+              </h2>
+              <p className={cn("mt-4 text-sm", mutedClass)}>
+                {[project.genre, project.tone, project.language]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            </header>
+
+            <div
+              className={cn(
+                "reader-prose px-6 sm:px-10 py-8 sm:py-10 space-y-6 sm:space-y-8 break-words",
+                FONT_SIZE_CLASS[fontSize],
+                isJa && "tracking-[0.02em]"
+              )}
+              style={{
+                fontFamily: "var(--font-lora), Georgia, serif",
+                lineHeight: 2,
+              }}
+            >
+              {paragraphs.map((para, i) => (
+                <p key={i}>{para}</p>
+              ))}
+            </div>
+          </article>
+          <footer className="reader-prose no-screen-only text-center text-sm mt-8 text-[#6B7280]">
+            Generated with NovelPilot
+          </footer>
+        </div>
+      </div>
+    </div>
+  );
+}

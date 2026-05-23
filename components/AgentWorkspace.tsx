@@ -27,6 +27,7 @@ interface AgentWorkspaceProps {
   onApprove: (agentId: AgentId) => void;
   onEditOutput: (agentId: AgentId, output: unknown) => void;
   onOpenReader?: () => void;
+  onDownloadPdf?: () => void;
 }
 
 export function AgentWorkspace({
@@ -44,6 +45,7 @@ export function AgentWorkspace({
   onApprove,
   onEditOutput,
   onOpenReader,
+  onDownloadPdf,
 }: AgentWorkspaceProps) {
   const handleReviewContinuity = () => {
     document
@@ -72,6 +74,7 @@ export function AgentWorkspace({
               onNewStory={onNewStory}
               onRunJudgeDemo={onRunJudgeDemo}
               onOpenReader={onOpenReader}
+              onDownloadPdf={onDownloadPdf}
             />
           </aside>
 
@@ -83,6 +86,7 @@ export function AgentWorkspace({
               <PipelineCompleteCard
                 project={project}
                 onOpenReader={onOpenReader}
+                onDownloadPdf={onDownloadPdf}
                 onReviewContinuity={handleReviewContinuity}
               />
             )}
@@ -106,11 +110,16 @@ export function AgentWorkspace({
               project={project}
               isRunning={isRunning}
               onOpenReader={onOpenReader}
+              onDownloadPdf={onDownloadPdf}
             />
             <div id="continuity-report">
               <ContinuityReport project={project} isRunning={isRunning} />
             </div>
-            <ExportPanel project={project} onOpenReader={onOpenReader} />
+            <ExportPanel
+              project={project}
+              onOpenReader={onOpenReader}
+              onDownloadPdf={onDownloadPdf}
+            />
           </aside>
         </div>
       </main>

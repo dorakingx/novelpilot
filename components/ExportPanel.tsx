@@ -1,5 +1,6 @@
 "use client";
 
+import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -20,9 +21,14 @@ import { useState } from "react";
 interface ExportPanelProps {
   project: StoryProject | null;
   onOpenReader?: () => void;
+  onDownloadPdf?: () => void;
 }
 
-export function ExportPanel({ project, onOpenReader }: ExportPanelProps) {
+export function ExportPanel({
+  project,
+  onOpenReader,
+  onDownloadPdf,
+}: ExportPanelProps) {
   const [copied, setCopied] = useState(false);
   const disabled = !project;
 
@@ -50,6 +56,13 @@ export function ExportPanel({ project, onOpenReader }: ExportPanelProps) {
             onClick={onOpenReader}
             disabled={!hasManuscript(project)}
             variant="glass"
+            className="w-full"
+          />
+        )}
+        {onDownloadPdf && (
+          <DownloadPdfButton
+            onClick={onDownloadPdf}
+            disabled={!hasManuscript(project)}
             className="w-full"
           />
         )}

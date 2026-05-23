@@ -39,15 +39,16 @@ Each step receives the accumulated Story Bible and previous structured outputs.
 
 ## What I built
 
-The UI starts as a simple prompt launcher. Once the user begins, it transforms into an agent workspace where the writing room runs step by step. When agents finish, **Reader Mode** lets users read the generated story as a finished browser-based novel — not only inspect the pipeline.
+The UI starts as a simple prompt launcher. Once the user begins, it transforms into an agent workspace where the writing room runs step by step. When all agents complete, NovelPilot **automatically transitions** into a finished novel reader. The user can read the story in the browser and download it as a PDF using the browser’s Save as PDF flow.
 
 NovelPilot is a Next.js web app where judges and writers can:
 
 1. Enter one story prompt (or click **Run Judge Demo** for an instant sci-fi mystery).
 2. Watch a vertical **agent timeline** run nine steps sequentially.
 3. Explore outputs in a **story bible**, **foreshadowing tracker**, **manuscript preview**, and **continuity detective** panel.
-4. Click **Read Novel** for full-screen Reader Mode.
-5. Export a **full demo markdown** file for hackathon or DEV submission.
+4. Click **Read Finished Novel** or wait for the automatic reader transition.
+5. **Download PDF** via browser Save as PDF.
+6. Export a **full demo markdown** file for hackathon or DEV submission.
 
 The MVP generates a complete story bible, plot, three-chapter outline, **chapter 1 draft**, style editor notes, structured continuity report, and publisher marketing copy.
 
@@ -88,10 +89,10 @@ The client orchestrates the pipeline: one HTTP request per agent, visible progre
 1. Open the **live Vercel deployment** (link at top of this post).  
 2. Click **Run Judge Demo**.  
 3. Watch the timeline fill: Premise Architect → … → Publisher Agent.  
-4. Open **Foreshadowing Tracker** — see threads like “cracked silver watch” with payoff chapter and emotional purpose.  
-5. Read **Continuity Detective** — structured issues, not bullet fluff.  
-6. **Export Full Demo Markdown** — one file for submission.
-7. **Read Novel** — full-screen Reader Mode for the finished chapter.
+4. NovelPilot **automatically opens** the finished novel reader.  
+5. Open **Foreshadowing Tracker** or **Continuity Detective** via Back to Workspace.  
+6. **Download PDF** — use your browser’s Save as PDF option.  
+7. **Export Full Demo Markdown** — one file for submission.
 
 No demo video — the live app is the demo.
 

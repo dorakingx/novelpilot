@@ -1,5 +1,6 @@
 "use client";
 
+import { DownloadPdfButton } from "@/components/DownloadPdfButton";
 import { PanelPlaceholder } from "@/components/PanelPlaceholder";
 import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -15,12 +16,14 @@ interface ManuscriptPreviewProps {
   project: StoryProject | null;
   isRunning?: boolean;
   onOpenReader?: () => void;
+  onDownloadPdf?: () => void;
 }
 
 export function ManuscriptPreview({
   project,
   isRunning,
   onOpenReader,
+  onDownloadPdf,
 }: ManuscriptPreviewProps) {
   const chapterTitle = project ? getChapterTitle(project) : "Chapter 1";
   const draft = project?.manuscript;
@@ -36,12 +39,23 @@ export function ManuscriptPreview({
             distraction-free reading.
           </p>
         </div>
-        {onOpenReader && (
-          <ReadNovelButton
-            onClick={onOpenReader}
-            disabled={!canRead}
-            className="shrink-0 w-full sm:w-auto"
-          />
+        {(onOpenReader || onDownloadPdf) && (
+          <div className="flex flex-col sm:flex-row gap-2 shrink-0 w-full sm:w-auto">
+            {onOpenReader && (
+              <ReadNovelButton
+                onClick={onOpenReader}
+                disabled={!canRead}
+                className="w-full sm:w-auto"
+              />
+            )}
+            {onDownloadPdf && (
+              <DownloadPdfButton
+                onClick={onDownloadPdf}
+                disabled={!canRead}
+                className="w-full sm:w-auto"
+              />
+            )}
+          </div>
         )}
       </div>
       {project && (
