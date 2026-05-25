@@ -252,6 +252,7 @@ export interface StoryProject {
   awaitingStructureApproval?: boolean;
   structureApproved?: boolean;
   requiresStructureApproval?: boolean;
+  structureFallbackUsed?: boolean;
   draftingProgress?: DraftingProgress;
 }
 

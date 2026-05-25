@@ -158,6 +158,81 @@ export function getAgentIndex(agentId: AgentId): number {
   return AGENT_DEFINITIONS.findIndex((a) => a.id === agentId);
 }
 
+function slimPriorOutputs(
+  priorAgents: StoryProject["agents"]
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const agent of priorAgents) {
+    const raw = agent.output as Record<string, unknown> | null;
+    if (!raw || typeof raw !== "object") continue;
+    switch (agent.id) {
+      case "concept":
+        out.concept = {
+          logline: raw.logline,
+          coreTheme: raw.coreTheme,
+          centralConflict: raw.centralConflict,
+        };
+        break;
+      case "character": {
+        const names: string[] = [];
+        const prot = raw.protagonist as { name?: string } | undefined;
+        const ant = raw.antagonist as { name?: string } | undefined;
+        if (prot?.name) names.push(prot.name);
+        if (ant?.name) names.push(ant.name);
+        if (Array.isArray(raw.supporting)) {
+          for (const s of raw.supporting) {
+            const n = (s as { name?: string })?.name;
+            if (n) names.push(n);
+          }
+        }
+        out.characters = names;
+        break;
+      }
+      case "worldbuilding":
+        out.worldbuilding = {
+          setting: raw.setting,
+          atmosphere: raw.atmosphere,
+        };
+        break;
+      case "plot":
+        out.plot = {
+          beginning: raw.beginning,
+          middle: raw.middle,
+          climax: raw.climax,
+          ending: raw.ending,
+          twists: Array.isArray(raw.twists) ? raw.twists.slice(0, 3) : [],
+        };
+        break;
+      default:
+        break;
+    }
+  }
+  return out;
+}
+
+function slimStructureForOutline(
+  structure: StoryProject["structure"]
+): Record<string, unknown> {
+  return {
+    mode: structure.mode,
+    presetId: structure.presetId,
+    partCount: structure.partCount,
+    chaptersPerPart: structure.chaptersPerPart,
+    totalChapterCount: structure.totalChapterCount,
+    lengthUnit: structure.lengthUnit,
+    parts: structure.parts.map((p) => ({
+      number: p.number,
+      title: p.title,
+      chapters: p.chapters.map((ch) => ({
+        number: ch.number,
+        role: ch.role,
+        title: ch.title,
+        lengthPlan: ch.lengthPlan,
+      })),
+    })),
+  };
+}
+
 export function buildAgentContext(
   project: StoryProject,
   agentId: AgentId
@@ -166,6 +241,17 @@ export function buildAgentContext(
     (a) =>
       getAgentIndex(a.id) < getAgentIndex(agentId) && a.status === "completed"
   );
+
+  if (agentId === "chapter-outline") {
+    return {
+      userPrompt: project.userPrompt,
+      language: project.language,
+      genre: project.genre,
+      tone: project.tone,
+      structure: slimStructureForOutline(project.structure),
+      priorOutputs: slimPriorOutputs(priorAgents),
+    };
+  }
 
   return {
     userPrompt: project.userPrompt,
@@ -402,6 +488,7 @@ export function mergeAgentOutput(
       break;
     }
     case "chapter-outline": {
+      try {
       const userParts = project.structure.parts?.length
         ? project.structure.parts
         : project.storyBible.parts ?? [];
@@ -432,6 +519,7 @@ export function mergeAgentOutput(
       project = {
         ...project,
         structure: structureWithParts,
+        structureFallbackUsed: Boolean(o.fallbackGenerated),
       };
       if (o.styleGuide) {
         const sg = o.styleGuide as Record<string, unknown>;
@@ -446,6 +534,13 @@ export function mergeAgentOutput(
       const chapterTracker = parseForeshadowingItems(o.foreshadowingTracker);
       if (chapterTracker.length > 0) {
         bible.foreshadowingTracker = chapterTracker;
+      }
+      } catch (mergeErr) {
+        const hint =
+          mergeErr instanceof Error ? mergeErr.message : "Invalid structure";
+        throw new Error(
+          `Chapter Architect output could not be applied: ${hint}`
+        );
       }
       break;
     }

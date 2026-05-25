@@ -296,6 +296,61 @@ async function callCustomProvider(
   }
 }
 
+function linkAbortSignals(
+  ...signals: (AbortSignal | undefined)[]
+): AbortController {
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  for (const signal of signals) {
+    if (!signal) continue;
+    if (signal.aborted) {
+      controller.abort();
+      return controller;
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
+  return controller;
+}
+
+/** Enforces a wall-clock timeout in addition to any caller abort signal. */
+export async function callGemmaWithTimeout(
+  prompt: string,
+  options?: {
+    signal?: AbortSignal;
+    timeoutMs?: number;
+    mockAgentId?: AgentId;
+    mockLanguage?: Language;
+  }
+): Promise<string> {
+  const timeoutMs = options?.timeoutMs ?? 60_000;
+  const timeoutController = new AbortController();
+  const linked = linkAbortSignals(options?.signal, timeoutController.signal);
+
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      timeoutController.abort();
+      reject(new Error(`LLM request timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    linked.signal.addEventListener(
+      "abort",
+      () => {
+        if (timeoutId) clearTimeout(timeoutId);
+      },
+      { once: true }
+    );
+  });
+
+  try {
+    return await Promise.race([
+      callGemma(prompt, { ...options, signal: linked.signal }),
+      timeoutPromise,
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export async function callGemma(
   prompt: string,
   options?: {

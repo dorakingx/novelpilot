@@ -9,6 +9,7 @@ import { ManuscriptPreview } from "@/components/ManuscriptPreview";
 import { PipelineCompleteCard } from "@/components/PipelineCompleteCard";
 import { ProjectControlPanel } from "@/components/ProjectControlPanel";
 import { ReadNovelButton } from "@/components/ReadNovelButton";
+import { ChapterOutlineFailurePanel } from "@/components/ChapterOutlineFailurePanel";
 import { StructureDesigner } from "@/components/StructureDesigner";
 import { StoryBiblePreview } from "@/components/StoryBiblePreview";
 import { StoryStructurePanel } from "@/components/StoryStructurePanel";
@@ -38,6 +39,8 @@ interface AgentWorkspaceProps {
   onApproveStructureAndContinue?: () => void;
   onUpdateStructure?: (parts: PartPlan[]) => void;
   onRegenerateStructure?: () => void;
+  onApplyFallbackChapterOutline?: () => void;
+  onReturnToStructureSettings?: () => void;
 }
 
 export function AgentWorkspace({
@@ -62,8 +65,16 @@ export function AgentWorkspace({
   onApproveStructureAndContinue,
   onUpdateStructure,
   onRegenerateStructure,
+  onApplyFallbackChapterOutline,
+  onReturnToStructureSettings,
 }: AgentWorkspaceProps) {
   const readLabel = projectComplete ? "Read Finished Novel" : "Read Manuscript";
+  const chapterOutlineAgent = project.agents.find(
+    (a) => a.id === "chapter-outline"
+  );
+  const showChapterOutlineFailure =
+    chapterOutlineAgent?.status === "failed" &&
+    !project.awaitingStructureApproval;
 
   const handleReviewContinuity = () => {
     document
@@ -114,6 +125,17 @@ export function AgentWorkspace({
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden lg:block">
               Writing room
             </p>
+            {showChapterOutlineFailure &&
+              onApplyFallbackChapterOutline &&
+              onReturnToStructureSettings && (
+                <ChapterOutlineFailurePanel
+                  errorMessage={chapterOutlineAgent?.error}
+                  disabled={isRunning}
+                  onRetry={() => onRegenerate("chapter-outline")}
+                  onUseFallback={onApplyFallbackChapterOutline}
+                  onReturnToStructureSettings={onReturnToStructureSettings}
+                />
+              )}
             {project.awaitingStructureApproval && onApproveStructureAndContinue && (
               <StructureDesigner
                 project={project}

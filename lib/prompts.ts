@@ -15,41 +15,21 @@ const CHAPTER_OUTLINE_SCHEMA = `{
   "parts": [
     {
       "number": 1,
-      "title": "string",
-      "purpose": "string",
-      "targetLength": 3000,
+      "title": "short phrase",
+      "purpose": "short phrase",
       "chapters": [
         {
           "number": 1,
           "partNumber": 1,
-          "title": "string",
-          "role": "string",
-          "purpose": "string",
-          "emotionalTurn": "string",
-          "keyEvents": ["string"],
-          "foreshadowing": ["string"],
-          "lengthPlan": {
-            "targetLength": 1500,
-            "unit": "words"
-          }
+          "title": "short phrase",
+          "role": "Opening",
+          "purpose": "short phrase",
+          "emotionalTurn": "short phrase",
+          "keyEvents": ["phrase", "phrase"],
+          "foreshadowing": ["phrase"],
+          "lengthPlan": { "targetLength": 1200, "unit": "words" }
         }
       ]
-    }
-  ],
-  "chapters": [
-    {
-      "number": 1,
-      "partNumber": 1,
-      "title": "string",
-      "role": "string",
-      "purpose": "string",
-      "emotionalTurn": "string",
-      "keyEvents": ["string"],
-      "foreshadowing": ["string"],
-      "lengthPlan": {
-        "targetLength": 1500,
-        "unit": "words"
-      }
     }
   ],
   "styleGuide": {
@@ -61,12 +41,12 @@ const CHAPTER_OUTLINE_SCHEMA = `{
   },
   "foreshadowingTracker": [
     {
-      "item": "string",
-      "introducedIn": "string",
-      "status": "planned|unresolved|paid-off",
-      "suggestedPayoff": "string",
-      "payoffChapter": "string",
-      "emotionalPurpose": "string"
+      "item": "short phrase",
+      "introducedIn": "Ch.1",
+      "status": "planned",
+      "suggestedPayoff": "short",
+      "payoffChapter": "Ch.3",
+      "emotionalPurpose": "short"
     }
   ]
 }`;
@@ -154,11 +134,12 @@ function chapterOutlineInstructions(context: Record<string, unknown>): string {
     );
 
   return `You are the Chapter Architect. Create a story structure with exactly ${partCount} part(s), ${chaptersPerPart} chapter(s) per part, and exactly ${totalChapters} chapters total. Do NOT add or remove parts or chapters.
-If parts are requested (partCount > 1), group chapters into parts. Each part must have a narrative purpose.
-Each chapter must include: title, role (narrative beat label), purpose, emotionalTurn, keyEvents, foreshadowing, and lengthPlan with targetLength in ${unit}.
-${hasUserPlans ? `The user has provided per-chapter length plans in structure.parts. Preserve each chapter's lengthPlan.targetLength exactly unless it is blank. Per-chapter length is the source of truth — do not rebalance to a project total.` : `Assign sensible per-chapter lengthPlan values in ${unit} for pacing.`}
-Include role labels (e.g. Opening, Midpoint, Climax) so later agents understand why chapters differ in length.
-You MUST include foreshadowingTracker with 4-6 items.
+Return ONLY the "parts" array (nested chapters). Do NOT include a separate top-level "chapters" array.
+If partCount > 1, group chapters into parts. Each part needs a short title and purpose.
+Each chapter must include: title, role, purpose, emotionalTurn, keyEvents (max 3 short phrases), foreshadowing (max 2 short phrases), lengthPlan with targetLength in ${unit}.
+${hasUserPlans ? `Preserve each chapter's lengthPlan.targetLength from structure.parts exactly unless blank.` : `Assign sensible per-chapter lengthPlan values in ${unit}.`}
+Keep the outline compact. Do not write scene prose here. Use short phrases, not paragraphs. Each chapter purpose, emotionalTurn, and key event should be concise. Save long prose for the Prose Writer.
+Keep every field concise. Do not write prose. Do not include long explanations. Do not include markdown. Limit foreshadowingTracker to max 4 items. Each string under 180 characters. Return only valid JSON.
 ${lang}`;
 }
 

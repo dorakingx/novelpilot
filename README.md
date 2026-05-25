@@ -190,6 +190,8 @@ The Gemma 4 Challenge requires a Gemma 4 model. If the default OpenRouter model 
 
 **Important:** The app must work on Vercel without `GEMMA_API_KEY` because Judge Demo uses curated mock outputs.
 
+Live generation uses a 60-second per-agent timeout on [`app/api/generate-agent/route.ts`](app/api/generate-agent/route.ts) (`maxDuration = 60`). If Chapter Architect fails on large structures, use **Use Fallback Structure** in the workspace or reduce chapter count.
+
 ## Architecture
 
 ```

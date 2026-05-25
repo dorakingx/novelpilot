@@ -44,6 +44,7 @@ export default function Home() {
     approveStructureAndContinue,
     updateStructure,
     regenerateStructure,
+    applyFallbackChapterOutline,
   } = useStoryProject();
 
   const projectStatus = getProjectStatus(project, isRunning);
@@ -252,6 +253,8 @@ export default function Home() {
               onApproveStructureAndContinue={approveStructureAndContinue}
               onUpdateStructure={updateStructure}
               onRegenerateStructure={regenerateStructure}
+              onApplyFallbackChapterOutline={applyFallbackChapterOutline}
+              onReturnToStructureSettings={() => setPhase("launcher")}
             />
           )}
         </div>

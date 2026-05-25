@@ -10,6 +10,7 @@ import {
   resetFromAgent,
   setAgentStatus,
 } from "./agents";
+import { buildFallbackChapterOutline } from "./chapter-outline-fallback";
 import { DEFAULT_GEMMA_MODEL } from "./gemma-model";
 import {
   JUDGE_DEMO_REQUIRES_STRUCTURE_APPROVAL,
@@ -96,10 +97,17 @@ export function useStoryProject() {
   }, []);
 
   const resolveGenerationError = useCallback(
-    (raw: string, liveMode: boolean, provider: string, model: string) => {
+    (
+      raw: string,
+      liveMode: boolean,
+      provider: string,
+      model: string,
+      agentId?: AgentId
+    ) => {
       if (!liveMode) return raw;
       if (raw.startsWith("Live generation failed")) return raw;
-      return formatLiveGenerationError(raw, provider, model);
+      if (raw.startsWith("Chapter Architect failed")) return raw;
+      return formatLiveGenerationError(raw, provider, model, agentId);
     },
     []
   );
@@ -236,16 +244,17 @@ export function useStoryProject() {
         } else {
           const raw =
             err instanceof Error ? err.message : "Generation failed";
-          const message = resolveGenerationError(
-            raw,
-            !mockMode,
-            llmProvider,
-            llmModel
-          );
           setProject((p) => {
             if (!p) return p;
             const running = p.agents.find((a) => a.status === "running");
             if (!running) return p;
+            const message = resolveGenerationError(
+              raw,
+              !mockMode,
+              llmProvider,
+              llmModel,
+              running.id
+            );
             return setAgentStatus(p, running.id, "failed", {
               error: message,
             });
@@ -378,6 +387,27 @@ export function useStoryProject() {
     });
   }, []);
 
+  const applyFallbackChapterOutline = useCallback(() => {
+    setProject((p) => {
+      if (!p) return p;
+      const output = buildFallbackChapterOutline(p);
+      let updated = mergeAgentOutput(p, "chapter-outline", output);
+      if (
+        updated.requiresStructureApproval !== false &&
+        !updated.structureApproved
+      ) {
+        updated = {
+          ...updated,
+          awaitingStructureApproval: true,
+          structureFallbackUsed: true,
+        };
+      }
+      return updated;
+    });
+    setIsRunning(false);
+    abortRef.current = null;
+  }, []);
+
   const regenerateStructure = useCallback(async () => {
     if (!project || isRunning) return;
     const reset = resetFromAgent(project, "chapter-outline");
@@ -492,5 +522,6 @@ export function useStoryProject() {
     updateStructure,
     redistributeStructureLength,
     regenerateStructure,
+    applyFallbackChapterOutline,
   };
 }
