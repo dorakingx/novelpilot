@@ -2,9 +2,12 @@
 
 import { Badge } from "@/components/ui/badge";
 import {
+  computeTotalPlannedLength,
   estimateTextLength,
+  formatLengthDifference,
   formatLengthLabel,
   getChapterLengthStatus,
+  getLengthDifference,
   getLengthStatusLabel,
 } from "@/lib/length-planning";
 import { getAllChapters } from "@/lib/structure-utils";
@@ -35,6 +38,9 @@ export function StoryStructurePanel({
   const chapters = getAllChapters(project);
   const progress = project.draftingProgress;
   const unit = project.structure.lengthUnit;
+  const totalPlanned = computeTotalPlannedLength(
+    parts.length ? parts : chapters
+  );
 
   return (
     <div className="surface-card premium-border rounded-2xl p-5">
@@ -48,15 +54,11 @@ export function StoryStructurePanel({
         {project.structure.partCount} part
         {project.structure.partCount !== 1 ? "s" : ""} · {chapters.length}{" "}
         chapters
-        {project.structure.totalTargetLength != null && (
+        {totalPlanned > 0 && (
           <>
             {" "}
-            ·{" "}
-            {formatLengthLabel(
-              project.structure.totalTargetLength,
-              unit,
-              project.language
-            )}
+            · Total planned length:{" "}
+            {formatLengthLabel(totalPlanned, unit, project.language)}
           </>
         )}
       </p>
@@ -81,14 +83,15 @@ export function StoryStructurePanel({
                       ch.draft,
                       ch.lengthPlan
                     );
+                    const chUnit = ch.lengthPlan?.unit ?? unit;
                     const actual = ch.draft
-                      ? estimateTextLength(ch.draft, ch.lengthPlan?.unit ?? unit)
+                      ? estimateTextLength(ch.draft, chUnit)
                       : 0;
                     const target = ch.lengthPlan?.targetLength;
-                    const pct =
-                      target && actual
-                        ? Math.round((actual / target) * 100)
-                        : null;
+                    const diff =
+                      target && actual ?
+                        getLengthDifference(actual, target)
+                      : null;
 
                     return (
                       <li
@@ -96,19 +99,31 @@ export function StoryStructurePanel({
                         className="text-xs text-[#94A3B8] space-y-1"
                       >
                         <span className="text-[#F8FAFC]">
-                          Ch. {ch.number}: {ch.title}
+                          Ch. {ch.number}
+                          {ch.role?.trim() ? ` (${ch.role})` : ""}: {ch.title}
                         </span>
                         <div className="flex flex-wrap items-center gap-1.5">
                           {target != null && (
                             <span>
-                              Target: {target.toLocaleString()} {unit}
+                              Target: {target.toLocaleString()} {chUnit}
                             </span>
                           )}
                           {ch.draft && (
-                            <span>
-                              Actual: {actual.toLocaleString()} {unit}
-                              {pct != null ? ` (${pct}%)` : ""}
-                            </span>
+                            <>
+                              <span>
+                                Actual: {actual.toLocaleString()} {chUnit}
+                              </span>
+                              {diff != null && (
+                                <span>
+                                  Difference:{" "}
+                                  {formatLengthDifference(
+                                    diff,
+                                    chUnit,
+                                    project.language
+                                  )}
+                                </span>
+                              )}
+                            </>
                           )}
                           <Badge
                             variant={STATUS_VARIANT[status]}
@@ -125,17 +140,39 @@ export function StoryStructurePanel({
             ))
           : chapters.map((ch) => {
               const status = getChapterLengthStatus(ch.draft, ch.lengthPlan);
+              const chUnit = ch.lengthPlan?.unit ?? unit;
+              const actual = ch.draft
+                ? estimateTextLength(ch.draft, chUnit)
+                : 0;
+              const target = ch.lengthPlan?.targetLength;
+              const diff =
+                target && actual ?
+                  getLengthDifference(actual, target)
+                : null;
+
               return (
                 <div key={ch.number} className="text-xs text-[#94A3B8]">
                   <span className="text-[#F8FAFC]">
                     Ch. {ch.number}: {ch.title}
                   </span>
-                  <Badge
-                    variant={STATUS_VARIANT[status]}
-                    className="ml-2 text-[10px]"
-                  >
-                    {getLengthStatusLabel(status)}
-                  </Badge>
+                  {target != null && ch.draft && (
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      <span>Target: {target}</span>
+                      <span>Actual: {actual}</span>
+                      {diff != null && (
+                        <span>
+                          {formatLengthDifference(
+                            diff,
+                            chUnit,
+                            project.language
+                          )}
+                        </span>
+                      )}
+                      <Badge variant={STATUS_VARIANT[status]} className="text-[10px] py-0">
+                        {getLengthStatusLabel(status)}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               );
             })}

@@ -139,6 +139,7 @@ export function parseChapterFromRaw(
     number: Number(ch.number ?? 0),
     partNumber: ch.partNumber != null ? Number(ch.partNumber) : undefined,
     title: String(ch.title ?? ""),
+    role: ch.role != null ? String(ch.role) : undefined,
     purpose: String(ch.purpose ?? ""),
     emotionalTurn: String(ch.emotionalTurn ?? ""),
     keyEvents: Array.isArray(ch.keyEvents) ? ch.keyEvents.map(String) : [],
@@ -178,5 +179,43 @@ export function shouldUseSequentialDrafting(
   structure: StoryStructureSettings
 ): boolean {
   return resolveTotalChapterCount(structure) > 3;
+}
+
+/** Preserve user-defined per-chapter length and role from launcher skeleton */
+export function mergePreservedChapterPlans(
+  userParts: PartPlan[],
+  aiParts: PartPlan[]
+): PartPlan[] {
+  const userByNumber = new Map<number, Chapter>();
+  for (const part of userParts) {
+    for (const ch of part.chapters) {
+      userByNumber.set(ch.number, ch);
+    }
+  }
+
+  return aiParts.map((part) => ({
+    ...part,
+    chapters: part.chapters.map((ch) => {
+      const user = userByNumber.get(ch.number);
+      if (!user) return ch;
+
+      const preservedLength =
+        user.lengthPlan?.targetLength && user.lengthPlan.targetLength > 0 ?
+          user.lengthPlan
+        : ch.lengthPlan;
+
+      const preservedRole =
+        user.role?.trim() ? user.role : ch.role;
+
+      return {
+        ...ch,
+        role: preservedRole,
+        lengthPlan: preservedLength ?? ch.lengthPlan,
+        ...(user.title?.trim() && user.title.startsWith("Chapter ") === false ?
+          {}
+        : {}),
+      };
+    }),
+  }));
 }
 

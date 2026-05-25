@@ -57,7 +57,7 @@ The MVP generates a complete story bible, plot, customizable part/chapter outlin
 - **Short Story** — 1 part × 3 chapters (batch draft in one Prose Writer call for mock/demo)
 - **Novella** — 2 parts × 6 chapters (structure approval + chapter-by-chapter drafting)
 - **Serialized Novel Plan** — 3 parts × 12 chapters (planning-scale; drafts run sequentially)
-- **Custom** — user-defined parts, chapters, and total target length
+- **Custom** — user-defined parts, chapters, and per-chapter lengths
 
 Long works are generated **chapter by chapter** for reliability, not in a single 100k-word API call.
 

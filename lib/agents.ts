@@ -3,8 +3,12 @@ import {
   buildManuscriptFromProject,
 } from "./format-manuscript";
 import { parseContinuityReport, parseForeshadowingItems } from "./parse-agent-output";
+import { syncStructureTotal } from "./length-planning";
+import { presetToTargetLength } from "./structure-chapter-defaults";
 import { buildDefaultStructure } from "./structure-presets";
 import {
+  flattenPartsToChapters,
+  mergePreservedChapterPlans,
   parseChapterFromRaw,
   parsePartFromRaw,
   syncPartsAndChapters,
@@ -99,9 +103,14 @@ export function createInitialProject(
   options?: { requiresStructureApproval?: boolean }
 ): StoryProject {
   const now = new Date().toISOString();
-  const structure =
-    settings.structure ??
-    buildDefaultStructure(settings.language, "short-3");
+  const structure = syncStructureTotal(
+    settings.structure ?? buildDefaultStructure(settings.language, "short-3")
+  );
+  const targetLength =
+    settings.targetLength ?? presetToTargetLength(structure.presetId);
+  const seedParts = structure.parts?.length ? structure.parts : [];
+  const seedChapters = flattenPartsToChapters(seedParts);
+
   return {
     id: generateId(),
     title: "Untitled Project",
@@ -109,7 +118,7 @@ export function createInitialProject(
     language: settings.language,
     genre: settings.genre,
     tone: settings.tone,
-    targetLength: settings.targetLength,
+    targetLength,
     structure,
     createdAt: now,
     updatedAt: now,
@@ -118,7 +127,9 @@ export function createInitialProject(
       ...EMPTY_STORY_BIBLE,
       genre: settings.genre,
       tone: settings.tone,
-      targetAudience: audienceForLength(settings.targetLength),
+      targetAudience: audienceForPreset(structure.presetId),
+      parts: seedParts,
+      chapters: seedChapters,
     },
     manuscript: "",
     reports: { ...EMPTY_REPORTS },
@@ -128,14 +139,16 @@ export function createInitialProject(
   };
 }
 
-function audienceForLength(targetLength: ProjectSettings["targetLength"]): string {
-  switch (targetLength) {
-    case "flash-fiction":
-      return "Readers seeking a complete emotional arc under 1,000 words";
-    case "short-story":
+function audienceForPreset(
+  presetId: ProjectSettings["structure"]["presetId"]
+): string {
+  switch (presetId) {
+    case "short-3":
       return "Magazine and anthology readers of literary genre fiction";
-    case "novella-outline":
+    case "novella-6":
       return "Editors and beta readers evaluating a novella-length project";
+    case "serial-12":
+      return "Readers following a serialized novel with episodic chapters";
     default:
       return "General fiction readers";
   }
@@ -389,6 +402,9 @@ export function mergeAgentOutput(
       break;
     }
     case "chapter-outline": {
+      const userParts = project.structure.parts?.length
+        ? project.structure.parts
+        : project.storyBible.parts ?? [];
       let parts = Array.isArray(o.parts)
         ? (o.parts as Array<Record<string, unknown>>).map((p) =>
             parsePartFromRaw(p, project.language)
@@ -402,16 +418,20 @@ export function mergeAgentOutput(
       if (parts.length === 0 && flatChapters.length > 0) {
         parts = wrapChaptersInSinglePart(flatChapters);
       }
+      if (userParts.length > 0) {
+        parts = mergePreservedChapterPlans(userParts, parts);
+      }
       const synced = syncPartsAndChapters(parts, flatChapters);
       bible.parts = synced.parts;
       bible.chapters = synced.chapters;
+      const structureWithParts = syncStructureTotal({
+        ...project.structure,
+        parts: synced.parts,
+        totalChapterCount: synced.chapters.length,
+      });
       project = {
         ...project,
-        structure: {
-          ...project.structure,
-          parts: synced.parts,
-          totalChapterCount: synced.chapters.length,
-        },
+        structure: structureWithParts,
       };
       if (o.styleGuide) {
         const sg = o.styleGuide as Record<string, unknown>;

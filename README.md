@@ -83,15 +83,19 @@ NovelPilot uses a two-stage flow:
 1. **Prompt Launcher** — the user enters a story idea and settings on a focused full-screen start view.
 2. **Agent Workspace** — nine Gemma-powered agents run the full writing pipeline and produce the story bible, draft, foreshadowing tracker, continuity report, and publisher package.
 
-## Custom structure and chapter length control
+## Chapter-level length control
 
-NovelPilot supports:
+NovelPilot no longer uses a single global target length as the main control. Instead, users define length **per chapter** inside **Story Structure** on the prompt launcher.
 
-- Custom **part count** and **chapters per part** (Short Story, Novella, Serialized plan, or Custom)
-- **Per-chapter target length** (words for English, characters for Japanese)
-- **Automatic length distribution** across chapters
-- **Structure review** before drafting (Structure Designer pauses the pipeline after Chapter Architect)
-- **Chapter-by-chapter generation** for longer works (more than 3 chapters) for reliability
+- **Chapter Lengths** — set target length for each chapter (words in English, characters in Japanese), with Short / Standard / Long presets per chapter
+- **Chapter roles** — optional labels (Opening, Midpoint, Climax, etc.) so agents understand pacing
+- **Total planned length** — read-only sum of all chapter targets
+- **Structure presets** — Short Story, Novella, Serialized Novel Plan, or Custom (parts × chapters per part)
+- **Advanced: Auto distribute total length** — optional even split across chapters (not the primary UX)
+- **Structure review** before drafting (Structure Designer after Chapter Architect)
+- **Chapter-by-chapter generation** for works with more than 3 chapters
+
+This makes realistic pacing easier: shorter openings, longer investigation chapters, compact climaxes, and flexible serialized structures.
 
 Long-form works are generated one chapter at a time, not in a single API call.
 

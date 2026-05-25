@@ -15,8 +15,9 @@ import {
   JUDGE_DEMO_REQUIRES_STRUCTURE_APPROVAL,
   JUDGE_DEMO_SETTINGS,
 } from "./demo";
+import { presetToTargetLength } from "./structure-chapter-defaults";
+import { distributeLength, syncStructureTotal } from "./length-planning";
 import { buildDefaultStructure } from "./structure-presets";
-import { distributeLength } from "./length-planning";
 import {
   getAllChapters,
   shouldUseSequentialDrafting,
@@ -41,6 +42,16 @@ const DEFAULT_SETTINGS: ProjectSettings = {
   targetLength: "short-story",
   structure: buildDefaultStructure("en", "short-3"),
 };
+
+function normalizeSettings(settings: ProjectSettings): ProjectSettings {
+  const structure = syncStructureTotal(settings.structure);
+  return {
+    ...settings,
+    structure,
+    targetLength:
+      settings.targetLength ?? presetToTargetLength(structure.presetId),
+  };
+}
 
 const DRAFTING_AGENT_INDEX = getAgentIndex("drafting");
 
@@ -270,7 +281,7 @@ export function useStoryProject() {
       options?: { requiresStructureApproval?: boolean; skipStructurePause?: boolean }
     ) => {
       setSettings(nextSettings);
-      const initial = createInitialProject(nextSettings, {
+      const initial = createInitialProject(normalizeSettings(nextSettings), {
         requiresStructureApproval: options?.requiresStructureApproval,
       });
       setProject(initial);
@@ -311,12 +322,12 @@ export function useStoryProject() {
       setProject((p) => {
         if (!p) return p;
         const synced = syncPartsAndChapters(parts);
-        const structure = {
+        const structure = syncStructureTotal({
           ...p.structure,
           ...structurePatch,
           parts: synced.parts,
           totalChapterCount: synced.chapters.length,
-        };
+        });
         return {
           ...p,
           structure,
@@ -350,9 +361,13 @@ export function useStoryProject() {
         }),
       }));
       const synced = syncPartsAndChapters(parts);
+      const structure = syncStructureTotal({
+        ...p.structure,
+        parts: synced.parts,
+      });
       return {
         ...p,
-        structure: { ...p.structure, parts: synced.parts },
+        structure,
         storyBible: {
           ...p.storyBible,
           parts: synced.parts,

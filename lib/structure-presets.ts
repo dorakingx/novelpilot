@@ -1,3 +1,5 @@
+import { syncStructureTotal } from "./length-planning";
+import { buildSkeletonParts } from "./structure-chapter-defaults";
 import type { Language, LengthUnit, StoryStructureSettings, StructurePresetId } from "./types";
 
 export interface StructurePresetDefinition {
@@ -89,35 +91,46 @@ export function applyPresetToStructure(
     mode: structure.mode,
     partCount,
     chaptersPerPart,
-    totalChapterCount: partCount * chaptersPerPart,
-    totalTargetLength:
-      presetId === "custom" ? structure.totalTargetLength : undefined,
+    existingParts: presetId === "custom" ? structure.parts : undefined,
   });
 }
 
 export function buildDefaultStructure(
   language: Language,
   presetId: StructurePresetId = "short-3",
-  overrides?: Partial<StoryStructureSettings>
+  overrides?: Partial<StoryStructureSettings> & {
+    existingParts?: StoryStructureSettings["parts"];
+  }
 ): StoryStructureSettings {
   const preset = getPresetById(presetId);
   const partCount = overrides?.partCount ?? preset.partCount;
   const chaptersPerPart =
     overrides?.chaptersPerPart ?? preset.chaptersPerPart;
   const totalChapterCount = partCount * chaptersPerPart;
+  const resolvedPresetId = presetId === "custom" ? "custom" : presetId;
 
-  return {
+  const parts =
+    overrides?.parts?.length ?
+      overrides.parts
+    : buildSkeletonParts({
+        language,
+        presetId: resolvedPresetId,
+        partCount,
+        chaptersPerPart,
+        existingParts: overrides?.existingParts,
+      });
+
+  const base: StoryStructureSettings = {
     mode: overrides?.mode ?? "auto",
-    presetId: presetId === "custom" ? "custom" : presetId,
-    totalTargetLength:
-      overrides?.totalTargetLength ??
-      getDefaultTotalLength(language, preset),
+    presetId: resolvedPresetId,
     lengthUnit: getLengthUnit(language),
     partCount,
     chaptersPerPart,
     totalChapterCount,
-    parts: overrides?.parts ?? [],
+    parts,
   };
+
+  return syncStructureTotal(base);
 }
 
 export function targetLengthToPreset(

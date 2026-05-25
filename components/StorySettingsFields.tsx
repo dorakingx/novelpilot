@@ -7,6 +7,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { presetToTargetLength } from "@/lib/structure-chapter-defaults";
+import { applyPresetToStructure } from "@/lib/structure-presets";
 import type { ProjectSettings } from "@/lib/types";
 
 interface StorySettingsFieldsProps {
@@ -35,7 +37,7 @@ export function StorySettingsFields({
     <div
       className={
         compact
-          ? "grid grid-cols-2 sm:grid-cols-4 gap-3"
+          ? "grid grid-cols-2 sm:grid-cols-3 gap-3"
           : "space-y-4"
       }
     >
@@ -43,9 +45,19 @@ export function StorySettingsFields({
         <label className={labelClass}>Language</label>
         <Select
           value={settings.language}
-          onValueChange={(v) =>
-            onSettingsChange({ language: v as ProjectSettings["language"] })
-          }
+          onValueChange={(v) => {
+            const language = v as ProjectSettings["language"];
+            const nextStructure = applyPresetToStructure(
+              settings.structure,
+              settings.structure.presetId,
+              language
+            );
+            onSettingsChange({
+              language,
+              structure: nextStructure,
+              targetLength: presetToTargetLength(nextStructure.presetId),
+            });
+          }}
           disabled={disabled}
         >
           <SelectTrigger className={triggerClass}>
@@ -99,28 +111,6 @@ export function StorySettingsFields({
             <SelectItem value="dark">Dark</SelectItem>
             <SelectItem value="whimsical">Whimsical</SelectItem>
             <SelectItem value="tense">Tense</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className={compact ? "space-y-1.5" : "space-y-2"}>
-        <label className={labelClass}>Target Length</label>
-        <Select
-          value={settings.targetLength}
-          onValueChange={(v) =>
-            onSettingsChange({
-              targetLength: v as ProjectSettings["targetLength"],
-            })
-          }
-          disabled={disabled}
-        >
-          <SelectTrigger className={triggerClass}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="flash-fiction">Flash Fiction</SelectItem>
-            <SelectItem value="short-story">Short Story</SelectItem>
-            <SelectItem value="novella-outline">Novella Outline</SelectItem>
           </SelectContent>
         </Select>
       </div>

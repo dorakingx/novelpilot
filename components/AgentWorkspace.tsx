@@ -37,7 +37,6 @@ interface AgentWorkspaceProps {
   onDownloadPdf?: () => void;
   onApproveStructureAndContinue?: () => void;
   onUpdateStructure?: (parts: PartPlan[]) => void;
-  onRedistributeStructureLength?: () => void;
   onRegenerateStructure?: () => void;
 }
 
@@ -62,7 +61,6 @@ export function AgentWorkspace({
   onDownloadPdf,
   onApproveStructureAndContinue,
   onUpdateStructure,
-  onRedistributeStructureLength,
   onRegenerateStructure,
 }: AgentWorkspaceProps) {
   const readLabel = projectComplete ? "Read Finished Novel" : "Read Manuscript";
@@ -122,7 +120,6 @@ export function AgentWorkspace({
                 isRunning={isRunning}
                 onApproveAndContinue={onApproveStructureAndContinue}
                 onRegenerateStructure={onRegenerateStructure ?? (() => {})}
-                onRedistributeLength={onRedistributeStructureLength ?? (() => {})}
                 onUpdateStructure={onUpdateStructure ?? (() => {})}
               />
             )}

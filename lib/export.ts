@@ -205,14 +205,15 @@ function exportStructureMarkdown(project: StoryProject): string {
     "",
     `- Preset: ${s.presetId}`,
     `- Parts: ${s.partCount} · Chapters per part: ${s.chaptersPerPart} · Total: ${s.totalChapterCount}`,
-    `- Total target: ${s.totalTargetLength ?? "—"} ${s.lengthUnit}`,
+    `- Total planned length: ${s.totalTargetLength ?? "—"} ${s.lengthUnit}`,
     `- Mode: ${s.mode}`,
     "",
   ];
   for (const ch of getAllChapters(project)) {
     const lp = ch.lengthPlan;
+    const rolePart = ch.role?.trim() ? ` [${ch.role}]` : "";
     lines.push(
-      `- Chapter ${ch.number} (${ch.title}): target ${lp?.targetLength ?? "—"} ${lp?.unit ?? s.lengthUnit}`
+      `- Chapter ${ch.number} (${ch.title})${rolePart}: target ${lp?.targetLength ?? "—"} ${lp?.unit ?? s.lengthUnit}`
     );
   }
   lines.push("");

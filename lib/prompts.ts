@@ -23,6 +23,7 @@ const CHAPTER_OUTLINE_SCHEMA = `{
           "number": 1,
           "partNumber": 1,
           "title": "string",
+          "role": "string",
           "purpose": "string",
           "emotionalTurn": "string",
           "keyEvents": ["string"],
@@ -40,6 +41,7 @@ const CHAPTER_OUTLINE_SCHEMA = `{
       "number": 1,
       "partNumber": 1,
       "title": "string",
+      "role": "string",
       "purpose": "string",
       "emotionalTurn": "string",
       "keyEvents": ["string"],
@@ -137,12 +139,25 @@ function chapterOutlineInstructions(context: Record<string, unknown>): string {
   const chaptersPerPart = Number(structure?.chaptersPerPart ?? 3);
   const totalChapters =
     Number(structure?.totalChapterCount) || partCount * chaptersPerPart;
-  const totalTarget = structure?.totalTargetLength ?? "unspecified";
   const unit = structure?.lengthUnit ?? (language === "ja" ? "characters" : "words");
+  const userParts = structure?.parts as unknown[] | undefined;
+  const hasUserPlans =
+    Array.isArray(userParts) &&
+    userParts.some(
+      (p) =>
+        p &&
+        typeof p === "object" &&
+        Array.isArray((p as { chapters?: unknown[] }).chapters) &&
+        (p as { chapters: { lengthPlan?: { targetLength?: number } }[] }).chapters.some(
+          (ch) => (ch.lengthPlan?.targetLength ?? 0) > 0
+        )
+    );
 
-  return `You are the Chapter Architect. Create a story structure based on the user's requested part count (${partCount}), chapters per part (${chaptersPerPart}), total chapters (${totalChapters}), and total target length (${totalTarget} ${unit}).
-If parts are requested (partCount > 1), group chapters into parts. Each part must have a narrative purpose and optional targetLength.
-Each chapter must have purpose, emotionalTurn, keyEvents, foreshadowing, and lengthPlan with targetLength in ${unit}. Chapter target lengths should sum to approximately the total target length.
+  return `You are the Chapter Architect. Create a story structure with exactly ${partCount} part(s), ${chaptersPerPart} chapter(s) per part, and exactly ${totalChapters} chapters total. Do NOT add or remove parts or chapters.
+If parts are requested (partCount > 1), group chapters into parts. Each part must have a narrative purpose.
+Each chapter must include: title, role (narrative beat label), purpose, emotionalTurn, keyEvents, foreshadowing, and lengthPlan with targetLength in ${unit}.
+${hasUserPlans ? `The user has provided per-chapter length plans in structure.parts. Preserve each chapter's lengthPlan.targetLength exactly unless it is blank. Per-chapter length is the source of truth — do not rebalance to a project total.` : `Assign sensible per-chapter lengthPlan values in ${unit} for pacing.`}
+Include role labels (e.g. Opening, Midpoint, Climax) so later agents understand why chapters differ in length.
 You MUST include foreshadowingTracker with 4-6 items.
 ${lang}`;
 }
@@ -167,8 +182,12 @@ export function buildChapterDraftPrompt(
     excerpt: ch.draft?.slice(0, 800) ?? "",
   }));
 
-  const lengthHint = target.lengthPlan
-    ? `Target length: ${target.lengthPlan.targetLength} ${target.lengthPlan.unit}.`
+  const unit = target.lengthPlan?.unit ?? (language === "ja" ? "characters" : "words");
+  const lengthHint = target.lengthPlan?.targetLength
+    ? `Write approximately ${target.lengthPlan.targetLength} ${unit} for this chapter (${language === "ja" ? "count non-whitespace characters" : "count words"}). Do not use project-level total length as the primary guide.`
+    : "";
+  const roleHint = target.role?.trim()
+    ? `Chapter role: ${target.role}.`
     : "";
 
   const ctxJson = JSON.stringify(
@@ -186,6 +205,8 @@ export function buildChapterDraftPrompt(
   return `You are the Prose Writer. Write ONLY chapter ${chapterNumber} ("${target.title}") as literary fiction prose.
 Do not summarize. Write a full scene-based chapter with dialogue, atmosphere, and momentum.
 Use the Story Bible, part plan, chapter outline, prior chapter summaries, and prior draft excerpts for continuity.
+Respect this chapter's purpose, emotionalTurn, role, and lengthPlan.
+${roleHint}
 ${lengthHint}
 ${lang}
 
@@ -219,7 +240,7 @@ ${lang}`,
     "chapter-outline": chapterOutlineInstructions(context),
     drafting: `You are the Prose Writer. Write full prose fiction for EVERY chapter in the chapter outline. Do not summarize. Each chapter must be an actual scene-based chapter with dialogue, atmosphere, emotional progression, and narrative momentum. Maintain continuity across chapters. Return all chapter drafts and a combined completeManuscript.
 Use the existing chapter outline exactly. Write one draft per chapter. The number of chapter drafts must match the number of outlined chapters.
-Respect each chapter's lengthPlan targetLength when provided.
+For each chapter, write to that chapter's lengthPlan: Japanese targets use non-whitespace character count; English targets use word count. Respect role, purpose, and emotionalTurn. Do not use project-level total length as the primary guide.
 ${lang}`,
     editor: `You are the Style Editor. Critique the complete manuscript against the story bible. Consider pacing across chapters, dialogue, emotional arc, prose style, and ending payoff. Be specific and constructive.
 ${lang}`,

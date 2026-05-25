@@ -399,8 +399,8 @@ export function CompletedNovelReader({
                           }}
                         >
                           {isJa
-                            ? `第${ch.number}章：${ch.title}`
-                            : `Chapter ${ch.number}: ${ch.title}`}
+                            ? `第${ch.number}章${ch.role?.trim() ? `（${ch.role}）` : ""}：${ch.title}`
+                            : `Chapter ${ch.number}${ch.role?.trim() ? ` — ${ch.role}` : ""}: ${ch.title}`}
                         </h3>
                         {ch.lengthPlan && (
                           <p
@@ -409,16 +409,22 @@ export function CompletedNovelReader({
                               mutedClass
                             )}
                           >
+                            Target:{" "}
                             {formatLengthLabel(
                               ch.lengthPlan.targetLength,
                               unit,
                               project.language
-                            )}{" "}
-                            · actual{" "}
-                            {formatLengthLabel(
-                              estimateTextLength(ch.draft!, unit),
-                              unit,
-                              project.language
+                            )}
+                            {ch.draft && (
+                              <>
+                                {" "}
+                                · Actual:{" "}
+                                {formatLengthLabel(
+                                  estimateTextLength(ch.draft, unit),
+                                  unit,
+                                  project.language
+                                )}
+                              </>
                             )}
                           </p>
                         )}

@@ -8,6 +8,8 @@ import {
   downloadFile,
   exportFullDemoMarkdown,
 } from "@/lib/export";
+import { computeTotalPlannedLength, formatLengthLabel } from "@/lib/length-planning";
+import { getPresetById } from "@/lib/structure-presets";
 import type { ProjectSettings, StoryProject } from "@/lib/types";
 import { FileText, Gavel, Plus, Square } from "lucide-react";
 
@@ -90,8 +92,17 @@ export function ProjectControlPanel({
           {settings.tone}
         </Badge>
         <Badge variant="outline" className="border-white/12 bg-[#172033] text-[#CBD5E1]">
-          {settings.targetLength}
+          {getPresetById(settings.structure.presetId).label}
         </Badge>
+        {computeTotalPlannedLength(settings.structure.parts) > 0 && (
+          <Badge variant="outline" className="border-white/12 bg-[#172033] text-[#CBD5E1]">
+            {formatLengthLabel(
+              computeTotalPlannedLength(settings.structure.parts),
+              settings.structure.lengthUnit,
+              settings.language
+            )}
+          </Badge>
+        )}
       </div>
 
       <div className="rounded-lg border border-white/12 bg-[#172033] p-3 text-xs space-y-1 text-[#CBD5E1]">

@@ -74,6 +74,8 @@ export interface Chapter {
   number: number;
   partNumber?: number;
   title: string;
+  /** Narrative beat label (e.g. Opening, Climax) — distinct from purpose */
+  role?: string;
   purpose: string;
   emotionalTurn: string;
   keyEvents: string[];

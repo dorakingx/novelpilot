@@ -3,8 +3,15 @@ import type {
   ChapterLengthPlan,
   Language,
   LengthUnit,
+  PartPlan,
+  StoryStructureSettings,
 } from "./types";
 import { getLengthUnit } from "./structure-presets";
+
+const LENGTH_LIMITS = {
+  ja: { min: 500, warnMax: 10000 },
+  en: { min: 200, warnMax: 4000 },
+} as const;
 
 export type ChapterLengthStatus = "under" | "near" | "over" | "none";
 
@@ -35,6 +42,68 @@ export function getChapterLengthStatus(
 
 export function sumChapterTargets(chapters: Chapter[]): number {
   return chapters.reduce((sum, ch) => sum + (ch.lengthPlan?.targetLength ?? 0), 0);
+}
+
+export function computeTotalPlannedLength(
+  partsOrChapters: PartPlan[] | Chapter[]
+): number {
+  if (partsOrChapters.length === 0) return 0;
+  const first = partsOrChapters[0];
+  if ("chapters" in first) {
+    let sum = 0;
+    for (const part of partsOrChapters as PartPlan[]) {
+      for (const ch of part.chapters) {
+        sum += ch.lengthPlan?.targetLength ?? 0;
+      }
+    }
+    return sum;
+  }
+  return sumChapterTargets(partsOrChapters as Chapter[]);
+}
+
+export function syncStructureTotal(
+  structure: StoryStructureSettings
+): StoryStructureSettings {
+  const total = computeTotalPlannedLength(structure.parts);
+  return {
+    ...structure,
+    totalTargetLength: total > 0 ? total : structure.totalTargetLength,
+    totalChapterCount: structure.partCount * structure.chaptersPerPart,
+  };
+}
+
+export function validateChapterLength(
+  value: number,
+  language: Language
+): { warning?: string } {
+  const limits = LENGTH_LIMITS[language];
+  const unitLabel = language === "ja" ? "characters" : "words";
+  if (value > 0 && value < limits.min) {
+    return {
+      warning: `Minimum recommended length is ${limits.min} ${unitLabel}.`,
+    };
+  }
+  if (value > limits.warnMax) {
+    return {
+      warning:
+        "This chapter is very long and may take more time or fail depending on model limits.",
+    };
+  }
+  return {};
+}
+
+export function getLengthDifference(actual: number, target: number): number {
+  return actual - target;
+}
+
+export function formatLengthDifference(
+  diff: number,
+  unit: LengthUnit,
+  language: Language
+): string {
+  const sign = diff >= 0 ? "+" : "";
+  const label = unit === "words" ? "words" : language === "ja" ? "文字" : "characters";
+  return `${sign}${diff.toLocaleString()} ${label}`;
 }
 
 export function distributeLength(

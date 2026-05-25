@@ -43,7 +43,6 @@ export default function Home() {
     updateAgentOutput,
     approveStructureAndContinue,
     updateStructure,
-    redistributeStructureLength,
     regenerateStructure,
   } = useStoryProject();
 
@@ -252,7 +251,6 @@ export default function Home() {
               onDownloadPdf={handleDownloadPdf}
               onApproveStructureAndContinue={approveStructureAndContinue}
               onUpdateStructure={updateStructure}
-              onRedistributeStructureLength={redistributeStructureLength}
               onRegenerateStructure={regenerateStructure}
             />
           )}

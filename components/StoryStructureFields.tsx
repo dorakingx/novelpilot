@@ -1,5 +1,6 @@
 "use client";
 
+import { ChapterLengthPlanList } from "@/components/ChapterLengthPlanList";
 import {
   Select,
   SelectContent,
@@ -13,8 +14,12 @@ import {
   applyPresetToStructure,
   getLengthUnit,
 } from "@/lib/structure-presets";
+import {
+  computeTotalPlannedLength,
+  syncStructureTotal,
+} from "@/lib/length-planning";
+import { presetToTargetLength, buildSkeletonParts } from "@/lib/structure-chapter-defaults";
 import { resolveTotalChapterCount } from "@/lib/structure-utils";
-import { formatLengthLabel } from "@/lib/length-planning";
 import type { ProjectSettings, StructurePresetId } from "@/lib/types";
 import { AlertTriangle, Info } from "lucide-react";
 
@@ -34,13 +39,36 @@ export function StoryStructureFields({
   const totalChapters = resolveTotalChapterCount(structure);
   const isCustom = structure.presetId === "custom";
   const recommendedMax = RECOMMENDED_MAX_LENGTH[settings.language];
-  const overRecommended =
-    (structure.totalTargetLength ?? 0) > recommendedMax;
+  const totalPlanned = computeTotalPlannedLength(structure.parts);
+  const overRecommended = totalPlanned > recommendedMax;
 
-  const updateStructure = (partial: Partial<typeof structure>) => {
-    const next = { ...structure, ...partial };
-    next.totalChapterCount = resolveTotalChapterCount(next);
-    onSettingsChange({ structure: next });
+  const pushStructure = (next: typeof structure) => {
+    const synced = syncStructureTotal({
+      ...next,
+      totalChapterCount: resolveTotalChapterCount(next),
+      lengthUnit: unit,
+    });
+    onSettingsChange({
+      structure: synced,
+      targetLength: presetToTargetLength(synced.presetId),
+    });
+  };
+
+  const rebuildParts = (
+    partial: Partial<typeof structure>,
+    presetId: StructurePresetId = structure.presetId
+  ) => {
+    const merged = { ...structure, ...partial };
+    const partCount = merged.partCount;
+    const chaptersPerPart = merged.chaptersPerPart;
+    const parts = buildSkeletonParts({
+      language: settings.language,
+      presetId,
+      partCount,
+      chaptersPerPart,
+      existingParts: merged.parts,
+    });
+    pushStructure({ ...merged, parts });
   };
 
   const handlePresetChange = (presetId: StructurePresetId) => {
@@ -49,7 +77,10 @@ export function StoryStructureFields({
       presetId,
       settings.language
     );
-    onSettingsChange({ structure: { ...next, presetId } });
+    onSettingsChange({
+      structure: next,
+      targetLength: presetToTargetLength(next.presetId),
+    });
   };
 
   return (
@@ -57,7 +88,7 @@ export function StoryStructureFields({
       <div>
         <h3 className="text-sm font-semibold text-[#F8FAFC]">Story Structure</h3>
         <p className="text-xs text-[#94A3B8] mt-1">
-          Choose parts, chapters, and target length. Long works are generated
+          Choose parts, chapters, and chapter lengths. Long works are generated
           chapter by chapter for reliability.
         </p>
       </div>
@@ -90,7 +121,7 @@ export function StoryStructureFields({
           <Select
             value={structure.mode}
             onValueChange={(v) =>
-              updateStructure({ mode: v as "auto" | "manual" })
+              pushStructure({ ...structure, mode: v as "auto" | "manual" })
             }
             disabled={disabled}
           >
@@ -105,7 +136,7 @@ export function StoryStructureFields({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-[#94A3B8]">Parts</label>
           <input
@@ -114,7 +145,7 @@ export function StoryStructureFields({
             max={10}
             value={structure.partCount}
             onChange={(e) =>
-              updateStructure({
+              rebuildParts({
                 partCount: Math.max(1, Number(e.target.value) || 1),
               })
             }
@@ -132,7 +163,7 @@ export function StoryStructureFields({
             max={12}
             value={structure.chaptersPerPart}
             onChange={(e) =>
-              updateStructure({
+              rebuildParts({
                 chaptersPerPart: Math.max(1, Number(e.target.value) || 1),
               })
             }
@@ -152,46 +183,30 @@ export function StoryStructureFields({
             className="flex h-9 w-full rounded-md border border-white/12 bg-[#172033]/80 px-3 text-sm text-[#94A3B8]"
           />
         </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-[#94A3B8]">
-            Total target ({unit})
-          </label>
-          <input
-            type="number"
-            min={500}
-            value={structure.totalTargetLength ?? ""}
-            onChange={(e) =>
-              updateStructure({
-                totalTargetLength: Math.max(0, Number(e.target.value) || 0),
-                lengthUnit: unit,
-              })
-            }
-            disabled={disabled}
-            className="flex h-9 w-full rounded-md border border-white/12 bg-[#172033] px-3 text-sm text-[#F8FAFC] disabled:opacity-50"
-          />
-        </div>
       </div>
 
-      <p className="text-xs text-[#94A3B8]">
-        Planned length:{" "}
-        {formatLengthLabel(
-          structure.totalTargetLength ?? 0,
-          unit,
-          settings.language
-        )}
-        {totalChapters > 3 && (
-          <span className="text-[#38BDF8]">
-            {" "}
-            · Prose will be drafted one chapter at a time
-          </span>
-        )}
-      </p>
+      {structure.parts.length > 0 && (
+        <ChapterLengthPlanList
+          parts={structure.parts}
+          language={settings.language}
+          disabled={disabled}
+          showAdvancedDistribute
+          onPartsChange={(parts) => pushStructure({ ...structure, parts })}
+        />
+      )}
+
+      {totalChapters > 3 && (
+        <p className="text-xs text-[#38BDF8]">
+          Prose will be drafted one chapter at a time ({totalChapters} chapters).
+        </p>
+      )}
 
       <div className="flex items-start gap-2 rounded-lg border border-[#38BDF8]/25 bg-[#38BDF8]/10 px-3 py-2 text-xs text-[#CBD5E1]">
         <Info className="size-4 shrink-0 text-[#38BDF8] mt-0.5" />
         <span>
           Long works are generated chapter by chapter for reliability. You can
           review and edit the structure after the Chapter Architect completes.
+          Changing language resets chapter lengths to preset defaults.
         </span>
       </div>
 
@@ -199,7 +214,7 @@ export function StoryStructureFields({
         <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
           <AlertTriangle className="size-4 shrink-0 mt-0.5" />
           <span>
-            This target exceeds the recommended maximum (
+            Total planned length exceeds the recommended maximum (
             {recommendedMax.toLocaleString()} {unit}). Generation may be slow or
             fail depending on model limits.
           </span>
