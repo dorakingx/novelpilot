@@ -16,6 +16,17 @@ export type TargetLength =
   | "flash-fiction"
   | "short-story"
   | "novella-outline";
+
+export type LengthUnit = "words" | "characters";
+
+export type StructureMode = "auto" | "manual";
+
+export type StructurePresetId =
+  | "short-3"
+  | "novella-6"
+  | "serial-12"
+  | "custom";
+
 export type AgentStatus = "pending" | "running" | "completed" | "failed";
 
 export type AgentId =
@@ -51,14 +62,46 @@ export interface Character {
   speechStyle: string;
 }
 
+export interface ChapterLengthPlan {
+  targetLength: number;
+  unit: LengthUnit;
+  minLength?: number;
+  maxLength?: number;
+}
+
 export interface Chapter {
+  id?: string;
   number: number;
+  partNumber?: number;
   title: string;
   purpose: string;
   emotionalTurn: string;
   keyEvents: string[];
   foreshadowing: string[];
+  lengthPlan?: ChapterLengthPlan;
   draft?: string;
+  chapterSummary?: string;
+  continuityNotes?: string[];
+}
+
+export interface PartPlan {
+  id: string;
+  number: number;
+  title: string;
+  purpose: string;
+  targetLength?: number;
+  chapters: Chapter[];
+}
+
+export interface StoryStructureSettings {
+  mode: StructureMode;
+  presetId: StructurePresetId;
+  totalTargetLength?: number;
+  lengthUnit: LengthUnit;
+  partCount: number;
+  chaptersPerPart: number;
+  totalChapterCount: number;
+  parts: PartPlan[];
 }
 
 export interface ChapterDraft {
@@ -115,6 +158,7 @@ export interface StoryBible {
   characters: Character[];
   worldbuilding: Worldbuilding | null;
   plot: PlotStructure | null;
+  parts: PartPlan[];
   chapters: Chapter[];
   styleGuide: StyleGuide | null;
   foreshadowingTracker: ForeshadowingItem[];
@@ -183,6 +227,11 @@ export interface AgentStep {
   approved?: boolean;
 }
 
+export interface DraftingProgress {
+  currentChapter: number;
+  totalChapters: number;
+}
+
 export interface StoryProject {
   id: string;
   title: string;
@@ -191,12 +240,17 @@ export interface StoryProject {
   genre: Genre;
   tone: Tone;
   targetLength: TargetLength;
+  structure: StoryStructureSettings;
   createdAt: string;
   updatedAt: string;
   agents: AgentStep[];
   storyBible: StoryBible;
   manuscript: string;
   reports: ProjectReports;
+  awaitingStructureApproval?: boolean;
+  structureApproved?: boolean;
+  requiresStructureApproval?: boolean;
+  draftingProgress?: DraftingProgress;
 }
 
 export interface ProjectSettings {
@@ -205,11 +259,13 @@ export interface ProjectSettings {
   genre: Genre;
   tone: Tone;
   targetLength: TargetLength;
+  structure: StoryStructureSettings;
 }
 
 export interface GenerateAgentRequest {
   agentId: AgentId;
   project: StoryProject;
+  draftChapterNumber?: number;
 }
 
 export interface GenerateAgentResponse {
@@ -230,6 +286,7 @@ export const EMPTY_STORY_BIBLE: StoryBible = {
   characters: [],
   worldbuilding: null,
   plot: null,
+  parts: [],
   chapters: [],
   styleGuide: null,
   foreshadowingTracker: [],

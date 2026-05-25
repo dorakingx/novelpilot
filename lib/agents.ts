@@ -1,5 +1,15 @@
-import { buildCompleteManuscript } from "./format-manuscript";
+import {
+  buildCompleteManuscript,
+  buildManuscriptFromProject,
+} from "./format-manuscript";
 import { parseContinuityReport, parseForeshadowingItems } from "./parse-agent-output";
+import { buildDefaultStructure } from "./structure-presets";
+import {
+  parseChapterFromRaw,
+  parsePartFromRaw,
+  syncPartsAndChapters,
+  wrapChaptersInSinglePart,
+} from "./structure-utils";
 import type {
   AgentId,
   AgentStep,
@@ -84,8 +94,14 @@ export function createInitialAgents(): AgentStep[] {
   }));
 }
 
-export function createInitialProject(settings: ProjectSettings): StoryProject {
+export function createInitialProject(
+  settings: ProjectSettings,
+  options?: { requiresStructureApproval?: boolean }
+): StoryProject {
   const now = new Date().toISOString();
+  const structure =
+    settings.structure ??
+    buildDefaultStructure(settings.language, "short-3");
   return {
     id: generateId(),
     title: "Untitled Project",
@@ -94,6 +110,7 @@ export function createInitialProject(settings: ProjectSettings): StoryProject {
     genre: settings.genre,
     tone: settings.tone,
     targetLength: settings.targetLength,
+    structure,
     createdAt: now,
     updatedAt: now,
     agents: createInitialAgents(),
@@ -105,6 +122,9 @@ export function createInitialProject(settings: ProjectSettings): StoryProject {
     },
     manuscript: "",
     reports: { ...EMPTY_REPORTS },
+    requiresStructureApproval: options?.requiresStructureApproval ?? true,
+    structureApproved: false,
+    awaitingStructureApproval: false,
   };
 }
 
@@ -140,6 +160,7 @@ export function buildAgentContext(
     genre: project.genre,
     tone: project.tone,
     targetLength: project.targetLength,
+    structure: project.structure,
     storyBible: project.storyBible,
     manuscript: project.manuscript,
     reports: project.reports,
@@ -204,18 +225,30 @@ function parseDraftingOutput(
           }));
 
     const completeFromOutput = String(o.completeManuscript ?? "").trim();
-    const draftedForManuscript = chapters
-      .filter((c) => c.draft?.trim())
-      .map((c) => ({
-        number: c.number,
-        title: c.title,
-        draft: c.draft!,
-      }));
+    const synced = syncPartsAndChapters(
+      bible.parts?.length ? bible.parts : wrapChaptersInSinglePart(chapters),
+      chapters
+    );
     const manuscript =
-      completeFromOutput || buildCompleteManuscript(draftedForManuscript);
+      completeFromOutput ||
+      buildCompleteManuscript(
+        synced.chapters
+          .filter((c) => c.draft?.trim())
+          .map((c) => ({
+            number: c.number,
+            title: c.title,
+            draft: c.draft!,
+            partNumber: c.partNumber,
+          })),
+        synced.parts
+      );
 
     const title = drafts[0]?.title;
-    return { manuscript, bible: { ...bible, chapters }, title };
+    return {
+      manuscript,
+      bible: { ...bible, parts: synced.parts, chapters: synced.chapters },
+      title,
+    };
   }
 
   const draft = String(o.draft ?? "");
@@ -226,7 +259,66 @@ function parseDraftingOutput(
     );
   }
   const title = String(o.title ?? "");
-  return { manuscript: draft, bible: { ...bible, chapters }, title };
+  const synced = syncPartsAndChapters(
+    bible.parts?.length ? bible.parts : wrapChaptersInSinglePart(chapters),
+    chapters
+  );
+  return {
+    manuscript: draft,
+    bible: { ...bible, parts: synced.parts, chapters: synced.chapters },
+    title,
+  };
+}
+
+export function mergeChapterDraftOutput(
+  project: StoryProject,
+  output: unknown
+): StoryProject {
+  const o = output as Record<string, unknown>;
+  const number = Number(o.number ?? 0);
+  if (!number) return project;
+
+  const bible: StoryBible = { ...project.storyBible };
+  const draft = String(o.draft ?? "");
+  const chapterSummary = String(o.chapterSummary ?? "");
+  const continuityNotes = Array.isArray(o.continuityNotes)
+    ? o.continuityNotes.map(String)
+    : [];
+
+  const updateChapter = (ch: Chapter): Chapter =>
+    ch.number === number
+      ? {
+          ...ch,
+          draft,
+          title: String(o.title ?? ch.title),
+          chapterSummary,
+          continuityNotes,
+        }
+      : ch;
+
+  bible.chapters = bible.chapters.map(updateChapter);
+  bible.parts = bible.parts.map((part) => ({
+    ...part,
+    chapters: part.chapters.map(updateChapter),
+  }));
+
+  const manuscript = buildManuscriptFromProject({
+    ...project,
+    storyBible: bible,
+  });
+
+  const title =
+    number === 1 && project.title === "Untitled Project"
+      ? String(o.title ?? "")
+      : undefined;
+
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    storyBible: bible,
+    manuscript,
+    ...(title ? { title } : {}),
+  };
 }
 
 export function mergeAgentOutput(
@@ -297,22 +389,30 @@ export function mergeAgentOutput(
       break;
     }
     case "chapter-outline": {
-      if (Array.isArray(o.chapters)) {
-        bible.chapters = (
-          o.chapters as Array<Record<string, unknown>>
-        ).map((ch) => ({
-          number: Number(ch.number ?? 0),
-          title: String(ch.title ?? ""),
-          purpose: String(ch.purpose ?? ""),
-          emotionalTurn: String(ch.emotionalTurn ?? ""),
-          keyEvents: Array.isArray(ch.keyEvents)
-            ? ch.keyEvents.map(String)
-            : [],
-          foreshadowing: Array.isArray(ch.foreshadowing)
-            ? ch.foreshadowing.map(String)
-            : [],
-        }));
+      let parts = Array.isArray(o.parts)
+        ? (o.parts as Array<Record<string, unknown>>).map((p) =>
+            parsePartFromRaw(p, project.language)
+          )
+        : [];
+      const flatChapters = Array.isArray(o.chapters)
+        ? (o.chapters as Array<Record<string, unknown>>).map((ch) =>
+            parseChapterFromRaw(ch, project.language)
+          )
+        : [];
+      if (parts.length === 0 && flatChapters.length > 0) {
+        parts = wrapChaptersInSinglePart(flatChapters);
       }
+      const synced = syncPartsAndChapters(parts, flatChapters);
+      bible.parts = synced.parts;
+      bible.chapters = synced.chapters;
+      project = {
+        ...project,
+        structure: {
+          ...project.structure,
+          parts: synced.parts,
+          totalChapterCount: synced.chapters.length,
+        },
+      };
       if (o.styleGuide) {
         const sg = o.styleGuide as Record<string, unknown>;
         bible.styleGuide = {
@@ -441,22 +541,47 @@ export function resetFromAgent(
   }
   if (idx <= getAgentIndex("chapter-outline")) {
     bible.chapters = [];
+    bible.parts = [];
     bible.styleGuide = null;
   }
   if (idx <= getAgentIndex("drafting")) {
     manuscript = "";
-    bible.chapters = bible.chapters.map((ch) => {
-      const { draft, ...rest } = ch;
+    const stripDraft = (ch: Chapter): Chapter => {
+      const {
+        draft,
+        chapterSummary,
+        continuityNotes,
+        ...rest
+      } = ch;
       void draft;
+      void chapterSummary;
+      void continuityNotes;
       return rest;
-    });
+    };
+    bible.chapters = bible.chapters.map(stripDraft);
+    bible.parts = bible.parts.map((part) => ({
+      ...part,
+      chapters: part.chapters.map(stripDraft),
+    }));
   }
   if (idx <= getAgentIndex("editor")) reports.editor = null;
   if (idx <= getAgentIndex("continuity")) reports.continuity = null;
   if (idx <= getAgentIndex("publisher")) reports.publisher = null;
 
+  const pipelineReset =
+    idx <= getAgentIndex("chapter-outline")
+      ? {
+          structureApproved: false,
+          awaitingStructureApproval: false,
+          draftingProgress: undefined,
+        }
+      : idx <= getAgentIndex("drafting")
+        ? { draftingProgress: undefined }
+        : {};
+
   return {
     ...project,
+    ...pipelineReset,
     updatedAt: new Date().toISOString(),
     agents,
     storyBible: bible,

@@ -23,6 +23,7 @@ interface AgentCardProps {
   isLast: boolean;
   isRunning: boolean;
   draftWarning?: string;
+  draftingSubstatus?: string;
   onRegenerate: (agentId: AgentId) => void;
   onApprove: (agentId: AgentId) => void;
   onEditOutput: (agentId: AgentId) => void;
@@ -84,6 +85,7 @@ export function AgentCard({
   isLast,
   isRunning,
   draftWarning,
+  draftingSubstatus,
   onRegenerate,
   onApprove,
   onEditOutput,
@@ -161,6 +163,9 @@ export function AgentCard({
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {agent.role}
               </p>
+              {draftingSubstatus && agent.status === "running" && (
+                <p className="text-xs text-[#38BDF8] mt-2">{draftingSubstatus}</p>
+              )}
               {draftWarning && (
                 <p className="flex items-start gap-1.5 text-xs text-amber-400/90 mt-2">
                   <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />

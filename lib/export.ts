@@ -1,4 +1,6 @@
+import { estimateTextLength } from "./length-planning";
 import { getDraftedChapters } from "./format-manuscript";
+import { getAllChapters } from "./structure-utils";
 import type { ContinuityIssue, StoryProject } from "./types";
 
 function formatContinuityIssue(issue: ContinuityIssue): string[] {
@@ -120,11 +122,33 @@ export function exportStoryBibleMarkdown(project: StoryProject): string {
 
 export function exportManuscriptMarkdown(project: StoryProject): string {
   const drafted = getDraftedChapters(project);
+  const parts = project.storyBible.parts ?? [];
   const lines: string[] = [`# ${project.title}`, ""];
 
-  if (drafted.length > 0) {
+  const appendChapter = (ch: (typeof drafted)[0]) => {
+    const target = ch.lengthPlan?.targetLength;
+    const unit = ch.lengthPlan?.unit ?? project.structure.lengthUnit;
+    const meta =
+      target != null
+        ? `_Target: ${target} ${unit}${
+            ch.draft
+              ? ` · Actual: ${estimateTextLength(ch.draft, unit)} ${unit}_`
+              : ""
+          }_\n\n`
+        : "";
+    lines.push(`## Chapter ${ch.number}: ${ch.title}`, "", meta, ch.draft!, "");
+  };
+
+  if (parts.length > 0) {
+    for (const part of parts) {
+      lines.push(`# Part ${part.number}: ${part.title}`, "");
+      for (const ch of part.chapters.filter((c) => c.draft?.trim())) {
+        appendChapter(ch);
+      }
+    }
+  } else if (drafted.length > 0) {
     for (const ch of drafted) {
-      lines.push(`## Chapter ${ch.number}: ${ch.title}`, "", ch.draft!, "");
+      appendChapter(ch);
     }
   } else {
     lines.push(project.manuscript || "_No draft yet._");
@@ -174,6 +198,27 @@ export function exportContinuityMarkdown(project: StoryProject): string {
   return lines.join("\n");
 }
 
+function exportStructureMarkdown(project: StoryProject): string {
+  const s = project.structure;
+  const lines = [
+    "## Story Structure Settings",
+    "",
+    `- Preset: ${s.presetId}`,
+    `- Parts: ${s.partCount} · Chapters per part: ${s.chaptersPerPart} · Total: ${s.totalChapterCount}`,
+    `- Total target: ${s.totalTargetLength ?? "—"} ${s.lengthUnit}`,
+    `- Mode: ${s.mode}`,
+    "",
+  ];
+  for (const ch of getAllChapters(project)) {
+    const lp = ch.lengthPlan;
+    lines.push(
+      `- Chapter ${ch.number} (${ch.title}): target ${lp?.targetLength ?? "—"} ${lp?.unit ?? s.lengthUnit}`
+    );
+  }
+  lines.push("");
+  return lines.join("\n");
+}
+
 export function exportFullDemoMarkdown(project: StoryProject): string {
   const sections = [
     `# NovelPilot Full Demo: ${project.title}`,
@@ -182,6 +227,9 @@ export function exportFullDemoMarkdown(project: StoryProject): string {
     "",
     project.userPrompt,
     "",
+    "---",
+    "",
+    exportStructureMarkdown(project),
     "---",
     "",
     exportStoryBibleMarkdown(project),
@@ -252,7 +300,7 @@ export function buildDevDemoSummary(project: StoryProject): string {
     `Foreshadowing threads tracked: ${foreshadowCount}`,
     `Continuity Detective issues: ${issueCount}`,
     ``,
-    `One prompt → story bible, cast, world, plot, chapter outline, complete multi-chapter short novel draft, style edit, continuity audit, publisher package.`,
+    `One prompt → story bible, custom part/chapter structure, complete multi-chapter short novel draft (chapter-by-chapter for long works), style edit, continuity audit, publisher package.`,
     ``,
     `Gemma 4 acts as structured creative reasoning across agents—not just paragraph completion.`,
     `Demo: https://github.com/dorakingx/novelpilot`,

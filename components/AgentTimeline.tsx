@@ -28,6 +28,13 @@ function timelineHeadline(
         "Nine specialized agents are building your story step by step.",
     };
   }
+  if (projectStatus === "Awaiting structure approval") {
+    return {
+      title: "Waiting for structure approval",
+      subtitle:
+        "Chapter Architect finished. Review the outline, then approve to start drafting.",
+    };
+  }
   if (projectStatus === "Completed") {
     return {
       title: "Pipeline complete",
@@ -117,6 +124,13 @@ export function AgentTimeline({
               draftWarning={
                 agent.id === "drafting" && agent.status === "completed"
                   ? draftCoverage.warning
+                  : undefined
+              }
+              draftingSubstatus={
+                agent.id === "drafting" &&
+                agent.status === "running" &&
+                project.draftingProgress
+                  ? `Drafting chapter ${project.draftingProgress.currentChapter} of ${project.draftingProgress.totalChapters}`
                   : undefined
               }
               onRegenerate={onRegenerate}

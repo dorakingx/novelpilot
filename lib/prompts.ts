@@ -1,4 +1,5 @@
-import type { AgentId } from "./types";
+import { getAllChapters } from "./structure-utils";
+import type { AgentId, StoryProject } from "./types";
 
 const LANGUAGE_LABEL: Record<string, string> = {
   en: "English",
@@ -9,6 +10,64 @@ function langDirective(language: string): string {
   const label = LANGUAGE_LABEL[language] ?? "English";
   return `Write all creative text in ${label}. JSON keys stay in English.`;
 }
+
+const CHAPTER_OUTLINE_SCHEMA = `{
+  "parts": [
+    {
+      "number": 1,
+      "title": "string",
+      "purpose": "string",
+      "targetLength": 3000,
+      "chapters": [
+        {
+          "number": 1,
+          "partNumber": 1,
+          "title": "string",
+          "purpose": "string",
+          "emotionalTurn": "string",
+          "keyEvents": ["string"],
+          "foreshadowing": ["string"],
+          "lengthPlan": {
+            "targetLength": 1500,
+            "unit": "words"
+          }
+        }
+      ]
+    }
+  ],
+  "chapters": [
+    {
+      "number": 1,
+      "partNumber": 1,
+      "title": "string",
+      "purpose": "string",
+      "emotionalTurn": "string",
+      "keyEvents": ["string"],
+      "foreshadowing": ["string"],
+      "lengthPlan": {
+        "targetLength": 1500,
+        "unit": "words"
+      }
+    }
+  ],
+  "styleGuide": {
+    "pov": "string",
+    "tense": "string",
+    "proseStyle": "string",
+    "dialogueNotes": "string",
+    "taboos": []
+  },
+  "foreshadowingTracker": [
+    {
+      "item": "string",
+      "introducedIn": "string",
+      "status": "planned|unresolved|paid-off",
+      "suggestedPayoff": "string",
+      "payoffChapter": "string",
+      "emotionalPurpose": "string"
+    }
+  ]
+}`;
 
 const SCHEMAS: Record<AgentId, string> = {
   concept: `{
@@ -34,11 +93,7 @@ const SCHEMAS: Record<AgentId, string> = {
   "foreshadowingPlan": ["string"],
   "foreshadowingTracker": [{ "item", "introducedIn", "status": "planned|unresolved|paid-off", "suggestedPayoff", "payoffChapter", "emotionalPurpose" }]
 }`,
-  "chapter-outline": `{
-  "chapters": [{ "number", "title", "purpose", "emotionalTurn", "keyEvents": [], "foreshadowing": [] }],
-  "styleGuide": { "pov", "tense", "proseStyle", "dialogueNotes", "taboos": [] },
-  "foreshadowingTracker": [{ "item", "introducedIn", "status", "suggestedPayoff", "payoffChapter", "emotionalPurpose" }]
-}`,
+  "chapter-outline": CHAPTER_OUTLINE_SCHEMA,
   drafting: `{
   "chapters": [
     {
@@ -66,6 +121,81 @@ const SCHEMAS: Record<AgentId, string> = {
 }`,
 };
 
+const SINGLE_CHAPTER_DRAFT_SCHEMA = `{
+  "number": 1,
+  "title": "string",
+  "draft": "full prose fiction for this chapter only — not a summary",
+  "chapterSummary": "brief summary for continuity with later chapters",
+  "continuityNotes": ["string"]
+}`;
+
+function chapterOutlineInstructions(context: Record<string, unknown>): string {
+  const structure = context.structure as Record<string, unknown> | undefined;
+  const language = String(context.language ?? "en");
+  const lang = langDirective(language);
+  const partCount = Number(structure?.partCount ?? 1);
+  const chaptersPerPart = Number(structure?.chaptersPerPart ?? 3);
+  const totalChapters =
+    Number(structure?.totalChapterCount) || partCount * chaptersPerPart;
+  const totalTarget = structure?.totalTargetLength ?? "unspecified";
+  const unit = structure?.lengthUnit ?? (language === "ja" ? "characters" : "words");
+
+  return `You are the Chapter Architect. Create a story structure based on the user's requested part count (${partCount}), chapters per part (${chaptersPerPart}), total chapters (${totalChapters}), and total target length (${totalTarget} ${unit}).
+If parts are requested (partCount > 1), group chapters into parts. Each part must have a narrative purpose and optional targetLength.
+Each chapter must have purpose, emotionalTurn, keyEvents, foreshadowing, and lengthPlan with targetLength in ${unit}. Chapter target lengths should sum to approximately the total target length.
+You MUST include foreshadowingTracker with 4-6 items.
+${lang}`;
+}
+
+export function buildChapterDraftPrompt(
+  project: StoryProject,
+  chapterNumber: number
+): string {
+  const language = project.language;
+  const lang = langDirective(language);
+  const chapters = getAllChapters(project);
+  const target = chapters.find((c) => c.number === chapterNumber);
+  if (!target) {
+    throw new Error(`Chapter ${chapterNumber} not found in outline`);
+  }
+
+  const prior = chapters.filter((c) => c.number < chapterNumber);
+  const priorContext = prior.map((ch) => ({
+    number: ch.number,
+    title: ch.title,
+    summary: ch.chapterSummary ?? "",
+    excerpt: ch.draft?.slice(0, 800) ?? "",
+  }));
+
+  const lengthHint = target.lengthPlan
+    ? `Target length: ${target.lengthPlan.targetLength} ${target.lengthPlan.unit}.`
+    : "";
+
+  const ctxJson = JSON.stringify(
+    {
+      chapterToWrite: target,
+      priorChapters: priorContext,
+      structure: project.structure,
+      storyBible: project.storyBible,
+      manuscriptSoFar: project.manuscript,
+    },
+    null,
+    2
+  );
+
+  return `You are the Prose Writer. Write ONLY chapter ${chapterNumber} ("${target.title}") as literary fiction prose.
+Do not summarize. Write a full scene-based chapter with dialogue, atmosphere, and momentum.
+Use the Story Bible, part plan, chapter outline, prior chapter summaries, and prior draft excerpts for continuity.
+${lengthHint}
+${lang}
+
+Respond with ONLY valid JSON matching this schema (no markdown fences):
+${SINGLE_CHAPTER_DRAFT_SCHEMA}
+
+Project context:
+${ctxJson}`;
+}
+
 export function buildAgentPrompt(
   agentId: AgentId,
   context: Record<string, unknown>
@@ -86,12 +216,10 @@ ${lang}`,
     plot: `You are the Plot Strategist. Structure a complete plot from concept, characters, and world.
 Optionally include foreshadowingTracker seeds (status: planned).
 ${lang}`,
-    "chapter-outline": `You are the Chapter Architect. Create 3 chapters for MVP scope.
-You MUST include foreshadowingTracker with 4-6 items: each with item, introducedIn, status (planned/unresolved/paid-off), suggestedPayoff, payoffChapter, emotionalPurpose.
-${lang}`,
+    "chapter-outline": chapterOutlineInstructions(context),
     drafting: `You are the Prose Writer. Write full prose fiction for EVERY chapter in the chapter outline. Do not summarize. Each chapter must be an actual scene-based chapter with dialogue, atmosphere, emotional progression, and narrative momentum. Maintain continuity across chapters. Return all chapter drafts and a combined completeManuscript.
 Use the existing chapter outline exactly. Write one draft per chapter. The number of chapter drafts must match the number of outlined chapters.
-Length guidance: flash fiction — each chapter around 500–800 words; short story — each chapter around 900–1500 words; novella outline scope — each chapter around 1200–2000 words. Keep the MVP at 3 chapters unless the outline already contains a different number. Do not generate a full-length book.
+Respect each chapter's lengthPlan targetLength when provided.
 ${lang}`,
     editor: `You are the Style Editor. Critique the complete manuscript against the story bible. Consider pacing across chapters, dialogue, emotional arc, prose style, and ending payoff. Be specific and constructive.
 ${lang}`,

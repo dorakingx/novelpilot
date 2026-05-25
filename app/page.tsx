@@ -41,6 +41,10 @@ export default function Home() {
     regenerateAgent,
     approveAgent,
     updateAgentOutput,
+    approveStructureAndContinue,
+    updateStructure,
+    redistributeStructureLength,
+    regenerateStructure,
   } = useStoryProject();
 
   const projectStatus = getProjectStatus(project, isRunning);
@@ -64,7 +68,12 @@ export default function Home() {
   }, [project, phase]);
 
   useEffect(() => {
-    if (isProjectComplete(project) && !hasAutoOpenedReader && !isRunning) {
+    if (
+      isProjectComplete(project) &&
+      !hasAutoOpenedReader &&
+      !isRunning &&
+      !project?.awaitingStructureApproval
+    ) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time auto-open on completion
       setPhase("reader");
       setHasAutoOpenedReader(true);
@@ -198,7 +207,9 @@ export default function Home() {
                         ? "completed"
                         : projectStatus === "Running"
                           ? "running"
-                          : "outline"
+                          : projectStatus === "Awaiting structure approval"
+                            ? "warning"
+                            : "outline"
                   }
                 >
                   {projectStatus}
@@ -239,6 +250,10 @@ export default function Home() {
               onEditOutput={updateAgentOutput}
               onOpenReader={openReader}
               onDownloadPdf={handleDownloadPdf}
+              onApproveStructureAndContinue={approveStructureAndContinue}
+              onUpdateStructure={updateStructure}
+              onRedistributeStructureLength={redistributeStructureLength}
+              onRegenerateStructure={regenerateStructure}
             />
           )}
         </div>

@@ -11,7 +11,7 @@ import type {
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as GenerateAgentRequest;
-    const { agentId, project } = body;
+    const { agentId, project, draftChapterNumber } = body;
 
     if (!agentId || !project) {
       return Response.json(
@@ -20,7 +20,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const output = await runAgent(project, agentId as AgentId, request.signal);
+    const output = await runAgent(
+      project,
+      agentId as AgentId,
+      request.signal,
+      draftChapterNumber
+    );
     const updated = mergeAgentOutput(project, agentId as AgentId, output);
 
     const response: GenerateAgentResponse = {

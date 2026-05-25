@@ -9,7 +9,10 @@ import { ManuscriptPreview } from "@/components/ManuscriptPreview";
 import { PipelineCompleteCard } from "@/components/PipelineCompleteCard";
 import { ProjectControlPanel } from "@/components/ProjectControlPanel";
 import { ReadNovelButton } from "@/components/ReadNovelButton";
+import { StructureDesigner } from "@/components/StructureDesigner";
 import { StoryBiblePreview } from "@/components/StoryBiblePreview";
+import { StoryStructurePanel } from "@/components/StoryStructurePanel";
+import type { PartPlan } from "@/lib/types";
 import type { ProjectStatus } from "@/lib/project-status";
 import type { AgentId, ProjectSettings, StoryProject } from "@/lib/types";
 
@@ -32,6 +35,10 @@ interface AgentWorkspaceProps {
   onEditOutput: (agentId: AgentId, output: unknown) => void;
   onOpenReader?: () => void;
   onDownloadPdf?: () => void;
+  onApproveStructureAndContinue?: () => void;
+  onUpdateStructure?: (parts: PartPlan[]) => void;
+  onRedistributeStructureLength?: () => void;
+  onRegenerateStructure?: () => void;
 }
 
 export function AgentWorkspace({
@@ -53,6 +60,10 @@ export function AgentWorkspace({
   onEditOutput,
   onOpenReader,
   onDownloadPdf,
+  onApproveStructureAndContinue,
+  onUpdateStructure,
+  onRedistributeStructureLength,
+  onRegenerateStructure,
 }: AgentWorkspaceProps) {
   const readLabel = projectComplete ? "Read Finished Novel" : "Read Manuscript";
 
@@ -105,6 +116,16 @@ export function AgentWorkspace({
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden lg:block">
               Writing room
             </p>
+            {project.awaitingStructureApproval && onApproveStructureAndContinue && (
+              <StructureDesigner
+                project={project}
+                isRunning={isRunning}
+                onApproveAndContinue={onApproveStructureAndContinue}
+                onRegenerateStructure={onRegenerateStructure ?? (() => {})}
+                onRedistributeLength={onRedistributeStructureLength ?? (() => {})}
+                onUpdateStructure={onUpdateStructure ?? (() => {})}
+              />
+            )}
             {projectComplete && (
               <PipelineCompleteCard
                 project={project}
@@ -130,6 +151,7 @@ export function AgentWorkspace({
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden lg:block">
               Artifacts
             </p>
+            <StoryStructurePanel project={project} isRunning={isRunning} />
             <StoryBiblePreview project={project} isRunning={isRunning} />
             <ForeshadowingTracker project={project} isRunning={isRunning} />
             <ManuscriptPreview

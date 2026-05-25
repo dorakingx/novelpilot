@@ -1,3 +1,4 @@
+import { buildDefaultStructure } from "./structure-presets";
 import type { ProjectSettings } from "./types";
 
 export const JUDGE_DEMO_PROMPT =
@@ -9,4 +10,7 @@ export const JUDGE_DEMO_SETTINGS: ProjectSettings = {
   genre: "sci-fi",
   tone: "melancholic",
   targetLength: "short-story",
+  structure: buildDefaultStructure("en", "short-3"),
 };
+
+export const JUDGE_DEMO_REQUIRES_STRUCTURE_APPROVAL = false;

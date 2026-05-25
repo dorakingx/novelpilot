@@ -50,7 +50,16 @@ NovelPilot is a Next.js web app where judges and writers can:
 5. **Download PDF** via browser Save as PDF.
 6. Export a **full demo markdown** file for hackathon or DEV submission.
 
-The MVP generates a complete story bible, plot, three-chapter outline, **complete multi-chapter short novel draft**, style editor notes, structured continuity report, and publisher marketing copy.
+The MVP generates a complete story bible, plot, customizable part/chapter outline with per-chapter length plans, **complete multi-chapter short novel draft**, style editor notes, structured continuity report, and publisher marketing copy.
+
+### Structure modes
+
+- **Short Story** — 1 part × 3 chapters (batch draft in one Prose Writer call for mock/demo)
+- **Novella** — 2 parts × 6 chapters (structure approval + chapter-by-chapter drafting)
+- **Serialized Novel Plan** — 3 parts × 12 chapters (planning-scale; drafts run sequentially)
+- **Custom** — user-defined parts, chapters, and total target length
+
+Long works are generated **chapter by chapter** for reliability, not in a single 100k-word API call.
 
 ## Why I built it
 
@@ -80,7 +89,7 @@ Without structured outputs, the UI could not render a Foreshadowing Tracker or a
 8. **Continuity Detective** — issues with category, severity, evidence, fix  
 9. **Publisher Agent** — titles, logline, tagline, social post  
 
-The client orchestrates the pipeline: one HTTP request per agent, visible progress, stop/regenerate support.
+The client orchestrates the pipeline: one HTTP request per agent (or per chapter for long drafts), visible progress, structure approval pause, stop/regenerate support.
 
 ## Demo walkthrough
 

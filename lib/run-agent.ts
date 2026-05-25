@@ -7,7 +7,9 @@ import {
   parseJsonFromLlm,
 } from "./gemma";
 import { getMockOutput } from "./mock-outputs";
-import { buildAgentPrompt } from "./prompts";
+import { getAllChapters } from "./structure-utils";
+import { shouldUseSequentialDrafting } from "./structure-utils";
+import { buildAgentPrompt, buildChapterDraftPrompt } from "./prompts";
 import type { AgentId, StoryProject } from "./types";
 
 const JSON_RETRY_INSTRUCTION = `Your previous response was not valid JSON.
@@ -35,15 +37,22 @@ function throwParseError(agentId: AgentId, raw: string, cause?: unknown): never 
 export async function runAgent(
   project: StoryProject,
   agentId: AgentId,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  draftChapterNumber?: number
 ): Promise<unknown> {
   const context = buildAgentContext(project, agentId);
-  const prompt = buildAgentPrompt(agentId, context);
+  const prompt =
+    agentId === "drafting" && draftChapterNumber != null
+      ? buildChapterDraftPrompt(project, draftChapterNumber)
+      : buildAgentPrompt(agentId, context);
 
   if (isMockMode()) {
     await new Promise((r) => setTimeout(r, 600));
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    return getMockOutput(agentId, project.language);
+    return getMockOutput(agentId, project.language, {
+      project,
+      draftChapterNumber,
+    });
   }
 
   let raw = await callGemma(prompt, {
@@ -64,4 +73,12 @@ export async function runAgent(
       throwParseError(agentId, raw, firstErr);
     }
   }
+}
+
+export function shouldRunSequentialDraft(project: StoryProject): boolean {
+  return shouldUseSequentialDrafting(project.structure);
+}
+
+export function getDraftChapterNumbers(project: StoryProject): number[] {
+  return getAllChapters(project).map((c) => c.number);
 }

@@ -4,10 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
+  estimateTextLength,
+  formatLengthLabel,
+} from "@/lib/length-planning";
+import {
   getChapterTitle,
   getDraftedChapters,
   splitManuscriptParagraphs,
 } from "@/lib/format-manuscript";
+import { getAllChapters } from "@/lib/structure-utils";
 import type { StoryProject } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
@@ -54,9 +59,20 @@ export function CompletedNovelReader({
   const [fontSize, setFontSize] = useState<FontSize>("medium");
   const [copied, setCopied] = useState(false);
 
-  const draftedChapters = getDraftedChapters(project);
-  const subtitle = getChapterTitle(project);
   const isJa = project.language === "ja";
+  const draftedChapters = getDraftedChapters(project);
+  const partsWithDrafts =
+    project.storyBible.parts?.filter((p) =>
+      p.chapters.some((c) => c.draft?.trim())
+    ) ?? [];
+  const useParts = partsWithDrafts.length > 0;
+  const subtitle = getChapterTitle(project);
+  const unit = project.structure?.lengthUnit ?? (isJa ? "characters" : "words");
+
+  const romanPart = (n: number) => {
+    const r = ["I", "II", "III", "IV", "V", "VI"];
+    return r[n - 1] ?? String(n);
+  };
   const foreshadowCount = project.storyBible.foreshadowingTracker.length;
   const issueCount = project.reports.continuity?.issues.length ?? 0;
 
@@ -171,22 +187,54 @@ export function CompletedNovelReader({
         </div>
       </div>
 
-      {draftedChapters.length > 1 && (
+      {(useParts ? getAllChapters(project).length : draftedChapters.length) >
+        1 && (
         <nav
           className="no-print mx-auto max-w-[820px] w-full px-4 sm:px-8 pb-2"
-          aria-label="Chapter navigation"
+          aria-label="Table of contents"
         >
-          <div className="flex flex-wrap gap-2">
-            {draftedChapters.map((ch) => (
-              <button
-                key={ch.number}
-                type="button"
-                onClick={() => scrollToChapter(ch.number)}
-                className="rounded-full border border-white/12 bg-[#172033] px-3 py-1 text-xs text-[#CBD5E1] hover:border-[#F5C542]/50 hover:text-[#F8FAFC] transition-colors"
-              >
-                {isJa ? `第${ch.number}章` : `Chapter ${ch.number}`}
-              </button>
-            ))}
+          <p className="text-xs text-[#94A3B8] mb-2">
+            {isJa ? "目次" : "Table of contents"}
+          </p>
+          <div className="flex flex-col gap-2">
+            {useParts
+              ? partsWithDrafts.map((part) => (
+                  <div key={part.id}>
+                    <p className="text-xs font-medium text-[#CBD5E1] mb-1">
+                      {isJa
+                        ? `第${part.number}部`
+                        : `Part ${romanPart(part.number)}`}
+                      : {part.title}
+                    </p>
+                    <div className="flex flex-wrap gap-2 pl-2">
+                      {part.chapters
+                        .filter((c) => c.draft?.trim())
+                        .map((ch) => (
+                          <button
+                            key={ch.number}
+                            type="button"
+                            onClick={() => scrollToChapter(ch.number)}
+                            className="rounded-full border border-white/12 bg-[#172033] px-3 py-1 text-xs text-[#CBD5E1] hover:border-[#F5C542]/50 hover:text-[#F8FAFC] transition-colors"
+                          >
+                            {isJa
+                              ? `第${ch.number}章`
+                              : `Ch. ${ch.number}`}{" "}
+                            {ch.title}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                ))
+              : draftedChapters.map((ch) => (
+                  <button
+                    key={ch.number}
+                    type="button"
+                    onClick={() => scrollToChapter(ch.number)}
+                    className="rounded-full border border-white/12 bg-[#172033] px-3 py-1 text-xs text-[#CBD5E1] hover:border-[#F5C542]/50 hover:text-[#F8FAFC] transition-colors w-fit"
+                  >
+                    {isJa ? `第${ch.number}章` : `Chapter ${ch.number}`}
+                  </button>
+                ))}
           </div>
         </nav>
       )}
@@ -267,7 +315,123 @@ export function CompletedNovelReader({
               </p>
             </header>
 
-            {draftedChapters.length > 0 ? (
+            <nav
+              className={cn(
+                "px-6 sm:px-10 py-4 border-b print-toc",
+                borderClass
+              )}
+              aria-label="Print table of contents"
+            >
+              <p className={cn("text-xs uppercase tracking-wider", mutedClass)}>
+                {isJa ? "目次" : "Contents"}
+              </p>
+              <ul className="mt-2 text-sm space-y-1">
+                {(useParts ? partsWithDrafts : []).flatMap((part) =>
+                  part.chapters
+                    .filter((c) => c.draft?.trim())
+                    .map((ch) => (
+                      <li key={ch.number}>
+                        {isJa
+                          ? `第${ch.number}章 ${ch.title}`
+                          : `Chapter ${ch.number}: ${ch.title}`}
+                      </li>
+                    ))
+                )}
+                {!useParts &&
+                  draftedChapters.map((ch) => (
+                    <li key={ch.number}>
+                      {isJa
+                        ? `第${ch.number}章 ${ch.title}`
+                        : `Chapter ${ch.number}: ${ch.title}`}
+                    </li>
+                  ))}
+              </ul>
+            </nav>
+
+            {useParts ? (
+              partsWithDrafts.map((part, partIndex) => (
+                <div key={part.id}>
+                  <section
+                    className={cn(
+                      proseClass,
+                      "pb-4",
+                      partIndex > 0 && "part-print-break border-t",
+                      partIndex > 0 && borderClass
+                    )}
+                    style={proseStyle}
+                  >
+                    <h2
+                      className={cn(
+                        "text-2xl font-medium pt-6",
+                        mutedClass
+                      )}
+                      style={{
+                        fontFamily: "var(--font-lora), Georgia, serif",
+                      }}
+                    >
+                      {isJa
+                        ? `第${part.number}部：${part.title}`
+                        : `Part ${romanPart(part.number)}: ${part.title}`}
+                    </h2>
+                  </section>
+                  {part.chapters
+                    .filter((c) => c.draft?.trim())
+                    .map((ch, chIndex) => (
+                      <section
+                        key={ch.number}
+                        id={`reader-chapter-${ch.number}`}
+                        className={cn(
+                          proseClass,
+                          "space-y-6 sm:space-y-8",
+                          (partIndex > 0 || chIndex > 0) &&
+                            "chapter-print-break border-t",
+                          (partIndex > 0 || chIndex > 0) && borderClass
+                        )}
+                        style={proseStyle}
+                      >
+                        <h3
+                          className={cn(
+                            "text-xl sm:text-2xl font-medium pt-2",
+                            mutedClass
+                          )}
+                          style={{
+                            fontFamily: "var(--font-lora), Georgia, serif",
+                          }}
+                        >
+                          {isJa
+                            ? `第${ch.number}章：${ch.title}`
+                            : `Chapter ${ch.number}: ${ch.title}`}
+                        </h3>
+                        {ch.lengthPlan && (
+                          <p
+                            className={cn(
+                              "text-sm no-print",
+                              mutedClass
+                            )}
+                          >
+                            {formatLengthLabel(
+                              ch.lengthPlan.targetLength,
+                              unit,
+                              project.language
+                            )}{" "}
+                            · actual{" "}
+                            {formatLengthLabel(
+                              estimateTextLength(ch.draft!, unit),
+                              unit,
+                              project.language
+                            )}
+                          </p>
+                        )}
+                        {splitManuscriptParagraphs(ch.draft!).map(
+                          (para, i) => (
+                            <p key={i}>{para}</p>
+                          )
+                        )}
+                      </section>
+                    ))}
+                </div>
+              ))
+            ) : draftedChapters.length > 0 ? (
               draftedChapters.map((ch, index) => (
                 <section
                   key={ch.number}

@@ -71,7 +71,7 @@ flowchart LR
 | World Builder | Setting, rules, atmosphere, symbols |
 | Plot Strategist | Structure, twists, foreshadowing seeds |
 | Chapter Architect | Chapter outline + **Foreshadowing Tracker** |
-| Prose Writer | Complete multi-chapter literary draft |
+| Prose Writer | Complete multi-chapter literary draft (batch or per-chapter) |
 | Style Editor | Pacing, dialogue, revision notes |
 | Continuity Detective | Structured issues + unresolved threads |
 | Publisher Agent | Titles, summaries, submission copy |
@@ -83,6 +83,18 @@ NovelPilot uses a two-stage flow:
 1. **Prompt Launcher** — the user enters a story idea and settings on a focused full-screen start view.
 2. **Agent Workspace** — nine Gemma-powered agents run the full writing pipeline and produce the story bible, draft, foreshadowing tracker, continuity report, and publisher package.
 
+## Custom structure and chapter length control
+
+NovelPilot supports:
+
+- Custom **part count** and **chapters per part** (Short Story, Novella, Serialized plan, or Custom)
+- **Per-chapter target length** (words for English, characters for Japanese)
+- **Automatic length distribution** across chapters
+- **Structure review** before drafting (Structure Designer pauses the pipeline after Chapter Architect)
+- **Chapter-by-chapter generation** for longer works (more than 3 chapters) for reliability
+
+Long-form works are generated one chapter at a time, not in a single API call.
+
 ## Features
 
 - One-click **Judge Demo** for hackathon judges
@@ -90,7 +102,7 @@ NovelPilot uses a two-stage flow:
 - **Foreshadowing Tracker** with planned / unresolved / paid-off status
 - **Continuity Detective** with severity, category, evidence, and suggested fixes
 - Human-in-the-loop: Approve, Regenerate, Edit Output per agent
-- **Complete multi-chapter manuscript generation** (3-chapter short novel in MVP scope)
+- **Complete multi-chapter manuscript generation** with customizable structure
 - Export: Full Demo Markdown, DEV summary, bible, manuscript, JSON
 - **Completed Novel Reader** — read the full generated story in a polished, distraction-free full-screen view with chapter navigation
 - **Automatic transition** to the completed novel reader when all agents finish

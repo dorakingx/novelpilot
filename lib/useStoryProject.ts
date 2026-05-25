@@ -4,18 +4,32 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AGENT_DEFINITIONS,
   createInitialProject,
+  getAgentIndex,
   mergeAgentOutput,
+  mergeChapterDraftOutput,
   resetFromAgent,
   setAgentStatus,
 } from "./agents";
 import { DEFAULT_GEMMA_MODEL } from "./gemma-model";
-import { JUDGE_DEMO_SETTINGS } from "./demo";
+import {
+  JUDGE_DEMO_REQUIRES_STRUCTURE_APPROVAL,
+  JUDGE_DEMO_SETTINGS,
+} from "./demo";
+import { buildDefaultStructure } from "./structure-presets";
+import { distributeLength } from "./length-planning";
+import {
+  getAllChapters,
+  shouldUseSequentialDrafting,
+  syncPartsAndChapters,
+} from "./structure-utils";
 import { formatLiveGenerationError } from "./format-generation-error";
 import type {
   AgentId,
   GenerateAgentResponse,
+  PartPlan,
   ProjectSettings,
   StoryProject,
+  StoryStructureSettings,
 } from "./types";
 
 const DEFAULT_SETTINGS: ProjectSettings = {
@@ -25,7 +39,31 @@ const DEFAULT_SETTINGS: ProjectSettings = {
   genre: "sci-fi",
   tone: "melancholic",
   targetLength: "short-story",
+  structure: buildDefaultStructure("en", "short-3"),
 };
+
+const DRAFTING_AGENT_INDEX = getAgentIndex("drafting");
+
+async function fetchAgent(
+  agentId: AgentId,
+  project: StoryProject,
+  signal: AbortSignal,
+  draftChapterNumber?: number
+): Promise<GenerateAgentResponse> {
+  const res = await fetch("/api/generate-agent", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ agentId, project, draftChapterNumber }),
+    signal,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(
+      (err as { error?: string }).error ?? `Agent ${agentId} failed`
+    );
+  }
+  return res.json() as Promise<GenerateAgentResponse>;
+}
 
 export function useStoryProject() {
   const [settings, setSettings] = useState<ProjectSettings>(DEFAULT_SETTINGS);
@@ -35,7 +73,6 @@ export function useStoryProject() {
   const [llmProvider, setLlmProvider] = useState("openrouter");
   const [llmModel, setLlmModel] = useState(DEFAULT_GEMMA_MODEL);
   const abortRef = useRef<AbortController | null>(null);
-
   useEffect(() => {
     fetch("/api/status")
       .then((r) => r.json())
@@ -56,12 +93,83 @@ export function useStoryProject() {
     []
   );
 
-  const runPipeline = useCallback(
-    async (startProject: StoryProject, fromAgentId?: AgentId) => {
-      const startIdx = fromAgentId
-        ? AGENT_DEFINITIONS.findIndex((a) => a.id === fromAgentId)
-        : 0;
+  const runDraftingPhase = useCallback(
+    async (
+      startProject: StoryProject,
+      controller: AbortController
+    ): Promise<StoryProject> => {
+      let current = setAgentStatus(startProject, "drafting", "running");
+      setProject({ ...current });
 
+      const chapters = getAllChapters(current);
+      const sequential = shouldUseSequentialDrafting(current.structure);
+
+      if (!sequential) {
+        const data = await fetchAgent("drafting", current, controller.signal);
+        setMockMode(data.mockMode);
+        current = mergeAgentOutput(current, "drafting", data.output);
+        setProject({ ...current });
+        return current;
+      }
+
+      const total = chapters.length;
+      const draftOutputs: unknown[] = [];
+
+      for (let i = 0; i < total; i++) {
+        if (controller.signal.aborted) break;
+        const ch = chapters[i];
+        current = {
+          ...current,
+          draftingProgress: {
+            currentChapter: ch.number,
+            totalChapters: total,
+          },
+        };
+        setProject({ ...current });
+
+        const data = await fetchAgent(
+          "drafting",
+          current,
+          controller.signal,
+          ch.number
+        );
+        setMockMode(data.mockMode);
+        current = mergeChapterDraftOutput(current, data.output);
+        draftOutputs.push(data.output);
+        setProject({ ...current });
+      }
+
+      const now = new Date().toISOString();
+      const agents = current.agents.map((agent) =>
+        agent.id === "drafting"
+          ? {
+              ...agent,
+              status: "completed" as const,
+              output: { chapters: draftOutputs },
+              completedAt: now,
+              error: undefined,
+            }
+          : agent
+      );
+
+      current = {
+        ...current,
+        agents,
+        draftingProgress: undefined,
+        updatedAt: now,
+      };
+      setProject({ ...current });
+      return current;
+    },
+    []
+  );
+
+  const runPipelineFromIndex = useCallback(
+    async (
+      startProject: StoryProject,
+      startIdx: number,
+      options?: { skipStructurePause?: boolean }
+    ) => {
       const controller = new AbortController();
       abortRef.current = controller;
       setIsRunning(true);
@@ -73,29 +181,36 @@ export function useStoryProject() {
           if (controller.signal.aborted) break;
 
           const agentId = AGENT_DEFINITIONS[i].id;
+
+          if (agentId === "drafting") {
+            current = await runDraftingPhase(current, controller);
+            if (controller.signal.aborted) break;
+            continue;
+          }
+
           current = setAgentStatus(current, agentId, "running");
           setProject({ ...current });
 
-          const res = await fetch("/api/generate-agent", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ agentId, project: current }),
-            signal: controller.signal,
-          });
-
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            const raw =
-              (err as { error?: string }).error ?? `Agent ${agentId} failed`;
-            throw new Error(
-              resolveGenerationError(raw, !mockMode, llmProvider, llmModel)
-            );
-          }
-
-          const data = (await res.json()) as GenerateAgentResponse;
+          const data = await fetchAgent(agentId, current, controller.signal);
           setMockMode(data.mockMode);
           current = mergeAgentOutput(current, agentId, data.output);
           setProject({ ...current });
+
+          if (
+            agentId === "chapter-outline" &&
+            !options?.skipStructurePause &&
+            current.requiresStructureApproval !== false &&
+            !current.structureApproved
+          ) {
+            current = {
+              ...current,
+              awaitingStructureApproval: true,
+            };
+            setProject({ ...current });
+            setIsRunning(false);
+            abortRef.current = null;
+            return;
+          }
         }
       } catch (err) {
         if (err instanceof Error && err.name === "AbortError") {
@@ -126,19 +241,42 @@ export function useStoryProject() {
           });
         }
       } finally {
-        setIsRunning(false);
-        abortRef.current = null;
+        if (!current.awaitingStructureApproval) {
+          setIsRunning(false);
+          abortRef.current = null;
+        }
       }
     },
-    [llmModel, llmProvider, mockMode, resolveGenerationError]
+    [llmModel, llmProvider, mockMode, resolveGenerationError, runDraftingPhase]
+  );
+
+  const runPipeline = useCallback(
+    async (
+      startProject: StoryProject,
+      fromAgentId?: AgentId,
+      options?: { skipStructurePause?: boolean }
+    ) => {
+      const startIdx = fromAgentId
+        ? AGENT_DEFINITIONS.findIndex((a) => a.id === fromAgentId)
+        : 0;
+      await runPipelineFromIndex(startProject, startIdx, options);
+    },
+    [runPipelineFromIndex]
   );
 
   const startGeneration = useCallback(
-    async (nextSettings: ProjectSettings) => {
+    async (
+      nextSettings: ProjectSettings,
+      options?: { requiresStructureApproval?: boolean; skipStructurePause?: boolean }
+    ) => {
       setSettings(nextSettings);
-      const initial = createInitialProject(nextSettings);
+      const initial = createInitialProject(nextSettings, {
+        requiresStructureApproval: options?.requiresStructureApproval,
+      });
       setProject(initial);
-      await runPipeline(initial);
+      await runPipeline(initial, undefined, {
+        skipStructurePause: options?.skipStructurePause,
+      });
     },
     [runPipeline]
   );
@@ -148,8 +286,94 @@ export function useStoryProject() {
   }, [settings, startGeneration]);
 
   const runJudgeDemo = useCallback(async () => {
-    await startGeneration(JUDGE_DEMO_SETTINGS);
+    await startGeneration(JUDGE_DEMO_SETTINGS, {
+      requiresStructureApproval: JUDGE_DEMO_REQUIRES_STRUCTURE_APPROVAL,
+      skipStructurePause: true,
+    });
   }, [startGeneration]);
+
+  const approveStructureAndContinue = useCallback(async () => {
+    if (!project) return;
+    const updated: StoryProject = {
+      ...project,
+      structureApproved: true,
+      awaitingStructureApproval: false,
+      updatedAt: new Date().toISOString(),
+    };
+    setProject(updated);
+    await runPipelineFromIndex(updated, DRAFTING_AGENT_INDEX, {
+      skipStructurePause: true,
+    });
+  }, [project, runPipelineFromIndex]);
+
+  const updateStructure = useCallback(
+    (parts: PartPlan[], structurePatch?: Partial<StoryStructureSettings>) => {
+      setProject((p) => {
+        if (!p) return p;
+        const synced = syncPartsAndChapters(parts);
+        const structure = {
+          ...p.structure,
+          ...structurePatch,
+          parts: synced.parts,
+          totalChapterCount: synced.chapters.length,
+        };
+        return {
+          ...p,
+          structure,
+          storyBible: {
+            ...p.storyBible,
+            parts: synced.parts,
+            chapters: synced.chapters,
+          },
+          updatedAt: new Date().toISOString(),
+        };
+      });
+    },
+    []
+  );
+
+  const redistributeStructureLength = useCallback(() => {
+    setProject((p) => {
+      if (!p) return p;
+      const total = p.structure.totalTargetLength ?? 0;
+      if (!total) return p;
+      const distributed = distributeLength(
+        total,
+        getAllChapters(p),
+        p.structure.lengthUnit
+      );
+      const parts = p.storyBible.parts.map((part) => ({
+        ...part,
+        chapters: part.chapters.map((ch) => {
+          const d = distributed.find((c) => c.number === ch.number);
+          return d ?? ch;
+        }),
+      }));
+      const synced = syncPartsAndChapters(parts);
+      return {
+        ...p,
+        structure: { ...p.structure, parts: synced.parts },
+        storyBible: {
+          ...p.storyBible,
+          parts: synced.parts,
+          chapters: synced.chapters,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+    });
+  }, []);
+
+  const regenerateStructure = useCallback(async () => {
+    if (!project || isRunning) return;
+    const reset = resetFromAgent(project, "chapter-outline");
+    const cleared: StoryProject = {
+      ...reset,
+      awaitingStructureApproval: false,
+      structureApproved: false,
+    };
+    setProject(cleared);
+    await runPipeline(cleared, "chapter-outline", { skipStructurePause: false });
+  }, [project, isRunning, runPipeline]);
 
   const stopGeneration = useCallback(() => {
     abortRef.current?.abort();
@@ -166,10 +390,29 @@ export function useStoryProject() {
     async (agentId: AgentId) => {
       if (!project || isRunning) return;
       const reset = resetFromAgent(project, agentId);
-      setProject(reset);
-      await runPipeline(reset, agentId);
+      const cleared: StoryProject = {
+        ...reset,
+        ...(agentId === "chapter-outline" || getAgentIndex(agentId) < getAgentIndex("chapter-outline")
+          ? {
+              awaitingStructureApproval: false,
+              structureApproved: false,
+            }
+          : {}),
+      };
+      setProject(cleared);
+      if (agentId === "drafting") {
+        await runPipelineFromIndex(cleared, DRAFTING_AGENT_INDEX, {
+          skipStructurePause: true,
+        });
+      } else {
+        await runPipeline(cleared, agentId, {
+          skipStructurePause:
+            cleared.requiresStructureApproval === false ||
+            cleared.structureApproved === true,
+        });
+      }
     },
-    [project, isRunning, runPipeline]
+    [project, isRunning, runPipeline, runPipelineFromIndex]
   );
 
   const approveAgent = useCallback((agentId: AgentId) => {
@@ -201,7 +444,16 @@ export function useStoryProject() {
 
   const updateSettings = useCallback(
     (partial: Partial<ProjectSettings>) => {
-      setSettings((s) => ({ ...s, ...partial }));
+      setSettings((s) => {
+        const next = { ...s, ...partial };
+        if (partial.language && next.structure) {
+          next.structure = {
+            ...next.structure,
+            lengthUnit: partial.language === "ja" ? "characters" : "words",
+          };
+        }
+        return next;
+      });
     },
     []
   );
@@ -221,5 +473,9 @@ export function useStoryProject() {
     regenerateAgent,
     approveAgent,
     updateAgentOutput,
+    approveStructureAndContinue,
+    updateStructure,
+    redistributeStructureLength,
+    regenerateStructure,
   };
 }

@@ -2,6 +2,7 @@
 
 import { AgentChainPreview } from "@/components/AgentChainPreview";
 import { StorySettingsFields } from "@/components/StorySettingsFields";
+import { StoryStructureFields } from "@/components/StoryStructureFields";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -69,6 +70,12 @@ export function StartScreen({
             disabled={isRunning}
             compact
             pill
+          />
+
+          <StoryStructureFields
+            settings={settings}
+            onSettingsChange={onSettingsChange}
+            disabled={isRunning}
           />
 
           <div className="flex flex-col sm:flex-row gap-3 pt-2">

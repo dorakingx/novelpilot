@@ -299,4 +299,14 @@
     break-before: page;
     page-break-before: always;
   }
+
+  .part-print-break {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  .print-toc {
+    break-after: page;
+    page-break-after: always;
+  }
 }

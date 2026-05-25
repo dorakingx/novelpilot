@@ -601,7 +601,149 @@ const MOCK_JA: Record<AgentId, unknown> = {
   },
 };
 
-export function getMockOutput(agentId: AgentId, language: Language): unknown {
+function buildMockChapterOutline(language: Language) {
+  const unit = language === "ja" ? "characters" : "words";
+  const perChapter = language === "ja" ? 3000 : 1000;
+  const chapterDefs =
+    language === "ja"
+      ? [
+          {
+            number: 1,
+            title: "残留ノイズ",
+            purpose: "謎、蓮の記憶障害、研究室の雰囲気を確立",
+            emotionalTurn: "好奇心 → 不安",
+            keyEvents: [
+              "失踪アラート",
+              "ロッカーで曇ったゴーグルを発見",
+              "最初のデコヒーレンスログ異常",
+            ],
+            foreshadowing: ["無印メモリーカードに言及するが未開封"],
+          },
+          {
+            number: 2,
+            title: "校正の幽霊",
+            purpose: "蓮の過去の行動への疑念を深める",
+            emotionalTurn: "不安 → 恐怖",
+            keyEvents: [
+              "ログの筆跡一致",
+              "美香が深夜の蓮を目撃したと告白",
+            ],
+            foreshadowing: ["脚注の暗号ヒント"],
+          },
+          {
+            number: 3,
+            title: "室B",
+            purpose: "クライマックスと moral choice",
+            emotionalTurn: "恐怖 → 痛みを伴う明晰さ",
+            keyEvents: ["映像との対峙", "蓮が研究室を暴露する決断"],
+            foreshadowing: ["桜のメッセージ解読"],
+          },
+        ]
+      : [
+          {
+            number: 1,
+            title: "Residual Noise",
+            purpose: "Establish mystery, Ren's amnesia, and lab atmosphere",
+            emotionalTurn: "Curiosity → unease",
+            keyEvents: [
+              "Missing person alert",
+              "Ren finds fogged goggles in his locker",
+              "First decoherence log anomaly",
+            ],
+            foreshadowing: ["Unlabeled memory card mentioned but not opened"],
+          },
+          {
+            number: 2,
+            title: "Calibration Ghost",
+            purpose: "Deepen suspicion around Ren's past actions",
+            emotionalTurn: "Unease → dread",
+            keyEvents: [
+              "Handwriting match in logs",
+              "Mika admits she saw Ren after hours",
+            ],
+            foreshadowing: ["Cipher hint in footnotes"],
+          },
+          {
+            number: 3,
+            title: "Chamber B",
+            purpose: "Climax and moral choice",
+            emotionalTurn: "Dread → painful clarity",
+            keyEvents: ["Footage confrontation", "Ren decides to expose the lab"],
+            foreshadowing: ["Cherry blossom message decoded"],
+          },
+        ];
+
+  const chapters = chapterDefs.map((c) => ({
+    ...c,
+    partNumber: 1,
+    lengthPlan: { targetLength: perChapter, unit },
+  }));
+
+  const parts = [
+    {
+      number: 1,
+      title: language === "ja" ? "第一部" : "Part I",
+      purpose:
+        language === "ja"
+          ? "失踪と記憶の謎を提示する"
+          : "Introduce the disappearance and memory mystery",
+      targetLength: perChapter * 3,
+      chapters,
+    },
+  ];
+
+  const styleGuide =
+    language === "ja"
+      ? {
+          pov: "蓮への近い三人称",
+          tense: "過去形",
+          proseStyle: "文学的SF — 感覚描写、抑制された説明",
+          dialogueNotes: "サブテキスト重視",
+          taboos: ["突然の完全記憶回復", "悪役の独白"],
+        }
+      : {
+          pov: "Close third person on Ren",
+          tense: "Past tense",
+          proseStyle: "Literary sci-fi — sensory detail, restrained exposition",
+          dialogueNotes: "Subtext-heavy; avoid technobabble dumps",
+          taboos: ["Sudden full memory recovery", "Villain monologuing"],
+        };
+
+  return {
+    parts,
+    chapters,
+    styleGuide,
+    foreshadowingTracker:
+      language === "ja" ? FORESHADOWING_TRACKER_JA : FORESHADOWING_TRACKER_EN,
+  };
+}
+
+export function getMockOutput(
+  agentId: AgentId,
+  language: Language,
+  options?: { project?: import("./types").StoryProject; draftChapterNumber?: number }
+): unknown {
+  if (agentId === "drafting" && options?.draftChapterNumber != null) {
+    const chapters = language === "ja" ? DRAFTING_CHAPTERS_JA : DRAFTING_CHAPTERS_EN;
+    const ch = chapters.find((c) => c.number === options.draftChapterNumber);
+    if (ch) {
+      return {
+        number: ch.number,
+        title: ch.title,
+        draft: ch.draft,
+        chapterSummary:
+          language === "ja"
+            ? `第${ch.number}章の要約（モック）`
+            : `Summary of chapter ${ch.number} (mock).`,
+        continuityNotes: [],
+      };
+    }
+  }
+
+  if (agentId === "chapter-outline") {
+    return buildMockChapterOutline(language);
+  }
+
   const mocks = language === "ja" ? MOCK_JA : MOCK_EN;
   return mocks[agentId];
 }
