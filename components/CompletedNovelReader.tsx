@@ -409,7 +409,7 @@ export function CompletedNovelReader({
                               mutedClass
                             )}
                           >
-                            Target:{" "}
+                            Planned: about{" "}
                             {formatLengthLabel(
                               ch.lengthPlan.targetLength,
                               unit,

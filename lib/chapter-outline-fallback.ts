@@ -1,7 +1,4 @@
-import {
-  buildSkeletonParts,
-  getDefaultChapterRole,
-} from "./structure-chapter-defaults";
+import { buildSkeletonParts } from "./structure-chapter-defaults";
 import type { Chapter, StoryProject } from "./types";
 
 const MAX_STRING_LEN = 180;
@@ -39,6 +36,7 @@ export function buildFallbackChapterOutline(
     presetId: structure.presetId,
     partCount: structure.partCount,
     chaptersPerPart: structure.chaptersPerPart,
+    chapterLengthPreset: structure.chapterLengthPreset,
     existingParts: structure.parts?.length ? structure.parts : undefined,
   });
 
@@ -47,30 +45,26 @@ export function buildFallbackChapterOutline(
     number: part.number,
     title: part.title,
     purpose: shortPhrase(part.purpose, `Part ${part.number} arc`),
-    chapters: part.chapters.map((ch, idx) => {
-      const role = ch.role?.trim() || getDefaultChapterRole(idx);
-      return {
-        id: ch.id,
-        number: ch.number,
-        partNumber: ch.partNumber ?? part.number,
-        title: ch.title,
-        role,
-        purpose: shortPhrase(
-          ch.purpose,
-          `${role}: advance "${shortPhrase(logline, "the story")}"`
-        ),
-        emotionalTurn: shortPhrase(
-          ch.emotionalTurn,
-          `${role} — ${themeHint} tone`
-        ),
-        keyEvents: [
-          shortPhrase(undefined, `${role} beat`),
-          shortPhrase(undefined, "Conflict escalates"),
-        ].slice(0, 2),
-        foreshadowing: [shortPhrase(undefined, "Plant mystery")],
-        lengthPlan: ch.lengthPlan,
-      };
-    }),
+    chapters: part.chapters.map((ch) => ({
+      id: ch.id,
+      number: ch.number,
+      partNumber: ch.partNumber ?? part.number,
+      title: ch.title,
+      purpose: shortPhrase(
+        ch.purpose,
+        `Advance "${shortPhrase(logline, "the story")}"`
+      ),
+      emotionalTurn: shortPhrase(
+        ch.emotionalTurn,
+        `${themeHint} tone`
+      ),
+      keyEvents: [
+        shortPhrase(undefined, "Story beat"),
+        shortPhrase(undefined, "Conflict escalates"),
+      ].slice(0, 2),
+      foreshadowing: [shortPhrase(undefined, "Plant mystery")],
+      lengthPlan: ch.lengthPlan,
+    })),
   }));
 
   const chapters: Chapter[] = parts.flatMap((p) =>
@@ -89,7 +83,6 @@ export function buildFallbackChapterOutline(
       number: ch.number,
       partNumber: ch.partNumber,
       title: ch.title,
-      role: ch.role,
       purpose: ch.purpose,
       emotionalTurn: ch.emotionalTurn,
       keyEvents: ch.keyEvents,

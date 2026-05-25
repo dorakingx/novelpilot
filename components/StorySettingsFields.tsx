@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { applyChapterLengthPreset } from "@/lib/chapter-length-presets";
 import { presetToTargetLength } from "@/lib/structure-chapter-defaults";
 import { applyPresetToStructure } from "@/lib/structure-presets";
 import type { ProjectSettings } from "@/lib/types";
@@ -47,10 +48,15 @@ export function StorySettingsFields({
           value={settings.language}
           onValueChange={(v) => {
             const language = v as ProjectSettings["language"];
-            const nextStructure = applyPresetToStructure(
+            let nextStructure = applyPresetToStructure(
               settings.structure,
               settings.structure.presetId,
               language
+            );
+            nextStructure = applyChapterLengthPreset(
+              nextStructure,
+              language,
+              nextStructure.chapterLengthPreset
             );
             onSettingsChange({
               language,

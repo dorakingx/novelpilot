@@ -31,6 +31,10 @@ import {
   shouldPauseForStructureApproval,
   type PipelineRunOptions,
 } from "./pipeline-recovery";
+import {
+  applyChapterLengthPreset,
+  resolveChapterLengthPreset,
+} from "./chapter-length-presets";
 import { presetToTargetLength } from "./structure-chapter-defaults";
 import { buildDefaultStructure } from "./structure-presets";
 import {
@@ -57,7 +61,20 @@ const DEFAULT_SETTINGS: ProjectSettings = {
 };
 
 function normalizeSettings(settings: ProjectSettings): ProjectSettings {
-  const structure = syncStructureTotal(settings.structure);
+  const preset = resolveChapterLengthPreset(settings.structure);
+  let structure = syncStructureTotal({
+    ...settings.structure,
+    chapterLengthPreset: preset,
+    customPerChapterLengthEnabled:
+      settings.structure.customPerChapterLengthEnabled ?? false,
+  });
+  if (!structure.customPerChapterLengthEnabled) {
+    structure = applyChapterLengthPreset(
+      structure,
+      settings.language,
+      preset
+    );
+  }
   return {
     ...settings,
     structure,

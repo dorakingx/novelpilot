@@ -216,6 +216,7 @@ function slimStructureForOutline(
   return {
     mode: structure.mode,
     presetId: structure.presetId,
+    chapterLengthPreset: structure.chapterLengthPreset,
     partCount: structure.partCount,
     chaptersPerPart: structure.chaptersPerPart,
     totalChapterCount: structure.totalChapterCount,

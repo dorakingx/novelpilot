@@ -133,11 +133,17 @@ function chapterOutlineInstructions(context: Record<string, unknown>): string {
         )
     );
 
+  const chapterLengthPreset = String(structure?.chapterLengthPreset ?? "standard");
+  const userPrompt = String(context.userPrompt ?? "");
+
   return `You are the Chapter Architect. Create a story structure with exactly ${partCount} part(s), ${chaptersPerPart} chapter(s) per part, and exactly ${totalChapters} chapters total. Do NOT add or remove parts or chapters.
 Return ONLY the "parts" array (nested chapters). Do NOT include a separate top-level "chapters" array.
 If partCount > 1, group chapters into parts. Each part needs a short title and purpose.
+Generate compelling chapter titles from the user prompt, genre, tone, and structure. The user does not supply titles in the UI. If the user prompt mentions desired chapter titles, use those exact titles.
 Each chapter must include: title, role, purpose, emotionalTurn, keyEvents (max 3 short phrases), foreshadowing (max 2 short phrases), lengthPlan with targetLength in ${unit}.
-${hasUserPlans ? `Preserve each chapter's lengthPlan.targetLength from structure.parts exactly unless blank.` : `Assign sensible per-chapter lengthPlan values in ${unit}.`}
+Approximate chapter length preset: ${chapterLengthPreset}. Treat each chapter's lengthPlan.targetLength as an approximate pacing target, not an exact constraint.
+${hasUserPlans ? `Preserve each chapter's lengthPlan.targetLength from structure.parts when provided; they are approximate targets.` : `Assign sensible per-chapter lengthPlan values in ${unit} consistent with preset ${chapterLengthPreset}.`}
+User prompt for title and tone cues: ${userPrompt.slice(0, 500)}
 Keep the outline compact. Do not write scene prose here. Use short phrases, not paragraphs. Each chapter purpose, emotionalTurn, and key event should be concise. Save long prose for the Prose Writer.
 Keep every field concise. Do not write prose. Do not include long explanations. Do not include markdown. Limit foreshadowingTracker to max 4 items. Each string under 180 characters. Return only valid JSON.
 ${lang}`;
@@ -165,7 +171,7 @@ export function buildChapterDraftPrompt(
 
   const unit = target.lengthPlan?.unit ?? (language === "ja" ? "characters" : "words");
   const lengthHint = target.lengthPlan?.targetLength
-    ? `Write approximately ${target.lengthPlan.targetLength} ${unit} for this chapter (${language === "ja" ? "count non-whitespace characters" : "count words"}). Do not use project-level total length as the primary guide.`
+    ? `Approximate length target: about ${target.lengthPlan.targetLength} ${unit} (${language === "ja" ? "count non-whitespace characters" : "count words"}). ±20% is acceptable. Length is pacing guidance only — do not truncate mid-scene for an exact count; prioritize narrative completeness. Do not use project-level total length as the primary guide.`
     : "";
   const roleHint = target.role?.trim()
     ? `Chapter role: ${target.role}.`
@@ -221,7 +227,7 @@ ${lang}`,
     "chapter-outline": chapterOutlineInstructions(context),
     drafting: `You are the Prose Writer. Write full prose fiction for EVERY chapter in the chapter outline. Do not summarize. Each chapter must be an actual scene-based chapter with dialogue, atmosphere, emotional progression, and narrative momentum. Maintain continuity across chapters. Return all chapter drafts and a combined completeManuscript.
 Use the existing chapter outline exactly. Write one draft per chapter. The number of chapter drafts must match the number of outlined chapters.
-For each chapter, write to that chapter's lengthPlan: Japanese targets use non-whitespace character count; English targets use word count. Respect role, purpose, and emotionalTurn. Do not use project-level total length as the primary guide.
+For each chapter, treat lengthPlan as approximate pacing guidance (±20% acceptable). Japanese targets use non-whitespace character count; English targets use word count. Do not truncate mid-scene for an exact count. Respect role, purpose, and emotionalTurn. Do not use project-level total length as the primary guide.
 ${lang}`,
     editor: `You are the Style Editor. Critique the complete manuscript against the story bible. Consider pacing across chapters, dialogue, emotional arc, prose style, and ending payoff. Be specific and constructive.
 ${lang}`,

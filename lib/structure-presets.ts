@@ -1,6 +1,16 @@
+import {
+  applyChapterLengthPreset,
+  resolveChapterLengthPreset,
+} from "./chapter-length-presets";
 import { syncStructureTotal } from "./length-planning";
 import { buildSkeletonParts } from "./structure-chapter-defaults";
-import type { Language, LengthUnit, StoryStructureSettings, StructurePresetId } from "./types";
+import type {
+  ChapterLengthPreset,
+  Language,
+  LengthUnit,
+  StoryStructureSettings,
+  StructurePresetId,
+} from "./types";
 
 export interface StructurePresetDefinition {
   id: StructurePresetId;
@@ -91,6 +101,8 @@ export function applyPresetToStructure(
     mode: structure.mode,
     partCount,
     chaptersPerPart,
+    chapterLengthPreset: structure.chapterLengthPreset,
+    customPerChapterLengthEnabled: structure.customPerChapterLengthEnabled,
     existingParts: presetId === "custom" ? structure.parts : undefined,
   });
 }
@@ -109,6 +121,9 @@ export function buildDefaultStructure(
   const totalChapterCount = partCount * chaptersPerPart;
   const resolvedPresetId = presetId === "custom" ? "custom" : presetId;
 
+  const chapterLengthPreset: ChapterLengthPreset =
+    overrides?.chapterLengthPreset ?? resolveChapterLengthPreset(overrides ?? {});
+
   const parts =
     overrides?.parts?.length ?
       overrides.parts
@@ -117,6 +132,7 @@ export function buildDefaultStructure(
         presetId: resolvedPresetId,
         partCount,
         chaptersPerPart,
+        chapterLengthPreset,
         existingParts: overrides?.existingParts,
       });
 
@@ -127,10 +143,17 @@ export function buildDefaultStructure(
     partCount,
     chaptersPerPart,
     totalChapterCount,
+    chapterLengthPreset,
+    customPerChapterLengthEnabled:
+      overrides?.customPerChapterLengthEnabled ?? false,
     parts,
   };
 
-  return syncStructureTotal(base);
+  const synced = syncStructureTotal(base);
+  if (overrides?.customPerChapterLengthEnabled) {
+    return synced;
+  }
+  return applyChapterLengthPreset(synced, language, chapterLengthPreset);
 }
 
 export function targetLengthToPreset(

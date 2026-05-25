@@ -27,6 +27,14 @@ export type StructurePresetId =
   | "serial-12"
   | "custom";
 
+export type ChapterLengthPreset =
+  | "very-short"
+  | "short"
+  | "standard"
+  | "long"
+  | "very-long"
+  | "custom";
+
 export type AgentStatus = "pending" | "running" | "completed" | "failed";
 
 export type AgentId =
@@ -103,6 +111,8 @@ export interface StoryStructureSettings {
   partCount: number;
   chaptersPerPart: number;
   totalChapterCount: number;
+  chapterLengthPreset: ChapterLengthPreset;
+  customPerChapterLengthEnabled?: boolean;
   parts: PartPlan[];
 }
 

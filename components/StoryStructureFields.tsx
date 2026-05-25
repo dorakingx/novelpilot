@@ -1,6 +1,7 @@
 "use client";
 
 import { ChapterLengthPlanList } from "@/components/ChapterLengthPlanList";
+import { StructureSlotsPreview } from "@/components/StructureSlotsPreview";
 import {
   Select,
   SelectContent,
@@ -9,18 +10,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  applyChapterLengthPreset,
+  applyUniformLengthToParts,
+  formatTotalPlannedSummary,
+  getChapterLengthPresetOptions,
+  getChapterLengthPresetValue,
+} from "@/lib/chapter-length-presets";
+import {
   RECOMMENDED_MAX_LENGTH,
   STRUCTURE_PRESETS,
   applyPresetToStructure,
   getLengthUnit,
 } from "@/lib/structure-presets";
-import {
-  computeTotalPlannedLength,
-  syncStructureTotal,
-} from "@/lib/length-planning";
+import { syncStructureTotal } from "@/lib/length-planning";
 import { presetToTargetLength, buildSkeletonParts } from "@/lib/structure-chapter-defaults";
 import { resolveTotalChapterCount } from "@/lib/structure-utils";
-import type { ProjectSettings, StructurePresetId } from "@/lib/types";
+import type {
+  ChapterLengthPreset,
+  ProjectSettings,
+  StructurePresetId,
+} from "@/lib/types";
 import { AlertTriangle, Info } from "lucide-react";
 
 interface StoryStructureFieldsProps {
@@ -39,8 +48,15 @@ export function StoryStructureFields({
   const totalChapters = resolveTotalChapterCount(structure);
   const isCustom = structure.presetId === "custom";
   const recommendedMax = RECOMMENDED_MAX_LENGTH[settings.language];
-  const totalPlanned = computeTotalPlannedLength(structure.parts);
+  const totalPlanned = structure.totalTargetLength ?? 0;
   const overRecommended = totalPlanned > recommendedMax;
+  const customEnabled = structure.customPerChapterLengthEnabled ?? false;
+  const lengthPreset = structure.chapterLengthPreset ?? "standard";
+  const isCustomLengthPreset = lengthPreset === "custom" && !customEnabled;
+
+  const customUniformLength =
+    structure.parts[0]?.chapters[0]?.lengthPlan?.targetLength ??
+    getChapterLengthPresetValue(settings.language, "standard");
 
   const pushStructure = (next: typeof structure) => {
     const synced = syncStructureTotal({
@@ -66,9 +82,19 @@ export function StoryStructureFields({
       presetId,
       partCount,
       chaptersPerPart,
-      existingParts: merged.parts,
+      chapterLengthPreset: merged.chapterLengthPreset,
+      customLengthPerChapter:
+        merged.chapterLengthPreset === "custom" ? customUniformLength : undefined,
+      existingParts: customEnabled ? merged.parts : undefined,
     });
-    pushStructure({ ...merged, parts });
+    let next = { ...merged, parts };
+    next = applyChapterLengthPreset(
+      next,
+      settings.language,
+      next.chapterLengthPreset,
+      isCustomLengthPreset ? customUniformLength : undefined
+    );
+    pushStructure(next);
   };
 
   const handlePresetChange = (presetId: StructurePresetId) => {
@@ -83,13 +109,42 @@ export function StoryStructureFields({
     });
   };
 
+  const handleChapterLengthPresetChange = (preset: ChapterLengthPreset) => {
+    if (preset === "custom" && !customEnabled) {
+      const next = applyChapterLengthPreset(
+        { ...structure, chapterLengthPreset: "custom" },
+        settings.language,
+        "custom",
+        customUniformLength
+      );
+      pushStructure(next);
+      return;
+    }
+    const next = applyChapterLengthPreset(
+      { ...structure, chapterLengthPreset: preset },
+      settings.language,
+      preset
+    );
+    pushStructure(next);
+  };
+
+  const handleCustomUniformLength = (value: number) => {
+    if (value <= 0) return;
+    const next = applyUniformLengthToParts(
+      { ...structure, chapterLengthPreset: "custom" },
+      settings.language,
+      value
+    );
+    pushStructure(next);
+  };
+
   return (
     <div className="space-y-4 pt-2 border-t border-white/10">
       <div>
         <h3 className="text-sm font-semibold text-[#F8FAFC]">Story Structure</h3>
         <p className="text-xs text-[#94A3B8] mt-1">
-          Choose parts, chapters, and chapter lengths. Long works are generated
-          chapter by chapter for reliability.
+          Chapter titles will be generated from your prompt. If you want specific
+          titles, include them in the prompt.
         </p>
       </div>
 
@@ -185,11 +240,109 @@ export function StoryStructureFields({
         </div>
       </div>
 
+      <div className="space-y-1.5">
+        <label className="text-xs font-medium text-[#94A3B8]">
+          Approximate chapter length
+        </label>
+        <Select
+          value={lengthPreset}
+          onValueChange={(v) =>
+            handleChapterLengthPresetChange(v as ChapterLengthPreset)
+          }
+          disabled={disabled}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {getChapterLengthPresetOptions(settings.language).map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {isCustomLengthPreset && (
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-[#94A3B8]">
+            Approximate length per chapter
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={100}
+              value={customUniformLength}
+              onChange={(e) =>
+                handleCustomUniformLength(Number(e.target.value) || 0)
+              }
+              disabled={disabled}
+              className="flex h-9 w-32 rounded-md border border-white/12 bg-[#172033] px-3 text-sm text-[#F8FAFC]"
+            />
+            <span className="text-xs text-[#94A3B8]">{unit}</span>
+          </div>
+        </div>
+      )}
+
+      <p className="text-sm text-[#CBD5E1]">
+        <span className="text-[#94A3B8]">Total planned length: </span>
+        <span className="font-medium text-[#F8FAFC]">
+          {formatTotalPlannedSummary(
+            settings.language,
+            totalChapters,
+            lengthPreset,
+            isCustomLengthPreset ? customUniformLength : undefined
+          )}
+        </span>
+      </p>
+
       {structure.parts.length > 0 && (
+        <StructureSlotsPreview
+          parts={structure.parts}
+          language={settings.language}
+        />
+      )}
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={customEnabled}
+          onChange={(e) => {
+            const enabled = e.target.checked;
+            const nextPreset: ChapterLengthPreset = enabled
+              ? "custom"
+              : lengthPreset === "custom"
+                ? "standard"
+                : lengthPreset;
+            let next: typeof structure = {
+              ...structure,
+              customPerChapterLengthEnabled: enabled,
+              chapterLengthPreset: nextPreset,
+            };
+            if (!enabled) {
+              next = applyChapterLengthPreset(
+                next,
+                settings.language,
+                nextPreset
+              );
+            }
+            pushStructure(next);
+          }}
+          disabled={disabled}
+          className="rounded border-white/20"
+        />
+        <span className="text-xs text-[#CBD5E1]">
+          Customize each chapter length
+        </span>
+      </label>
+
+      {customEnabled && structure.parts.length > 0 && (
         <ChapterLengthPlanList
           parts={structure.parts}
           language={settings.language}
           disabled={disabled}
+          advancedMode
           showAdvancedDistribute
           onPartsChange={(parts) => pushStructure({ ...structure, parts })}
         />
@@ -206,7 +359,7 @@ export function StoryStructureFields({
         <span>
           Long works are generated chapter by chapter for reliability. You can
           review and edit the structure after the Chapter Architect completes.
-          Changing language resets chapter lengths to preset defaults.
+          Changing language resets approximate chapter lengths to preset defaults.
         </span>
       </div>
 

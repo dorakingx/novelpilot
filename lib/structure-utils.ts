@@ -1,3 +1,4 @@
+import { isPlaceholderChapterTitle } from "./structure-chapter-defaults";
 import { buildDefaultStructure, targetLengthToPreset } from "./structure-presets";
 import type {
   Chapter,
@@ -181,7 +182,7 @@ export function shouldUseSequentialDrafting(
   return resolveTotalChapterCount(structure) > 3;
 }
 
-/** Preserve user-defined per-chapter length and role from launcher skeleton */
+/** Preserve user-defined per-chapter length plans from launcher; keep Architect titles */
 export function mergePreservedChapterPlans(
   userParts: PartPlan[],
   aiParts: PartPlan[]
@@ -200,20 +201,19 @@ export function mergePreservedChapterPlans(
       if (!user) return ch;
 
       const preservedLength =
-        user.lengthPlan?.targetLength && user.lengthPlan.targetLength > 0 ?
-          user.lengthPlan
-        : ch.lengthPlan;
+        user.lengthPlan?.targetLength && user.lengthPlan.targetLength > 0
+          ? user.lengthPlan
+          : ch.lengthPlan;
 
-      const preservedRole =
-        user.role?.trim() ? user.role : ch.role;
+      const title =
+        user.title?.trim() && !isPlaceholderChapterTitle(user.title)
+          ? user.title
+          : ch.title;
 
       return {
         ...ch,
-        role: preservedRole,
+        title,
         lengthPlan: preservedLength ?? ch.lengthPlan,
-        ...(user.title?.trim() && user.title.startsWith("Chapter ") === false ?
-          {}
-        : {}),
       };
     }),
   }));

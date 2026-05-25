@@ -57,7 +57,7 @@ export function StoryStructurePanel({
         {totalPlanned > 0 && (
           <>
             {" "}
-            · Total planned length:{" "}
+            · Total planned: about{" "}
             {formatLengthLabel(totalPlanned, unit, project.language)}
           </>
         )}
@@ -105,7 +105,7 @@ export function StoryStructurePanel({
                         <div className="flex flex-wrap items-center gap-1.5">
                           {target != null && (
                             <span>
-                              Target: {target.toLocaleString()} {chUnit}
+                              Planned: about {target.toLocaleString()} {chUnit}
                             </span>
                           )}
                           {ch.draft && (
@@ -157,7 +157,7 @@ export function StoryStructurePanel({
                   </span>
                   {target != null && ch.draft && (
                     <div className="flex flex-wrap gap-1.5 mt-1">
-                      <span>Target: {target}</span>
+                      <span>Planned: about {target}</span>
                       <span>Actual: {actual}</span>
                       {diff != null && (
                         <span>
