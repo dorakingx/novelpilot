@@ -724,3 +724,77 @@ export function setAgentStatus(
   });
   return { ...project, updatedAt: now, agents };
 }
+
+export function setAgentRetryState(
+  project: StoryProject,
+  agentId: AgentId,
+  retryCount: number,
+  maxRetries: number,
+  errorMessage?: string
+): StoryProject {
+  return setAgentStatus(project, agentId, "running", {
+    retryCount,
+    maxRetries,
+    lastRetryError: errorMessage,
+    error: undefined,
+  });
+}
+
+export function clearAgentRetryState(
+  project: StoryProject,
+  agentId: AgentId
+): StoryProject {
+  const agents = project.agents.map((agent) => {
+    if (agent.id !== agentId) return agent;
+    return {
+      ...agent,
+      retryCount: undefined,
+      maxRetries: undefined,
+      lastRetryError: undefined,
+    };
+  });
+  return { ...project, updatedAt: new Date().toISOString(), agents };
+}
+
+export function markAgentAutoRecovered(
+  project: StoryProject,
+  agentId: AgentId
+): StoryProject {
+  const agents = project.agents.map((agent) => {
+    if (agent.id !== agentId) return agent;
+    return {
+      ...agent,
+      autoRecovered: true,
+      error: undefined,
+      retryCount: undefined,
+      lastRetryError: undefined,
+    };
+  });
+  return { ...project, updatedAt: new Date().toISOString(), agents };
+}
+
+export function markAgentFallbackUsed(
+  project: StoryProject,
+  agentId: AgentId
+): StoryProject {
+  const agents = project.agents.map((agent) => {
+    if (agent.id !== agentId) return agent;
+    return {
+      ...agent,
+      status: "completed" as const,
+      fallbackUsed: true,
+      autoRecovered: true,
+      error: undefined,
+      retryCount: undefined,
+      maxRetries: undefined,
+      lastRetryError: undefined,
+      completedAt: new Date().toISOString(),
+    };
+  });
+  return {
+    ...project,
+    updatedAt: new Date().toISOString(),
+    agents,
+    structureFallbackUsed: agentId === "chapter-outline" ? true : project.structureFallbackUsed,
+  };
+}

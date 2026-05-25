@@ -2,32 +2,44 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  fetchAgentWithRetry,
+  getRetryPolicyForAgent,
+} from "./agent-retry";
+import {
   AGENT_DEFINITIONS,
+  clearAgentRetryState,
   createInitialProject,
   getAgentIndex,
+  markAgentAutoRecovered,
   mergeAgentOutput,
   mergeChapterDraftOutput,
   resetFromAgent,
+  setAgentRetryState,
   setAgentStatus,
 } from "./agents";
-import { buildFallbackChapterOutline } from "./chapter-outline-fallback";
 import { DEFAULT_GEMMA_MODEL } from "./gemma-model";
 import {
   JUDGE_DEMO_REQUIRES_STRUCTURE_APPROVAL,
   JUDGE_DEMO_SETTINGS,
 } from "./demo";
-import { presetToTargetLength } from "./structure-chapter-defaults";
+import { formatLiveGenerationError } from "./format-generation-error";
 import { distributeLength, syncStructureTotal } from "./length-planning";
+import {
+  applyFallbackChapterOutlineToProject,
+  canContinuePipeline,
+  pauseForStructureApproval,
+  shouldPauseForStructureApproval,
+  type PipelineRunOptions,
+} from "./pipeline-recovery";
+import { presetToTargetLength } from "./structure-chapter-defaults";
 import { buildDefaultStructure } from "./structure-presets";
 import {
   getAllChapters,
   shouldUseSequentialDrafting,
   syncPartsAndChapters,
 } from "./structure-utils";
-import { formatLiveGenerationError } from "./format-generation-error";
 import type {
   AgentId,
-  GenerateAgentResponse,
   PartPlan,
   ProjectSettings,
   StoryProject,
@@ -56,27 +68,6 @@ function normalizeSettings(settings: ProjectSettings): ProjectSettings {
 
 const DRAFTING_AGENT_INDEX = getAgentIndex("drafting");
 
-async function fetchAgent(
-  agentId: AgentId,
-  project: StoryProject,
-  signal: AbortSignal,
-  draftChapterNumber?: number
-): Promise<GenerateAgentResponse> {
-  const res = await fetch("/api/generate-agent", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ agentId, project, draftChapterNumber }),
-    signal,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(
-      (err as { error?: string }).error ?? `Agent ${agentId} failed`
-    );
-  }
-  return res.json() as Promise<GenerateAgentResponse>;
-}
-
 export function useStoryProject() {
   const [settings, setSettings] = useState<ProjectSettings>(DEFAULT_SETTINGS);
   const [project, setProject] = useState<StoryProject | null>(null);
@@ -85,6 +76,7 @@ export function useStoryProject() {
   const [llmProvider, setLlmProvider] = useState("openrouter");
   const [llmModel, setLlmModel] = useState(DEFAULT_GEMMA_MODEL);
   const abortRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     fetch("/api/status")
       .then((r) => r.json())
@@ -112,23 +104,122 @@ export function useStoryProject() {
     []
   );
 
+  const executeAgentStep = useCallback(
+    async (
+      startProject: StoryProject,
+      agentId: AgentId,
+      controller: AbortController
+    ): Promise<StoryProject> => {
+      const policy = getRetryPolicyForAgent(agentId);
+      let current = setAgentStatus(startProject, agentId, "running", {
+        retryCount: undefined,
+        maxRetries: policy.maxRetries,
+        lastRetryError: undefined,
+        error: undefined,
+        autoRecovered: undefined,
+        fallbackUsed: undefined,
+      });
+      setProject({ ...current });
+
+      const hadRetriesRef = { value: false };
+
+      try {
+        const data = await fetchAgentWithRetry(
+          agentId,
+          current,
+          controller.signal,
+          {
+            maxRetries: policy.maxRetries,
+            retryDelayMs: policy.retryDelayMs,
+            onRetry: (attempt, error) => {
+              hadRetriesRef.value = true;
+              current = setAgentRetryState(
+                current,
+                agentId,
+                attempt,
+                policy.maxRetries,
+                error.message
+              );
+              setProject({ ...current });
+            },
+          }
+        );
+        setMockMode(data.mockMode);
+        current = mergeAgentOutput(current, agentId, data.output);
+        current = clearAgentRetryState(current, agentId);
+        if (hadRetriesRef.value) {
+          current = markAgentAutoRecovered(current, agentId);
+        }
+        return current;
+      } catch (err) {
+        if (agentId === "chapter-outline") {
+          return applyFallbackChapterOutlineToProject(current);
+        }
+        throw err;
+      }
+    },
+    []
+  );
+
   const runDraftingPhase = useCallback(
     async (
       startProject: StoryProject,
       controller: AbortController
     ): Promise<StoryProject> => {
-      let current = setAgentStatus(startProject, "drafting", "running");
+      const policy = getRetryPolicyForAgent("drafting");
+      let current = setAgentStatus(startProject, "drafting", "running", {
+        maxRetries: policy.maxRetries,
+        error: undefined,
+      });
       setProject({ ...current });
 
       const chapters = getAllChapters(current);
       const sequential = shouldUseSequentialDrafting(current.structure);
 
-      if (!sequential) {
-        const data = await fetchAgent("drafting", current, controller.signal);
+      const runDraftingCall = async (
+        projectState: StoryProject,
+        chapterNumber?: number
+      ) => {
+        const hadRetriesRef = { value: false };
+        const data = await fetchAgentWithRetry(
+          "drafting",
+          projectState,
+          controller.signal,
+          {
+            draftChapterNumber: chapterNumber,
+            maxRetries: policy.maxRetries,
+            retryDelayMs: policy.retryDelayMs,
+            onRetry: (attempt, error) => {
+              hadRetriesRef.value = true;
+              current = setAgentRetryState(
+                current,
+                "drafting",
+                attempt,
+                policy.maxRetries,
+                error.message
+              );
+              setProject({ ...current });
+            },
+          }
+        );
         setMockMode(data.mockMode);
-        current = mergeAgentOutput(current, "drafting", data.output);
-        setProject({ ...current });
-        return current;
+        return { data, hadRetries: hadRetriesRef.value };
+      };
+
+      if (!sequential) {
+        try {
+          const { data } = await runDraftingCall(current);
+          current = mergeAgentOutput(current, "drafting", data.output);
+          current = clearAgentRetryState(current, "drafting");
+          setProject({ ...current });
+          return current;
+        } catch (err) {
+          throw new Error(
+            err instanceof Error
+              ? err.message
+              : "Drafting failed after automatic retries."
+          );
+        }
       }
 
       const total = chapters.length;
@@ -146,16 +237,18 @@ export function useStoryProject() {
         };
         setProject({ ...current });
 
-        const data = await fetchAgent(
-          "drafting",
-          current,
-          controller.signal,
-          ch.number
-        );
-        setMockMode(data.mockMode);
-        current = mergeChapterDraftOutput(current, data.output);
-        draftOutputs.push(data.output);
-        setProject({ ...current });
+        try {
+          const { data } = await runDraftingCall(current, ch.number);
+          current = mergeChapterDraftOutput(current, data.output);
+          draftOutputs.push(data.output);
+          setProject({ ...current });
+        } catch (err) {
+          const msg =
+            err instanceof Error ? err.message : "Drafting failed";
+          throw new Error(
+            `Drafting failed at chapter ${ch.number} after automatic retries. ${msg}`
+          );
+        }
       }
 
       const now = new Date().toISOString();
@@ -167,6 +260,8 @@ export function useStoryProject() {
               output: { chapters: draftOutputs },
               completedAt: now,
               error: undefined,
+              retryCount: undefined,
+              lastRetryError: undefined,
             }
           : agent
       );
@@ -187,13 +282,14 @@ export function useStoryProject() {
     async (
       startProject: StoryProject,
       startIdx: number,
-      options?: { skipStructurePause?: boolean }
+      options?: PipelineRunOptions
     ) => {
       const controller = new AbortController();
       abortRef.current = controller;
       setIsRunning(true);
 
       let current = startProject;
+      let intentionalPause = false;
 
       try {
         for (let i = startIdx; i < AGENT_DEFINITIONS.length; i++) {
@@ -203,78 +299,84 @@ export function useStoryProject() {
 
           if (agentId === "drafting") {
             current = await runDraftingPhase(current, controller);
+            setProject({ ...current });
             if (controller.signal.aborted) break;
             continue;
           }
 
-          current = setAgentStatus(current, agentId, "running");
-          setProject({ ...current });
-
-          const data = await fetchAgent(agentId, current, controller.signal);
-          setMockMode(data.mockMode);
-          current = mergeAgentOutput(current, agentId, data.output);
-          setProject({ ...current });
-
-          if (
-            agentId === "chapter-outline" &&
-            !options?.skipStructurePause &&
-            current.requiresStructureApproval !== false &&
-            !current.structureApproved
-          ) {
-            current = {
-              ...current,
-              awaitingStructureApproval: true,
-            };
+          try {
+            current = await executeAgentStep(current, agentId, controller);
             setProject({ ...current });
-            setIsRunning(false);
-            abortRef.current = null;
-            return;
+
+            if (
+              agentId === "chapter-outline" &&
+              shouldPauseForStructureApproval(current, options)
+            ) {
+              current = pauseForStructureApproval(current);
+              setProject({ ...current });
+              intentionalPause = true;
+              setIsRunning(false);
+              abortRef.current = null;
+              return;
+            }
+          } catch (err) {
+            if (err instanceof Error && err.name === "AbortError") {
+              setProject((p) => {
+                if (!p) return p;
+                const running = p.agents.find((a) => a.status === "running");
+                if (!running) return p;
+                return setAgentStatus(p, running.id, "pending", {
+                  startedAt: undefined,
+                });
+              });
+              break;
+            }
+
+            const raw =
+              err instanceof Error ? err.message : "Generation failed";
+            const failedAgentId = AGENT_DEFINITIONS[i].id;
+            setProject((p) => {
+              if (!p) return p;
+              const policy = getRetryPolicyForAgent(failedAgentId);
+              const message = resolveGenerationError(
+                raw,
+                !mockMode,
+                llmProvider,
+                llmModel,
+                failedAgentId
+              );
+              return setAgentStatus(p, failedAgentId, "failed", {
+                error: message,
+                retryCount: policy.maxRetries,
+                maxRetries: policy.maxRetries,
+                lastRetryError: raw,
+              });
+            });
+            break;
           }
         }
-      } catch (err) {
-        if (err instanceof Error && err.name === "AbortError") {
-          setProject((p) => {
-            if (!p) return p;
-            const running = p.agents.find((a) => a.status === "running");
-            if (!running) return p;
-            return setAgentStatus(p, running.id, "pending", {
-              startedAt: undefined,
-            });
-          });
-        } else {
-          const raw =
-            err instanceof Error ? err.message : "Generation failed";
-          setProject((p) => {
-            if (!p) return p;
-            const running = p.agents.find((a) => a.status === "running");
-            if (!running) return p;
-            const message = resolveGenerationError(
-              raw,
-              !mockMode,
-              llmProvider,
-              llmModel,
-              running.id
-            );
-            return setAgentStatus(p, running.id, "failed", {
-              error: message,
-            });
-          });
-        }
       } finally {
-        if (!current.awaitingStructureApproval) {
+        if (!intentionalPause && !current.awaitingStructureApproval) {
           setIsRunning(false);
           abortRef.current = null;
         }
       }
     },
-    [llmModel, llmProvider, mockMode, resolveGenerationError, runDraftingPhase]
+    [
+      executeAgentStep,
+      llmModel,
+      llmProvider,
+      mockMode,
+      resolveGenerationError,
+      runDraftingPhase,
+    ]
   );
 
   const runPipeline = useCallback(
     async (
       startProject: StoryProject,
       fromAgentId?: AgentId,
-      options?: { skipStructurePause?: boolean }
+      options?: PipelineRunOptions
     ) => {
       const startIdx = fromAgentId
         ? AGENT_DEFINITIONS.findIndex((a) => a.id === fromAgentId)
@@ -287,7 +389,10 @@ export function useStoryProject() {
   const startGeneration = useCallback(
     async (
       nextSettings: ProjectSettings,
-      options?: { requiresStructureApproval?: boolean; skipStructurePause?: boolean }
+      options?: {
+        requiresStructureApproval?: boolean;
+        skipStructurePause?: boolean;
+      }
     ) => {
       setSettings(nextSettings);
       const initial = createInitialProject(normalizeSettings(nextSettings), {
@@ -325,6 +430,17 @@ export function useStoryProject() {
       skipStructurePause: true,
     });
   }, [project, runPipelineFromIndex]);
+
+  const continuePipeline = useCallback(async () => {
+    if (!project || isRunning) return;
+    const idx = project.agents.findIndex((a) => a.status !== "completed");
+    if (idx < 0) return;
+    await runPipelineFromIndex(project, idx, {
+      skipStructurePause:
+        project.requiresStructureApproval === false ||
+        project.structureApproved === true,
+    });
+  }, [project, isRunning, runPipelineFromIndex]);
 
   const updateStructure = useCallback(
     (parts: PartPlan[], structurePatch?: Partial<StoryStructureSettings>) => {
@@ -387,26 +503,23 @@ export function useStoryProject() {
     });
   }, []);
 
-  const applyFallbackChapterOutline = useCallback(() => {
-    setProject((p) => {
-      if (!p) return p;
-      const output = buildFallbackChapterOutline(p);
-      let updated = mergeAgentOutput(p, "chapter-outline", output);
-      if (
-        updated.requiresStructureApproval !== false &&
-        !updated.structureApproved
-      ) {
-        updated = {
-          ...updated,
-          awaitingStructureApproval: true,
-          structureFallbackUsed: true,
-        };
-      }
-      return updated;
+  const applyFallbackChapterOutline = useCallback(async () => {
+    if (!project || isRunning) return;
+    let updated = applyFallbackChapterOutlineToProject(project);
+    setProject(updated);
+
+    if (shouldPauseForStructureApproval(updated, { skipStructurePause: false })) {
+      updated = pauseForStructureApproval(updated);
+      setProject(updated);
+      return;
+    }
+
+    await runPipelineFromIndex(updated, DRAFTING_AGENT_INDEX, {
+      skipStructurePause:
+        updated.requiresStructureApproval === false ||
+        updated.structureApproved === true,
     });
-    setIsRunning(false);
-    abortRef.current = null;
-  }, []);
+  }, [project, isRunning, runPipelineFromIndex]);
 
   const regenerateStructure = useCallback(async () => {
     if (!project || isRunning) return;
@@ -435,9 +548,14 @@ export function useStoryProject() {
     async (agentId: AgentId) => {
       if (!project || isRunning) return;
       const reset = resetFromAgent(project, agentId);
+      const skipStructurePause =
+        reset.requiresStructureApproval === false ||
+        reset.structureApproved === true;
+
       const cleared: StoryProject = {
         ...reset,
-        ...(agentId === "chapter-outline" || getAgentIndex(agentId) < getAgentIndex("chapter-outline")
+        ...(agentId === "chapter-outline" ||
+        getAgentIndex(agentId) < getAgentIndex("chapter-outline")
           ? {
               awaitingStructureApproval: false,
               structureApproved: false,
@@ -445,19 +563,19 @@ export function useStoryProject() {
           : {}),
       };
       setProject(cleared);
+
       if (agentId === "drafting") {
         await runPipelineFromIndex(cleared, DRAFTING_AGENT_INDEX, {
           skipStructurePause: true,
         });
       } else {
-        await runPipeline(cleared, agentId, {
+        await runPipelineFromIndex(cleared, getAgentIndex(agentId), {
           skipStructurePause:
-            cleared.requiresStructureApproval === false ||
-            cleared.structureApproved === true,
+            agentId === "chapter-outline" ? skipStructurePause : true,
         });
       }
     },
-    [project, isRunning, runPipeline, runPipelineFromIndex]
+    [project, isRunning, runPipelineFromIndex]
   );
 
   const approveAgent = useCallback((agentId: AgentId) => {
@@ -503,6 +621,13 @@ export function useStoryProject() {
     []
   );
 
+  const showContinuePipeline =
+    Boolean(project) &&
+    !isRunning &&
+    !project?.awaitingStructureApproval &&
+    project != null &&
+    canContinuePipeline(project);
+
   return {
     settings,
     updateSettings,
@@ -519,6 +644,8 @@ export function useStoryProject() {
     approveAgent,
     updateAgentOutput,
     approveStructureAndContinue,
+    continuePipeline,
+    showContinuePipeline,
     updateStructure,
     redistributeStructureLength,
     regenerateStructure,

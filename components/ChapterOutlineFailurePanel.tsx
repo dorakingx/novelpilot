@@ -6,7 +6,7 @@ import { AlertTriangle, ArrowLeft, RefreshCw, Wand2 } from "lucide-react";
 interface ChapterOutlineFailurePanelProps {
   errorMessage?: string;
   disabled?: boolean;
-  onRetry: () => void;
+  onRetryAndContinue: () => void;
   onUseFallback: () => void;
   onReturnToStructureSettings: () => void;
 }
@@ -14,7 +14,7 @@ interface ChapterOutlineFailurePanelProps {
 export function ChapterOutlineFailurePanel({
   errorMessage,
   disabled = false,
-  onRetry,
+  onRetryAndContinue,
   onUseFallback,
   onReturnToStructureSettings,
 }: ChapterOutlineFailurePanelProps) {
@@ -27,10 +27,10 @@ export function ChapterOutlineFailurePanel({
             Chapter Architect failed
           </h3>
           <p className="text-sm text-[#CBD5E1] leading-relaxed">
-            Chapter Architect failed to return valid structure JSON. This often
-            happens when the requested structure is too large or the model
-            returned prose instead of JSON. Try reducing chapter count or use
-            the fallback structure.
+            Chapter Architect failed after automatic retries. This often happens
+            when the requested structure is too large or the model returned prose
+            instead of JSON. Try reducing chapter count, use fallback structure,
+            or retry manually.
           </p>
           {errorMessage && (
             <p className="text-xs text-amber-200/90 font-mono break-words">
@@ -44,10 +44,10 @@ export function ChapterOutlineFailurePanel({
           variant="premium"
           size="sm"
           disabled={disabled}
-          onClick={onRetry}
+          onClick={onRetryAndContinue}
         >
           <RefreshCw className="size-3.5 mr-1.5" />
-          Retry Chapter Architect
+          Retry and Continue
         </Button>
         <Button
           variant="glass"

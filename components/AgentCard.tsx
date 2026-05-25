@@ -159,11 +159,35 @@ export function AgentCard({
                     Approved
                   </Badge>
                 )}
+                {agent.autoRecovered && (
+                  <Badge variant="completed" className="text-[10px]">
+                    Auto-recovered
+                  </Badge>
+                )}
+                {agent.fallbackUsed && (
+                  <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-200">
+                    Fallback used
+                  </Badge>
+                )}
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {agent.role}
               </p>
-              {draftingSubstatus && agent.status === "running" && (
+              {agent.status === "running" &&
+                agent.retryCount != null &&
+                agent.maxRetries != null && (
+                  <p className="text-xs text-[#38BDF8] mt-1">
+                    Retrying attempt {agent.retryCount} of {agent.maxRetries}…
+                  </p>
+                )}
+              {agent.status === "failed" &&
+                agent.maxRetries != null &&
+                (agent.retryCount ?? 0) >= agent.maxRetries && (
+                  <p className="text-xs text-amber-400/90 mt-1">
+                    Failed after retries
+                  </p>
+                )}
+              {draftingSubstatus && agent.status === "running" && !agent.retryCount && (
                 <p className="text-xs text-[#38BDF8] mt-2">{draftingSubstatus}</p>
               )}
               {draftWarning && (
@@ -191,7 +215,7 @@ export function AgentCard({
                 onClick={() => onRegenerate(agent.id)}
               >
                 <RefreshCw className="size-3.5 mr-1" />
-                Regenerate
+                {agent.status === "failed" ? "Retry and Continue" : "Regenerate"}
               </Button>
               <Button
                 variant="ghost"

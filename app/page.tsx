@@ -45,6 +45,8 @@ export default function Home() {
     updateStructure,
     regenerateStructure,
     applyFallbackChapterOutline,
+    continuePipeline,
+    showContinuePipeline,
   } = useStoryProject();
 
   const projectStatus = getProjectStatus(project, isRunning);
@@ -255,6 +257,8 @@ export default function Home() {
               onRegenerateStructure={regenerateStructure}
               onApplyFallbackChapterOutline={applyFallbackChapterOutline}
               onReturnToStructureSettings={() => setPhase("launcher")}
+              onContinuePipeline={continuePipeline}
+              showContinuePipeline={showContinuePipeline}
             />
           )}
         </div>

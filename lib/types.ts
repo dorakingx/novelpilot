@@ -227,6 +227,11 @@ export interface AgentStep {
   startedAt?: string;
   completedAt?: string;
   approved?: boolean;
+  retryCount?: number;
+  maxRetries?: number;
+  lastRetryError?: string;
+  autoRecovered?: boolean;
+  fallbackUsed?: boolean;
 }
 
 export interface DraftingProgress {

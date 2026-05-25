@@ -11,6 +11,8 @@ import { ProjectControlPanel } from "@/components/ProjectControlPanel";
 import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { ChapterOutlineFailurePanel } from "@/components/ChapterOutlineFailurePanel";
 import { StructureDesigner } from "@/components/StructureDesigner";
+import { Button } from "@/components/ui/button";
+import { Info, Play } from "lucide-react";
 import { StoryBiblePreview } from "@/components/StoryBiblePreview";
 import { StoryStructurePanel } from "@/components/StoryStructurePanel";
 import type { PartPlan } from "@/lib/types";
@@ -41,6 +43,8 @@ interface AgentWorkspaceProps {
   onRegenerateStructure?: () => void;
   onApplyFallbackChapterOutline?: () => void;
   onReturnToStructureSettings?: () => void;
+  onContinuePipeline?: () => void;
+  showContinuePipeline?: boolean;
 }
 
 export function AgentWorkspace({
@@ -67,6 +71,8 @@ export function AgentWorkspace({
   onRegenerateStructure,
   onApplyFallbackChapterOutline,
   onReturnToStructureSettings,
+  onContinuePipeline,
+  showContinuePipeline = false,
 }: AgentWorkspaceProps) {
   const readLabel = projectComplete ? "Read Finished Novel" : "Read Manuscript";
   const chapterOutlineAgent = project.agents.find(
@@ -125,13 +131,35 @@ export function AgentWorkspace({
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground hidden lg:block">
               Writing room
             </p>
+            {project.awaitingStructureApproval && !isRunning && (
+              <div className="rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 py-3 flex items-start gap-3">
+                <Info className="size-5 text-[#38BDF8] shrink-0 mt-0.5" />
+                <p className="text-sm text-[#CBD5E1]">
+                  Structure is ready. Review and approve to continue — this pause
+                  is intentional, not an error.
+                </p>
+              </div>
+            )}
+            {showContinuePipeline && onContinuePipeline && (
+              <div className="flex justify-end">
+                <Button
+                  variant="premium"
+                  size="sm"
+                  onClick={onContinuePipeline}
+                  disabled={isRunning}
+                >
+                  <Play className="size-3.5 mr-1.5" />
+                  Continue Pipeline
+                </Button>
+              </div>
+            )}
             {showChapterOutlineFailure &&
               onApplyFallbackChapterOutline &&
               onReturnToStructureSettings && (
                 <ChapterOutlineFailurePanel
                   errorMessage={chapterOutlineAgent?.error}
                   disabled={isRunning}
-                  onRetry={() => onRegenerate("chapter-outline")}
+                  onRetryAndContinue={() => onRegenerate("chapter-outline")}
                   onUseFallback={onApplyFallbackChapterOutline}
                   onReturnToStructureSettings={onReturnToStructureSettings}
                 />

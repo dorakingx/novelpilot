@@ -99,6 +99,18 @@ This makes realistic pacing easier: shorter openings, longer investigation chapt
 
 Long-form works are generated one chapter at a time, not in a single API call.
 
+## Automatic recovery
+
+NovelPilot automatically retries failed agent calls (up to 2 attempts for most agents). If **Chapter Architect** cannot return valid structure JSON, NovelPilot can apply a **fallback structure** from your launcher settings and continue when possible.
+
+Recovery actions in the workspace:
+
+- **Retry and Continue** — re-run the failed agent and resume later agents
+- **Use Fallback Structure** — apply a minimal editable outline and continue (or pause for structure approval)
+- **Continue Pipeline** — resume from the first incomplete agent when the run stopped unexpectedly
+
+When structure approval is enabled, the pipeline **intentionally pauses** after Chapter Architect with the message “Structure is ready. Review and approve to continue.” **Judge Demo** skips this pause and runs through automatically.
+
 ## Features
 
 - One-click **Judge Demo** for hackathon judges
