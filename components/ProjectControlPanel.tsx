@@ -1,6 +1,7 @@
 "use client";
 
 import { DownloadPdfButton } from "@/components/DownloadPdfButton";
+import { ProviderStatusPanel } from "@/components/ProviderStatusPanel";
 import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import {
 } from "@/lib/export";
 import { computeTotalPlannedLength, formatLengthLabel } from "@/lib/length-planning";
 import { getPresetById } from "@/lib/structure-presets";
+import type { LlmStatus } from "@/lib/llm-config";
 import type { ProjectSettings, StoryProject } from "@/lib/types";
 import { FileText, Gavel, Plus, Square } from "lucide-react";
 
@@ -17,8 +19,7 @@ interface ProjectControlPanelProps {
   project: StoryProject;
   settings: ProjectSettings;
   mockMode: boolean;
-  llmProvider: string;
-  llmModel: string;
+  llmStatus?: LlmStatus | null;
   isRunning: boolean;
   projectComplete: boolean;
   canReadNovel: boolean;
@@ -35,8 +36,7 @@ export function ProjectControlPanel({
   project,
   settings,
   mockMode,
-  llmProvider,
-  llmModel,
+  llmStatus = null,
   isRunning,
   projectComplete,
   canReadNovel,
@@ -105,23 +105,7 @@ export function ProjectControlPanel({
         )}
       </div>
 
-      <div className="rounded-lg border border-white/12 bg-[#172033] p-3 text-xs space-y-1 text-[#CBD5E1]">
-        <p>
-          Mode:{" "}
-          <span
-            className={
-              mockMode ? "text-[#FCD34D] font-medium" : "text-[#7DD3FC] font-medium"
-            }
-          >
-            {mockMode ? "Demo" : "Live"}
-          </span>
-        </p>
-        {!mockMode && (
-          <p className="font-mono text-[10px] break-all text-muted-foreground">
-            {llmProvider} / {llmModel}
-          </p>
-        )}
-      </div>
+      <ProviderStatusPanel llmStatus={llmStatus} mockMode={mockMode} />
 
       <div className="flex flex-col gap-2">
         {isRunning && (

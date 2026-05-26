@@ -2,57 +2,44 @@ import {
   resolveMaxTokens,
   type CallGemmaOptions,
 } from "./agent-token-limits";
-import { DEFAULT_GEMMA_MODEL } from "./gemma-model";
+import {
+  getFallbackProvider,
+  getLlmStatus,
+  getPrimaryProvider,
+  getProviderConfig,
+  hasAnyLiveProviderKey,
+  type LlmProvider,
+} from "./llm-config";
 import { getMockOutputAsJson } from "./mock-outputs";
+
 export type { CallGemmaOptions } from "./agent-token-limits";
-
-export type GemmaProvider = "openrouter" | "google" | "custom";
-
-const DEFAULT_OPENROUTER_URL =
-  "https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_GOOGLE_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models";
-const DEFAULT_MODEL = DEFAULT_GEMMA_MODEL;
+export type { LlmProvider } from "./llm-config";
+export type GemmaProvider = LlmProvider;
 
 const SYSTEM_MESSAGE =
-  "You are NovelPilot's Gemma-powered structured creative writing engine. Return only valid JSON when requested.";
+  "You are NovelPilot's structured creative writing engine. Return only valid JSON when requested.";
+
+export type CallGemmaResult = {
+  text: string;
+  providerUsed: LlmProvider;
+  usedProviderFallback: boolean;
+  primaryError?: string;
+};
 
 export function isMockMode(): boolean {
-  return !process.env.GEMMA_API_KEY?.trim();
+  return !hasAnyLiveProviderKey();
 }
 
-export function getProvider(): GemmaProvider {
-  const raw = process.env.GEMMA_PROVIDER?.trim().toLowerCase();
-  if (raw === "google") return "google";
-  if (raw === "custom") return "custom";
-  return "openrouter";
+export function getProvider(): LlmProvider {
+  return getPrimaryProvider();
 }
 
 export function getModel(): string {
-  return process.env.GEMMA_MODEL?.trim() || DEFAULT_MODEL;
+  return getProviderConfig(getPrimaryProvider()).model;
 }
 
-function getApiKey(): string {
-  return process.env.GEMMA_API_KEY?.trim() ?? "";
-}
-
-function getOpenRouterUrl(): string {
-  return process.env.GEMMA_API_URL?.trim() || DEFAULT_OPENROUTER_URL;
-}
-
-function getGoogleApiUrl(): string {
-  const base = process.env.GEMMA_API_URL?.trim() || DEFAULT_GOOGLE_URL;
-  return base.replace(/\/$/, "");
-}
-
-function getCustomUrl(): string {
-  const url = process.env.GEMMA_API_URL?.trim();
-  if (!url) {
-    throw new Error(
-      "GEMMA_API_URL is required when GEMMA_PROVIDER=custom"
-    );
-  }
-  return url;
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function findJsonEnd(text: string, start: number, open: string, close: string): number {
@@ -169,7 +156,7 @@ function extractGoogleText(data: unknown): string {
     .map((p) => p.text ?? "")
     .join("");
 
-  if (!text) {
+  if (!text.trim()) {
     throw new Error("Empty response from Google generateContent API");
   }
   return text;
@@ -198,7 +185,9 @@ async function parseErrorResponse(response: Response, label: string): Promise<st
   const errText = await response.text();
   try {
     const parsed = JSON.parse(errText) as { error?: { message?: string } };
-    if (parsed.error?.message) return `${label} (${response.status}): ${parsed.error.message}`;
+    if (parsed.error?.message) {
+      return `${label} (${response.status}): ${parsed.error.message}`;
+    }
   } catch {
     // use raw text
   }
@@ -218,18 +207,56 @@ function buildOpenRouterHeaders(apiKey: string): Record<string, string> {
   return headers;
 }
 
+export function shouldFallbackToProvider(error: unknown): boolean {
+  if (error instanceof Error && error.name === "AbortError") {
+    return false;
+  }
+  const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  if (msg.includes("abort")) return false;
+  if (
+    msg.includes("402") ||
+    msg.includes("prompt tokens limit exceeded") ||
+    msg.includes("fewer max_tokens") ||
+    msg.includes("requires more credits") ||
+    msg.includes("insufficient credits") ||
+    msg.includes("insufficient_credit") ||
+    msg.includes("billing") ||
+    msg.includes("payment required")
+  ) {
+    return true;
+  }
+  if (msg.includes("429") || msg.includes("rate limit") || msg.includes("rate_limit")) {
+    return true;
+  }
+  if (
+    msg.includes("502") ||
+    msg.includes("503") ||
+    msg.includes("504") ||
+    msg.includes("5xx") ||
+    msg.includes("gateway timeout") ||
+    msg.includes("timed out")
+  ) {
+    return true;
+  }
+  return false;
+}
+
 async function callOpenRouter(
   prompt: string,
-  options?: CallGemmaOptions
+  options: CallGemmaOptions | undefined,
+  provider: LlmProvider
 ): Promise<string> {
-  const maxTokens = resolveMaxTokens(options);
-  const apiKey = getApiKey();
-  const response = await fetch(getOpenRouterUrl(), {
+  const config = getProviderConfig(provider);
+  if (!config.configured) {
+    throw new Error("OpenRouter API key is not configured");
+  }
+  const maxTokens = resolveMaxTokens(options, provider);
+  const response = await fetch(config.apiUrl, {
     method: "POST",
-    headers: buildOpenRouterHeaders(apiKey),
+    headers: buildOpenRouterHeaders(config.apiKey),
     signal: options?.signal,
     body: JSON.stringify({
-      model: getModel(),
+      model: config.model,
       messages: [
         { role: "system", content: SYSTEM_MESSAGE },
         { role: "user", content: prompt },
@@ -247,53 +274,121 @@ async function callOpenRouter(
   return extractOpenRouterText(await response.json());
 }
 
-async function callGoogleGenerateContent(
-  prompt: string,
-  options?: CallGemmaOptions
+async function callGoogleOnce(
+  combinedPrompt: string,
+  options: CallGemmaOptions | undefined,
+  provider: LlmProvider,
+  useJsonMime: boolean
 ): Promise<string> {
-  const maxTokens = resolveMaxTokens(options);
-  const apiKey = getApiKey();
-  const model = getModel();
-  const url = `${getGoogleApiUrl()}/${model}:generateContent?key=${apiKey}`;
+  const config = getProviderConfig(provider);
+  if (!config.configured) {
+    throw new Error("Google AI API key is not configured");
+  }
+  const maxTokens = resolveMaxTokens(options, provider);
+  const url = `${config.apiUrl}/${config.model}:generateContent?key=${config.apiKey}`;
+
+  const generationConfig: Record<string, unknown> = {
+    temperature: 0.8,
+    maxOutputTokens: maxTokens,
+    topP: 0.95,
+  };
+  if (useJsonMime) {
+    generationConfig.responseMimeType = "application/json";
+  }
 
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     signal: options?.signal,
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.8,
-        maxOutputTokens: maxTokens,
-        topP: 0.95,
-      },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: combinedPrompt }],
+        },
+      ],
+      generationConfig,
     }),
   });
 
   if (!response.ok) {
     throw new Error(
-      await parseErrorResponse(response, "Google Gemma API error")
+      await parseErrorResponse(response, "Google AI API error")
     );
   }
 
   return extractGoogleText(await response.json());
 }
 
+async function callGoogleGenerateContent(
+  prompt: string,
+  options: CallGemmaOptions | undefined,
+  provider: LlmProvider
+): Promise<string> {
+  const combinedPrompt = `${SYSTEM_MESSAGE}\n\n${prompt}`;
+
+  try {
+    return await callGoogleOnce(combinedPrompt, options, provider, true);
+  } catch (firstErr) {
+    const msg =
+      firstErr instanceof Error ? firstErr.message : String(firstErr);
+    if (
+      msg.toLowerCase().includes("responsemimetype") ||
+      msg.toLowerCase().includes("mime") ||
+      msg.includes("400")
+    ) {
+      return await callGoogleOnce(combinedPrompt, options, provider, false);
+    }
+    throw firstErr;
+  }
+}
+
+async function callGoogleWithRateLimitRetry(
+  prompt: string,
+  options: CallGemmaOptions | undefined,
+  provider: LlmProvider
+): Promise<string> {
+  try {
+    return await callGoogleGenerateContent(prompt, options, provider);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const is429 =
+      msg.includes("429") ||
+      msg.toLowerCase().includes("rate limit") ||
+      msg.toLowerCase().includes("resource exhausted");
+    if (!is429) throw err;
+    await sleep(2000);
+    try {
+      return await callGoogleGenerateContent(prompt, options, provider);
+    } catch (retryErr) {
+      const retryMsg =
+        retryErr instanceof Error ? retryErr.message : String(retryErr);
+      throw new Error(
+        `Google AI Studio / Gemini API rate limit exceeded. Wait and try again, reduce chapter length, or use OpenRouter fallback. (${retryMsg})`
+      );
+    }
+  }
+}
+
 async function callCustomProvider(
   prompt: string,
-  options?: CallGemmaOptions
+  options: CallGemmaOptions | undefined,
+  provider: LlmProvider
 ): Promise<string> {
-  const maxTokens = resolveMaxTokens(options);
-  const apiKey = getApiKey();
-  const response = await fetch(getCustomUrl(), {
+  const config = getProviderConfig(provider);
+  if (!config.configured) {
+    throw new Error("Custom provider is not configured (GEMMA_API_URL and API key required)");
+  }
+  const maxTokens = resolveMaxTokens(options, provider);
+  const response = await fetch(config.apiUrl, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${config.apiKey}`,
       "Content-Type": "application/json",
     },
     signal: options?.signal,
     body: JSON.stringify({
-      model: getModel(),
+      model: config.model,
       messages: [
         { role: "system", content: SYSTEM_MESSAGE },
         { role: "user", content: prompt },
@@ -318,6 +413,22 @@ async function callCustomProvider(
   }
 }
 
+async function callProvider(
+  provider: LlmProvider,
+  prompt: string,
+  options?: CallGemmaOptions
+): Promise<string> {
+  switch (provider) {
+    case "google":
+      return callGoogleWithRateLimitRetry(prompt, options, provider);
+    case "custom":
+      return callCustomProvider(prompt, options, provider);
+    case "openrouter":
+    default:
+      return callOpenRouter(prompt, options, provider);
+  }
+}
+
 function linkAbortSignals(
   ...signals: (AbortSignal | undefined)[]
 ): AbortController {
@@ -334,11 +445,94 @@ function linkAbortSignals(
   return controller;
 }
 
+export async function callGemma(
+  prompt: string,
+  options?: CallGemmaOptions
+): Promise<CallGemmaResult> {
+  if (isMockMode()) {
+    if (options?.mockAgentId && options?.mockLanguage) {
+      return {
+        text: await getMockOutputAsJson(
+          options.mockAgentId,
+          options.mockLanguage
+        ),
+        providerUsed: "openrouter",
+        usedProviderFallback: false,
+      };
+    }
+    await new Promise((r) => setTimeout(r, 400));
+    return {
+      text: '{"message":"Mock mode — configure GOOGLE_AI_API_KEY or OPENROUTER_API_KEY for live generation"}',
+      providerUsed: "openrouter",
+      usedProviderFallback: false,
+    };
+  }
+
+  const forced = options?.provider;
+  const primary = forced ?? getPrimaryProvider();
+  const fallback = forced ? null : getFallbackProvider(primary);
+
+  try {
+    const text = await callProvider(primary, prompt, options);
+    console.info("[LLM_PROVIDER]", {
+      primary,
+      fallback,
+      providerUsed: primary,
+      usedProviderFallback: false,
+    });
+    return {
+      text,
+      providerUsed: primary,
+      usedProviderFallback: false,
+    };
+  } catch (primaryError) {
+    const primaryMsg =
+      primaryError instanceof Error
+        ? primaryError.message
+        : String(primaryError);
+
+    if (!fallback || !shouldFallbackToProvider(primaryError)) {
+      throw primaryError;
+    }
+
+    console.info("[LLM_PROVIDER]", {
+      primary,
+      fallback,
+      primaryError: primaryMsg.slice(0, 200),
+      attemptingFallback: true,
+    });
+
+    try {
+      const text = await callProvider(fallback, prompt, options);
+      console.info("[LLM_PROVIDER]", {
+        primary,
+        fallback,
+        providerUsed: fallback,
+        usedProviderFallback: true,
+      });
+      return {
+        text,
+        providerUsed: fallback,
+        usedProviderFallback: true,
+        primaryError: primaryMsg,
+      };
+    } catch (fallbackError) {
+      const fallbackMsg =
+        fallbackError instanceof Error
+          ? fallbackError.message
+          : String(fallbackError);
+      throw new Error(
+        `Primary provider ${primary} failed: ${primaryMsg}. Fallback provider ${fallback} also failed: ${fallbackMsg}`
+      );
+    }
+  }
+}
+
 /** Enforces a wall-clock timeout in addition to any caller abort signal. */
 export async function callGemmaWithTimeout(
   prompt: string,
   options?: CallGemmaOptions & { timeoutMs?: number }
-): Promise<string> {
+): Promise<CallGemmaResult> {
   const timeoutMs = options?.timeoutMs ?? 60_000;
   const timeoutController = new AbortController();
   const linked = linkAbortSignals(options?.signal, timeoutController.signal);
@@ -368,37 +562,6 @@ export async function callGemmaWithTimeout(
   }
 }
 
-export async function callGemma(
-  prompt: string,
-  options?: CallGemmaOptions
-): Promise<string> {
-  if (isMockMode()) {
-    if (options?.mockAgentId && options?.mockLanguage) {
-      return getMockOutputAsJson(
-        options.mockAgentId,
-        options.mockLanguage
-      );
-    }
-    await new Promise((r) => setTimeout(r, 400));
-    return '{"message":"Mock mode — configure GEMMA_API_KEY for live generation"}';
-  }
-
-  const provider = getProvider();
-  switch (provider) {
-    case "google":
-      return callGoogleGenerateContent(prompt, options);
-    case "custom":
-      return callCustomProvider(prompt, options);
-    case "openrouter":
-    default:
-      return callOpenRouter(prompt, options);
-  }
-}
-
 export function getLlmConfig() {
-  return {
-    mockMode: isMockMode(),
-    provider: getProvider(),
-    model: getModel(),
-  };
+  return getLlmStatus();
 }

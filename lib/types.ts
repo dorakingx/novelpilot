@@ -48,6 +48,8 @@ export type AgentId =
   | "continuity"
   | "publisher";
 
+export type LlmProviderId = "openrouter" | "google" | "custom";
+
 export type ForeshadowingStatus = "planned" | "unresolved" | "paid-off";
 
 export interface ForeshadowingItem {
@@ -242,6 +244,8 @@ export interface AgentStep {
   lastRetryError?: string;
   autoRecovered?: boolean;
   fallbackUsed?: boolean;
+  providerUsed?: LlmProviderId;
+  fallbackProviderUsed?: LlmProviderId;
 }
 
 export interface DraftingProgress {
@@ -301,6 +305,8 @@ export interface GenerateAgentResponse {
   reports?: Partial<ProjectReports>;
   mockMode: boolean;
   fallbackUsed?: boolean;
+  providerUsed?: LlmProviderId;
+  providerFallbackUsed?: LlmProviderId;
 }
 
 export const EMPTY_STORY_BIBLE: StoryBible = {

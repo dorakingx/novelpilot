@@ -20,6 +20,7 @@ import type {
   AgentStep,
   Chapter,
   Character,
+  LlmProviderId,
   ProjectSettings,
   StoryBible,
   StoryProject,
@@ -665,6 +666,26 @@ export function markAgentAutoRecovered(
       error: undefined,
       retryCount: undefined,
       lastRetryError: undefined,
+    };
+  });
+  return { ...project, updatedAt: new Date().toISOString(), agents };
+}
+
+export function markAgentProviderFallback(
+  project: StoryProject,
+  agentId: AgentId,
+  meta: {
+    providerUsed: LlmProviderId;
+    fallbackProviderUsed?: LlmProviderId;
+  }
+): StoryProject {
+  const agents = project.agents.map((agent) => {
+    if (agent.id !== agentId) return agent;
+    return {
+      ...agent,
+      providerUsed: meta.providerUsed,
+      fallbackProviderUsed: meta.fallbackProviderUsed,
+      autoRecovered: Boolean(meta.fallbackProviderUsed),
     };
   });
   return { ...project, updatedAt: new Date().toISOString(), agents };

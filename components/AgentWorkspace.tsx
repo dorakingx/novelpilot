@@ -17,6 +17,7 @@ import { StoryBiblePreview } from "@/components/StoryBiblePreview";
 import { StoryStructurePanel } from "@/components/StoryStructurePanel";
 import type { PartPlan } from "@/lib/types";
 import type { ProjectStatus } from "@/lib/project-status";
+import type { LlmStatus } from "@/lib/llm-config";
 import type { AgentId, ProjectSettings, StoryProject } from "@/lib/types";
 
 interface AgentWorkspaceProps {
@@ -28,8 +29,7 @@ interface AgentWorkspaceProps {
   canReadNovel: boolean;
   isGeneratingPdf: boolean;
   mockMode: boolean;
-  llmProvider: string;
-  llmModel: string;
+  llmStatus?: LlmStatus | null;
   onStop: () => void;
   onNewStory: () => void;
   onRunJudgeDemo: () => void;
@@ -59,8 +59,7 @@ export function AgentWorkspace({
   canReadNovel,
   isGeneratingPdf,
   mockMode,
-  llmProvider,
-  llmModel,
+  llmStatus = null,
   onStop,
   onNewStory,
   onRunJudgeDemo,
@@ -118,8 +117,7 @@ export function AgentWorkspace({
               project={project}
               settings={settings}
               mockMode={mockMode}
-              llmProvider={llmProvider}
-              llmModel={llmModel}
+              llmStatus={llmStatus}
               isRunning={isRunning}
               projectComplete={projectComplete}
               canReadNovel={canReadNovel}

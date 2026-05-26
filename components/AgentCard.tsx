@@ -175,6 +175,15 @@ export function AgentCard({
                     Fallback used
                   </Badge>
                 )}
+                {agent.fallbackProviderUsed && (
+                  <Badge variant="outline" className="text-[10px] border-sky-500/40 text-sky-200">
+                    {agent.fallbackProviderUsed === "google"
+                      ? "Used Google fallback"
+                      : agent.fallbackProviderUsed === "openrouter"
+                        ? "Used OpenRouter fallback"
+                        : "Used provider fallback"}
+                  </Badge>
+                )}
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {agent.role}

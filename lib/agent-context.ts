@@ -1,4 +1,5 @@
 import { buildManuscriptFromProject } from "./format-manuscript";
+import { isLowCreditMode } from "./llm-config";
 import { compactUserPrompt } from "./prompt-budget";
 import { getAllChapters } from "./structure-utils";
 import type {
@@ -14,19 +15,16 @@ const MANUSCRIPT_FULL_THRESHOLD = 12_000;
 const EXCERPT_CHARS = 2000;
 const PLOT_SUMMARY_MAX = 200;
 const STRING_FIELD_MAX = 280;
-const LOW_CREDIT_ENABLED =
-  process.env.OPENROUTER_LOW_CREDIT_MODE?.trim().toLowerCase() === "true";
 
-function isOpenRouterLowCreditMode(): boolean {
-  const provider = process.env.GEMMA_PROVIDER?.trim().toLowerCase() || "openrouter";
-  return LOW_CREDIT_ENABLED && provider === "openrouter";
+function isOpenRouterLowCreditMode(provider: "openrouter" | "google" | "custom"): boolean {
+  return isLowCreditMode() && provider === "openrouter";
 }
 
 function capLengthPlanForLowCredit(
   targetLength: number | undefined,
   language: StoryProject["language"]
 ): number | undefined {
-  if (!targetLength || !isOpenRouterLowCreditMode()) return targetLength;
+  if (!targetLength || !isOpenRouterLowCreditMode("openrouter")) return targetLength;
   if (language === "ja") return Math.min(Math.max(targetLength, 3000), 4000);
   return Math.min(Math.max(targetLength, 1000), 1500);
 }

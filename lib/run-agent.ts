@@ -11,17 +11,30 @@ import {
 import { buildFallbackChapterOutline } from "./chapter-outline-fallback";
 import {
   callGemmaWithTimeout,
+  getLlmConfig,
   getModel,
   getProvider,
   isMockMode,
   parseJsonWithTimeout,
+  type CallGemmaResult,
 } from "./gemma";
+import type { LlmProvider } from "./llm-config";
 import { normalizeChapterOutlineOutput } from "./normalize-chapter-outline";
 import { getMockOutput } from "./mock-outputs";
 import { getAllChapters } from "./structure-utils";
 import { shouldUseSequentialDrafting } from "./structure-utils";
 import { buildAgentPrompt, buildChapterDraftPrompt } from "./prompts";
-import type { AgentId, StoryProject } from "./types";
+import type { AgentId, LlmProviderId, StoryProject } from "./types";
+
+export type RunAgentResult = {
+  output: unknown;
+  providerUsed?: LlmProviderId;
+  providerFallbackUsed?: LlmProviderId;
+};
+
+function toProviderId(provider: LlmProvider): LlmProviderId {
+  return provider;
+}
 
 export const AGENT_TIMEOUT_MS = 45_000;
 export const CHAPTER_OUTLINE_LLM_TIMEOUT_MS = 40_000;
@@ -68,7 +81,7 @@ function logParseError(
 ): void {
   console.error("[LLM_PARSE_ERROR]", {
     agentId,
-    provider: getProvider(),
+    provider: getLlmConfig().primaryProvider,
     model: getModel(),
     rawLength: raw.length,
     rawPreview: raw.slice(0, 500),
@@ -156,7 +169,7 @@ async function callLiveGemma(
   language: StoryProject["language"],
   draftChapterNumber?: number,
   llmTimeoutMs = AGENT_TIMEOUT_MS
-): Promise<string> {
+): Promise<CallGemmaResult> {
   const budgetedPrompt = preparePromptForAgent(prompt, agentId);
   try {
     return await callGemmaWithTimeout(budgetedPrompt, {
@@ -210,21 +223,31 @@ async function callAndParseAgentJson(
   project: StoryProject,
   signal?: AbortSignal,
   draftChapterNumber?: number
-): Promise<unknown> {
+): Promise<RunAgentResult> {
   const startedAt = Date.now();
-  let raw = await callLiveGemma(
+  let llmResult = await callLiveGemma(
     prompt,
     agentId,
     signal,
     project.language,
     draftChapterNumber
   );
-  logAgentTiming(agentId, "openrouter_response_received", startedAt, {
+  let raw = llmResult.text;
+  logAgentTiming(agentId, "llm_response_received", startedAt, {
     rawLength: raw.length,
+    providerUsed: llmResult.providerUsed,
+    usedProviderFallback: llmResult.usedProviderFallback,
   });
 
   try {
-    return await parseAgentJsonAsync(agentId, raw, project, startedAt);
+    const output = await parseAgentJsonAsync(agentId, raw, project, startedAt);
+    return {
+      output,
+      providerUsed: toProviderId(llmResult.providerUsed),
+      providerFallbackUsed: llmResult.usedProviderFallback
+        ? toProviderId(llmResult.providerUsed)
+        : undefined,
+    };
   } catch (firstErr) {
     if (raw.length > MAX_RETRY_RAW_CHARS) {
       logParseError(agentId, raw, firstErr);
@@ -232,17 +255,26 @@ async function callAndParseAgentJson(
     }
 
     try {
-      raw = await callLiveGemma(
+      llmResult = await callLiveGemma(
         `${prompt}\n\n${JSON_RETRY_INSTRUCTION}`,
         agentId,
         signal,
         project.language,
         draftChapterNumber
       );
-      logAgentTiming(agentId, "openrouter_response_received_retry", startedAt, {
+      raw = llmResult.text;
+      logAgentTiming(agentId, "llm_response_received_retry", startedAt, {
         rawLength: raw.length,
+        providerUsed: llmResult.providerUsed,
       });
-      return await parseAgentJsonAsync(agentId, raw, project, startedAt);
+      const output = await parseAgentJsonAsync(agentId, raw, project, startedAt);
+      return {
+        output,
+        providerUsed: toProviderId(llmResult.providerUsed),
+        providerFallbackUsed: llmResult.usedProviderFallback
+          ? toProviderId(llmResult.providerUsed)
+          : undefined,
+      };
     } catch (retryErr) {
       throwParseError(agentId, raw, retryErr);
     }
@@ -260,7 +292,7 @@ function logChapterOutlineFallback(reason: string, project: StoryProject): void 
 async function runChapterOutlineAgent(
   project: StoryProject,
   signal?: AbortSignal
-): Promise<unknown> {
+): Promise<RunAgentResult> {
   const agentId = "chapter-outline" as const;
   const startedAt = Date.now();
   const prompt = buildChapterArchitectPrompt(project);
@@ -273,7 +305,7 @@ async function runChapterOutlineAgent(
   };
 
   try {
-    let raw = await callLiveGemma(
+    let llmResult = await callLiveGemma(
       prompt,
       agentId,
       signal,
@@ -281,16 +313,24 @@ async function runChapterOutlineAgent(
       undefined,
       CHAPTER_OUTLINE_LLM_TIMEOUT_MS
     );
+    let raw = llmResult.text;
     try {
-      return await attemptParse(raw);
+      const output = await attemptParse(raw);
+      return {
+        output,
+        providerUsed: toProviderId(llmResult.providerUsed),
+        providerFallbackUsed: llmResult.usedProviderFallback
+          ? toProviderId(llmResult.providerUsed)
+          : undefined,
+      };
     } catch {
       if (raw.length > MAX_CHAPTER_OUTLINE_CHARS) {
         logChapterOutlineFallback("oversize_first_response", project);
-        return buildFallbackChapterOutline(project);
+        return { output: buildFallbackChapterOutline(project) };
       }
 
       try {
-        raw = await callLiveGemma(
+        llmResult = await callLiveGemma(
           buildChapterArchitectRetryPrompt(project),
           agentId,
           signal,
@@ -298,14 +338,22 @@ async function runChapterOutlineAgent(
           undefined,
           CHAPTER_OUTLINE_LLM_TIMEOUT_MS
         );
-        return await attemptParse(raw);
+        raw = llmResult.text;
+        const output = await attemptParse(raw);
+        return {
+          output,
+          providerUsed: toProviderId(llmResult.providerUsed),
+          providerFallbackUsed: llmResult.usedProviderFallback
+            ? toProviderId(llmResult.providerUsed)
+            : undefined,
+        };
       } catch (retryErr) {
         logParseError(agentId, raw, retryErr);
         logChapterOutlineFallback(
           retryErr instanceof Error ? retryErr.message : "parse_retry_failed",
           project
         );
-        return buildFallbackChapterOutline(project);
+        return { output: buildFallbackChapterOutline(project) };
       }
     }
   } catch (err) {
@@ -316,7 +364,7 @@ async function runChapterOutlineAgent(
       err instanceof Error ? err.message : "llm_or_timeout",
       project
     );
-    return buildFallbackChapterOutline(project);
+    return { output: buildFallbackChapterOutline(project) };
   }
 }
 
@@ -325,17 +373,19 @@ export async function runAgent(
   agentId: AgentId,
   signal?: AbortSignal,
   draftChapterNumber?: number
-): Promise<unknown> {
+): Promise<RunAgentResult> {
   if (isMockMode()) {
     await new Promise((r) => setTimeout(r, 600));
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-    return getMockOutput(agentId, project.language, {
-      project,
-      draftChapterNumber,
-    });
+    return {
+      output: await getMockOutput(agentId, project.language, {
+        project,
+        draftChapterNumber,
+      }),
+    };
   }
 
-  return runAgentWithTimeout(agentId, async () => {
+  return runAgentWithTimeout<RunAgentResult>(agentId, async () => {
     if (agentId === "chapter-outline") {
       return runChapterOutlineAgent(project, signal);
     }

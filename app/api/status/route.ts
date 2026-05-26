@@ -1,6 +1,5 @@
-import { getLlmConfig } from "@/lib/gemma";
+import { getLlmStatus } from "@/lib/llm-config";
 
 export async function GET() {
-  const { mockMode, provider, model } = getLlmConfig();
-  return Response.json({ mockMode, provider, model });
+  return Response.json(getLlmStatus());
 }

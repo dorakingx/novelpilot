@@ -1,4 +1,7 @@
-import { mergeAgentOutput } from "@/lib/agents";
+import {
+  markAgentProviderFallback,
+  mergeAgentOutput,
+} from "@/lib/agents";
 import { logAgentTiming } from "@/lib/agent-timing";
 import { formatLiveGenerationError } from "@/lib/format-generation-error";
 import { getLlmConfig, isMockMode } from "@/lib/gemma";
@@ -29,7 +32,7 @@ export async function POST(request: Request) {
     logAgentTiming(agentId, "request_start", requestStartedAt);
 
     logAgentTiming(agentId, "before_runAgent", requestStartedAt);
-    const output = await runAgent(
+    const result = await runAgent(
       project,
       agentId as AgentId,
       request.signal,
@@ -37,14 +40,21 @@ export async function POST(request: Request) {
     );
     logAgentTiming(agentId, "after_runAgent", requestStartedAt);
 
-    const fallbackUsed =
+    const output = result.output;
+    const outlineFallbackUsed =
       agentId === "chapter-outline" &&
       typeof output === "object" &&
       output !== null &&
       Boolean((output as Record<string, unknown>).fallbackGenerated);
 
     logAgentTiming(agentId, "before_mergeAgentOutput", requestStartedAt);
-    const updated = mergeAgentOutput(project, agentId as AgentId, output);
+    let updated = mergeAgentOutput(project, agentId as AgentId, output);
+    if (result.providerUsed) {
+      updated = markAgentProviderFallback(updated, agentId as AgentId, {
+        providerUsed: result.providerUsed,
+        fallbackProviderUsed: result.providerFallbackUsed,
+      });
+    }
     logAgentTiming(agentId, "after_mergeAgentOutput", requestStartedAt);
 
     const response: GenerateAgentResponse = {
@@ -54,7 +64,9 @@ export async function POST(request: Request) {
       manuscript: updated.manuscript,
       reports: updated.reports,
       mockMode: isMockMode(),
-      fallbackUsed: fallbackUsed || undefined,
+      fallbackUsed: outlineFallbackUsed || undefined,
+      providerUsed: result.providerUsed,
+      providerFallbackUsed: result.providerFallbackUsed,
     };
 
     return Response.json(response);
@@ -67,13 +79,13 @@ export async function POST(request: Request) {
     if (isMockMode()) {
       return Response.json({ error: raw }, { status: 500 });
     }
-    const { provider, model } = getLlmConfig();
+    const status = getLlmConfig();
     return Response.json(
       {
         error: formatLiveGenerationError(
           raw,
-          provider,
-          model,
+          status.primaryProvider,
+          status.model,
           agentId
         ),
       },

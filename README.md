@@ -138,40 +138,40 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Environment variables
 
-Copy `.env.example` to `.env.local`:
-
-```env
-GEMMA_PROVIDER=openrouter
-GEMMA_API_KEY=
-GEMMA_API_URL=https://openrouter.ai/api/v1/chat/completions
-GEMMA_MODEL=google/gemma-4-31b-it
-OPENROUTER_APP_NAME=NovelPilot
-NEXT_PUBLIC_APP_NAME=NovelPilot
-```
-
-The Gemma 4 Challenge requires a Gemma 4 model. If the default OpenRouter model name changes, choose a currently available Gemma 4 model from [OpenRouter's model list](https://openrouter.ai/models) and set `GEMMA_MODEL` accordingly.
+Copy `.env.example` to `.env.local`. See the file for the full list; the recommended live setup uses **Google AI Studio** as primary with optional **OpenRouter** fallback.
 
 ### Mock mode
 
-If `GEMMA_API_KEY` is empty, the app uses curated sample outputs. The banner shows **Demo mode**. Judge Demo and all UI features work without any API key.
+If no `GOOGLE_AI_API_KEY`, `OPENROUTER_API_KEY`, or legacy `GEMMA_API_KEY` is set, the app uses curated sample outputs. The banner shows **Demo mode**. Judge Demo and all UI features work without any API key.
 
-### Live mode (OpenRouter — recommended)
+### Google AI Studio / Gemini API setup (recommended)
 
-NovelPilot calls Gemma 4 through [OpenRouter](https://openrouter.ai) chat completions by default. Set `GEMMA_API_KEY` to your OpenRouter API key and restart the dev server. The banner shows **Live mode** with provider and model name.
-
-Recommended:
+1. Create an API key in [Google AI Studio](https://aistudio.google.com/apikey).
+2. In `.env.local` or Vercel:
 
 ```env
-GEMMA_PROVIDER=openrouter
-GEMMA_API_URL=https://openrouter.ai/api/v1/chat/completions
-GEMMA_MODEL=google/gemma-4-31b-it
+GOOGLE_AI_API_KEY=your_key_here
+GOOGLE_AI_MODEL=gemini-2.5-flash
 ```
 
-See [Using OpenRouter](#using-openrouter) below.
+3. Restart `npm run dev` or redeploy. The banner shows **Live mode** with the Google model. Use the **Test live provider** button in the command deck to verify connectivity.
 
-### Live mode (Google generateContent — optional)
+### Provider fallback
 
-Set `GEMMA_PROVIDER=google` and point `GEMMA_API_URL` / `GEMMA_MODEL` at Google's `generateContent` endpoint. See commented example in `.env.example`.
+When both Google and OpenRouter keys are configured, NovelPilot uses the primary provider and automatically retries on the other when the primary fails (402 credits, rate limits, 5xx). Example:
+
+```env
+GOOGLE_AI_API_KEY=...
+OPENROUTER_API_KEY=...
+AI_PROVIDER=google
+AI_FALLBACK_PROVIDER=openrouter
+```
+
+If `AI_PROVIDER` is omitted, a Google key selects Google as primary; an OpenRouter-only setup uses OpenRouter. Legacy `GEMMA_*` variables still work for backward compatibility.
+
+### Live mode (OpenRouter only)
+
+Set `OPENROUTER_API_KEY` (or legacy `GEMMA_API_KEY`) and optionally `OPENROUTER_MODEL`. See [Using OpenRouter](#using-openrouter) below.
 
 ## Using OpenRouter
 
@@ -200,6 +200,7 @@ OpenRouter rejected the request because the **input prompt/context** is too larg
 - Shorten your user prompt
 - Reduce number of parts/chapters in Story Structure
 - Add OpenRouter credits or use an account/model with a larger context allowance
+- Configure Google AI Studio as primary or fallback (`GOOGLE_AI_API_KEY`)
 
 NovelPilot compacts each agent’s context in live mode (summaries and excerpts instead of the full project JSON).
 
@@ -215,8 +216,9 @@ OpenRouter rejected the request because your account cannot afford the requested
 
 - Add OpenRouter credits
 - Lower approximate chapter length or chapter count in Story Structure
-- Set `GEMMA_MAX_TOKENS_CAP=1200` or `800` in `.env.local` / Vercel (caps all agents)
-- Use a cheaper model via `GEMMA_MODEL`
+- Set `AI_MAX_TOKENS_CAP=1200` or `800` in `.env.local` / Vercel (or legacy `GEMMA_MAX_TOKENS_CAP`)
+- Use a cheaper model via `OPENROUTER_MODEL` / `GEMMA_MODEL`
+- Configure `GOOGLE_AI_API_KEY` as primary or fallback so a 402 on OpenRouter can recover automatically
 
 NovelPilot uses smaller per-agent `max_tokens` by default (e.g. Premise Architect ~900, Prose Writer ~2200) instead of a flat 8192 for every agent.
 
@@ -224,18 +226,14 @@ NovelPilot uses smaller per-agent `max_tokens` by default (e.g. Premise Architec
 
 1. Import this GitHub repository into Vercel.
 2. Use the default Next.js settings.
-3. Leave `GEMMA_API_KEY` empty if you want demo/mock mode.
-4. Optional live mode (OpenRouter) environment variables:
-   - `GEMMA_PROVIDER=openrouter`
-   - `GEMMA_API_KEY`
-   - `GEMMA_API_URL=https://openrouter.ai/api/v1/chat/completions`
-   - `GEMMA_MODEL=google/gemma-4-31b-it`
+3. Leave API keys empty if you want demo/mock mode.
+4. Optional live mode: `GOOGLE_AI_API_KEY` (recommended) and/or `OPENROUTER_API_KEY`; see `.env.example`.
    - `OPENROUTER_APP_NAME=NovelPilot`
    - `GEMMA_MAX_TOKENS_CAP` (optional, e.g. `6000` for low-credit accounts)
 5. Deploy.
 6. Open the deployed URL and click **Run Judge Demo**.
 
-**Important:** The app must work on Vercel without `GEMMA_API_KEY` because Judge Demo uses curated mock outputs.
+**Important:** The app must work on Vercel without API keys because Judge Demo uses curated mock outputs.
 
 Live generation uses a 60-second per-agent timeout on [`app/api/generate-agent/route.ts`](app/api/generate-agent/route.ts) (`maxDuration = 60`). If Chapter Architect fails on large structures, use **Use Fallback Structure** in the workspace or reduce chapter count.
 
@@ -246,7 +244,8 @@ app/page.tsx              → 3-column UI, Judge Demo CTA
 lib/useStoryProject.ts    → client orchestration, AbortController stop
 app/api/generate-agent/   → one agent per request
 lib/run-agent.ts          → prompt + OpenRouter/Gemma + JSON parse
-lib/gemma.ts              → OpenRouter, Google, or custom provider
+lib/llm-config.ts         → multi-provider env resolution
+lib/gemma.ts              → OpenRouter, Google, or custom provider + fallback
 lib/agents.ts             → merge outputs into StoryBible / reports
 lib/mock-outputs.ts       → EN/JA demo data
 ```

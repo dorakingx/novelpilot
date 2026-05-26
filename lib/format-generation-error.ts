@@ -41,7 +41,10 @@ const OPENROUTER_402_PROMPT_TOKENS_MESSAGE =
   "OpenRouter rejected the request because the input prompt/context is too large for your current credit/model limit. NovelPilot will compact agent context. Try shortening your prompt, reducing chapter count, or adding credits.";
 
 const OPENROUTER_402_MAX_TOKENS_MESSAGE =
-  "OpenRouter rejected the request because max_tokens is too high for your current credits. Try reducing chapter length, setting GEMMA_MAX_TOKENS_CAP=1200 or 800, using a smaller model, or adding credits.";
+  "OpenRouter rejected the request because max_tokens is too high for your current credits. Try reducing chapter length, setting AI_MAX_TOKENS_CAP or GEMMA_MAX_TOKENS_CAP to 1200 or 800, using a smaller model, adding credits, or configuring Google AI Studio as fallback.";
+
+const GOOGLE_429_MESSAGE =
+  "Google AI Studio / Gemini API rate limit exceeded. Wait and try again, reduce chapter length, or use OpenRouter fallback if configured.";
 
 export function isOpenRouter402PromptTokensError(raw: string): boolean {
   const lower = raw.toLowerCase();
@@ -79,12 +82,28 @@ export function formatChapterOutlineError(
   return `${headline} (${tech}: ${detail})`;
 }
 
+export function isGoogle429Error(raw: string): boolean {
+  const lower = raw.toLowerCase();
+  return (
+    lower.includes("429") ||
+    lower.includes("rate limit exceeded") ||
+    lower.includes("resource exhausted")
+  );
+}
+
+export function formatGoogleRateLimitError(): string {
+  return GOOGLE_429_MESSAGE;
+}
+
 export function formatLiveGenerationError(
   raw: string,
   provider: string,
   model: string,
   agentId?: string
 ): string {
+  if (isGoogle429Error(raw) && provider === "google") {
+    return GOOGLE_429_MESSAGE;
+  }
   if (isOpenRouter402PromptTokensError(raw)) {
     return OPENROUTER_402_PROMPT_TOKENS_MESSAGE;
   }

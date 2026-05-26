@@ -34,6 +34,7 @@ export default function Home() {
     mockMode,
     llmProvider,
     llmModel,
+    llmStatus,
     generateStory,
     runJudgeDemo,
     stopGeneration,
@@ -170,6 +171,7 @@ export default function Home() {
         mockMode={mockMode}
         provider={llmProvider}
         model={llmModel}
+        llmStatus={llmStatus}
       />
 
       {phase === "launcher" ? (
@@ -245,8 +247,7 @@ export default function Home() {
               canReadNovel={canRead}
               isGeneratingPdf={isGeneratingPdf}
               mockMode={mockMode}
-              llmProvider={llmProvider}
-              llmModel={llmModel}
+              llmStatus={llmStatus}
               onStop={stopGeneration}
               onNewStory={handleNewStory}
               onRunJudgeDemo={runJudgeDemo}

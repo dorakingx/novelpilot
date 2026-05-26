@@ -13,6 +13,7 @@ import {
   getAgentIndex,
   markAgentAutoRecovered,
   markAgentFallbackUsed,
+  markAgentProviderFallback,
   mergeAgentOutput,
   mergeChapterDraftOutput,
   resetFromAgent,
@@ -20,6 +21,7 @@ import {
   setAgentStatus,
 } from "./agents";
 import { DEFAULT_GEMMA_MODEL } from "./gemma-model";
+import type { LlmStatus } from "./llm-config";
 import {
   JUDGE_DEMO_REQUIRES_STRUCTURE_APPROVAL,
   JUDGE_DEMO_SETTINGS,
@@ -113,6 +115,7 @@ export function useStoryProject() {
   const [project, setProject] = useState<StoryProject | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [mockMode, setMockMode] = useState(true);
+  const [llmStatus, setLlmStatus] = useState<LlmStatus | null>(null);
   const [llmProvider, setLlmProvider] = useState("openrouter");
   const [llmModel, setLlmModel] = useState(DEFAULT_GEMMA_MODEL);
   const abortRef = useRef<AbortController | null>(null);
@@ -120,9 +123,11 @@ export function useStoryProject() {
   useEffect(() => {
     fetch("/api/status")
       .then((r) => r.json())
-      .then((d: { mockMode?: boolean; provider?: string; model?: string }) => {
+      .then((d: LlmStatus) => {
+        setLlmStatus(d);
         if (typeof d.mockMode === "boolean") setMockMode(d.mockMode);
-        if (d.provider) setLlmProvider(d.provider);
+        if (d.primaryDisplayName) setLlmProvider(d.primaryDisplayName);
+        else if (d.primaryProvider) setLlmProvider(d.primaryProvider);
         if (d.model) setLlmModel(d.model);
       })
       .catch(() => {});
@@ -189,6 +194,12 @@ export function useStoryProject() {
         if (data.fallbackUsed) {
           current = markAgentFallbackUsed(current, agentId);
           current = { ...current, structureFallbackUsed: true };
+        }
+        if (data.providerUsed) {
+          current = markAgentProviderFallback(current, agentId, {
+            providerUsed: data.providerUsed,
+            fallbackProviderUsed: data.providerFallbackUsed,
+          });
         }
         current = clearAgentRetryState(current, agentId);
         if (hadRetriesRef.value) {
@@ -815,6 +826,7 @@ export function useStoryProject() {
     mockMode,
     llmProvider,
     llmModel,
+    llmStatus,
     generateStory,
     runJudgeDemo,
     stopGeneration,
