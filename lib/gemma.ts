@@ -3,6 +3,7 @@ import {
   resolveRequestProviders,
   shouldUseMockForRequest,
 } from "./ai-provider-resolution";
+import { normalizeAiModel } from "./ai-model-utils";
 import {
   resolveMaxTokens,
   type CallGemmaOptions,
@@ -28,6 +29,7 @@ const SYSTEM_MESSAGE =
 export type CallGemmaResult = {
   text: string;
   providerUsed: LlmProvider;
+  modelUsed: string;
   usedProviderFallback: boolean;
   primaryError?: string;
 };
@@ -458,6 +460,7 @@ export async function callGemma(
   prompt: string,
   options?: CallGemmaOptions
 ): Promise<CallGemmaResult> {
+  const normalizedAi = normalizeAiModel(options?.projectAiModel);
   if (shouldUseMockForRequest(options?.projectAiModel)) {
     if (options?.mockAgentId && options?.mockLanguage) {
       return {
@@ -466,6 +469,7 @@ export async function callGemma(
           options.mockLanguage
         ),
         providerUsed: "openrouter",
+        modelUsed: options?.model ?? "mock",
         usedProviderFallback: false,
       };
     }
@@ -473,6 +477,7 @@ export async function callGemma(
     return {
       text: '{"message":"Mock mode — configure GOOGLE_AI_API_KEY or OPENROUTER_API_KEY for live generation"}',
       providerUsed: "openrouter",
+      modelUsed: options?.model ?? "mock",
       usedProviderFallback: false,
     };
   }
@@ -495,6 +500,12 @@ export async function callGemma(
     model: resolved.model,
     provider: primary,
   };
+  console.info("[LLM_PROVIDER_SELECTED]", {
+    agentId: options?.agentId,
+    providerChoice: normalizedAi.providerChoice,
+    resolvedProvider: primary,
+    resolvedModel: callOptions.model,
+  });
 
   try {
     const text = await callProvider(primary, prompt, callOptions);
@@ -507,6 +518,7 @@ export async function callGemma(
     return {
       text,
       providerUsed: primary,
+      modelUsed: callOptions.model ?? getProviderConfig(primary).model,
       usedProviderFallback: false,
     };
   } catch (primaryError) {
@@ -532,6 +544,12 @@ export async function callGemma(
         provider: fallback,
         model: getProviderConfig(fallback).model,
       };
+      console.info("[LLM_PROVIDER_SELECTED]", {
+        agentId: options?.agentId,
+        providerChoice: normalizedAi.providerChoice,
+        resolvedProvider: fallback,
+        resolvedModel: fallbackOptions.model,
+      });
       const text = await callProvider(fallback, prompt, fallbackOptions);
       console.info("[LLM_PROVIDER]", {
         primary,
@@ -542,6 +560,7 @@ export async function callGemma(
       return {
         text,
         providerUsed: fallback,
+        modelUsed: fallbackOptions.model ?? getProviderConfig(fallback).model,
         usedProviderFallback: true,
         primaryError: primaryMsg,
       };

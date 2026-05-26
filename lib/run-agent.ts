@@ -11,9 +11,6 @@ import {
 import { buildFallbackChapterOutline } from "./chapter-outline-fallback";
 import {
   callGemmaWithTimeout,
-  getLlmConfig,
-  getModel,
-  getProvider,
   parseJsonWithTimeout,
   shouldUseMockForRequest,
   type CallGemmaResult,
@@ -78,12 +75,13 @@ function previewRaw(raw: string, max = 200): string {
 function logParseError(
   agentId: AgentId,
   raw: string,
-  cause: unknown
+  cause: unknown,
+  context?: { provider?: LlmProvider; model?: string }
 ): void {
   console.error("[LLM_PARSE_ERROR]", {
     agentId,
-    provider: getLlmConfig().primaryProvider,
-    model: getModel(),
+    provider: context?.provider,
+    model: context?.model,
     rawLength: raw.length,
     rawPreview: raw.slice(0, 500),
     error: cause instanceof Error ? cause.message : String(cause),
@@ -113,10 +111,15 @@ function largeMalformedMessage(agentId: AgentId): string {
   return `Agent "${agentId}" returned a malformed large response. Try reducing the request size.`;
 }
 
-function throwParseError(agentId: AgentId, raw: string, cause?: unknown): never {
-  logParseError(agentId, raw, cause);
-  const provider = getProvider();
-  const model = getModel();
+function throwParseError(
+  agentId: AgentId,
+  raw: string,
+  cause?: unknown,
+  context?: { provider?: LlmProvider; model?: string }
+): never {
+  logParseError(agentId, raw, cause, context);
+  const provider = context?.provider ?? "unknown";
+  const model = context?.model ?? "unknown";
   const preview = previewRaw(raw);
   const hint =
     cause instanceof Error ? cause.message : "Invalid JSON structure";
@@ -166,7 +169,8 @@ function preparePromptForAgent(prompt: string, agentId: AgentId): string {
 async function callLiveGemma(
   prompt: string,
   agentId: AgentId,
-  project: StoryProject,
+  language: StoryProject["language"],
+  requestAiModel: StoryProject["aiModel"],
   signal: AbortSignal | undefined,
   draftChapterNumber?: number,
   llmTimeoutMs = AGENT_TIMEOUT_MS
@@ -177,10 +181,10 @@ async function callLiveGemma(
       signal,
       timeoutMs: llmTimeoutMs,
       mockAgentId: agentId,
-      mockLanguage: project.language,
+      mockLanguage: language,
       agentId,
       draftChapterNumber,
-      projectAiModel: normalizeAiModel(project.aiModel),
+      projectAiModel: requestAiModel,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -223,6 +227,7 @@ async function callAndParseAgentJson(
   agentId: AgentId,
   prompt: string,
   project: StoryProject,
+  requestAiModel: StoryProject["aiModel"],
   signal?: AbortSignal,
   draftChapterNumber?: number
 ): Promise<RunAgentResult> {
@@ -230,7 +235,8 @@ async function callAndParseAgentJson(
   let llmResult = await callLiveGemma(
     prompt,
     agentId,
-    project,
+    project.language,
+    requestAiModel,
     signal,
     draftChapterNumber
   );
@@ -252,7 +258,10 @@ async function callAndParseAgentJson(
     };
   } catch (firstErr) {
     if (raw.length > MAX_RETRY_RAW_CHARS) {
-      logParseError(agentId, raw, firstErr);
+      logParseError(agentId, raw, firstErr, {
+        provider: llmResult.providerUsed,
+        model: llmResult.modelUsed,
+      });
       throw new Error(largeMalformedMessage(agentId));
     }
 
@@ -260,7 +269,8 @@ async function callAndParseAgentJson(
       llmResult = await callLiveGemma(
         `${prompt}\n\n${JSON_RETRY_INSTRUCTION}`,
         agentId,
-        project,
+        project.language,
+        requestAiModel,
         signal,
         draftChapterNumber
       );
@@ -278,7 +288,10 @@ async function callAndParseAgentJson(
           : undefined,
       };
     } catch (retryErr) {
-      throwParseError(agentId, raw, retryErr);
+      throwParseError(agentId, raw, retryErr, {
+        provider: llmResult.providerUsed,
+        model: llmResult.modelUsed,
+      });
     }
   }
 }
@@ -293,6 +306,7 @@ function logChapterOutlineFallback(reason: string, project: StoryProject): void 
 
 async function runChapterOutlineAgent(
   project: StoryProject,
+  requestAiModel: StoryProject["aiModel"],
   signal?: AbortSignal
 ): Promise<RunAgentResult> {
   const agentId = "chapter-outline" as const;
@@ -310,7 +324,8 @@ async function runChapterOutlineAgent(
     let llmResult = await callLiveGemma(
       prompt,
       agentId,
-      project,
+      project.language,
+      requestAiModel,
       signal,
       undefined,
       CHAPTER_OUTLINE_LLM_TIMEOUT_MS
@@ -335,7 +350,8 @@ async function runChapterOutlineAgent(
         llmResult = await callLiveGemma(
           buildChapterArchitectRetryPrompt(project),
           agentId,
-          project,
+          project.language,
+          requestAiModel,
           signal,
           undefined,
           CHAPTER_OUTLINE_LLM_TIMEOUT_MS
@@ -350,7 +366,10 @@ async function runChapterOutlineAgent(
             : undefined,
         };
       } catch (retryErr) {
-        logParseError(agentId, raw, retryErr);
+        logParseError(agentId, raw, retryErr, {
+          provider: llmResult.providerUsed,
+          model: llmResult.modelUsed,
+        });
         logChapterOutlineFallback(
           retryErr instanceof Error ? retryErr.message : "parse_retry_failed",
           project
@@ -376,7 +395,9 @@ export async function runAgent(
   signal?: AbortSignal,
   draftChapterNumber?: number
 ): Promise<RunAgentResult> {
-  if (shouldUseMockForRequest(project.aiModel)) {
+  const requestAiModel = normalizeAiModel(project.aiModel);
+
+  if (shouldUseMockForRequest(requestAiModel)) {
     await new Promise((r) => setTimeout(r, 600));
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
     return {
@@ -389,7 +410,7 @@ export async function runAgent(
 
   return runAgentWithTimeout<RunAgentResult>(agentId, async () => {
     if (agentId === "chapter-outline") {
-      return runChapterOutlineAgent(project, signal);
+      return runChapterOutlineAgent(project, requestAiModel, signal);
     }
 
     const context = buildAgentContext(project, agentId);
@@ -402,6 +423,7 @@ export async function runAgent(
       agentId,
       prompt,
       project,
+      requestAiModel,
       signal,
       draftChapterNumber
     );
