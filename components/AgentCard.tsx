@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getAgentIcon } from "@/lib/agent-icons";
-import type { AgentId, AgentStep } from "@/lib/types";
+import type { AgentId, AgentStep, DraftingProgress } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
@@ -24,6 +24,9 @@ interface AgentCardProps {
   isRunning: boolean;
   draftWarning?: string;
   draftingSubstatus?: string;
+  draftingProgress?: DraftingProgress;
+  onRetryChapter?: (chapterNumber: number) => void;
+  onContinueDrafting?: (chapterNumber: number) => void;
   onRegenerate: (agentId: AgentId) => void;
   onApprove: (agentId: AgentId) => void;
   onEditOutput: (agentId: AgentId) => void;
@@ -86,6 +89,9 @@ export function AgentCard({
   isRunning,
   draftWarning,
   draftingSubstatus,
+  draftingProgress,
+  onRetryChapter,
+  onContinueDrafting,
   onRegenerate,
   onApprove,
   onEditOutput,
@@ -190,6 +196,43 @@ export function AgentCard({
               {draftingSubstatus && agent.status === "running" && !agent.retryCount && (
                 <p className="text-xs text-[#38BDF8] mt-2">{draftingSubstatus}</p>
               )}
+              {agent.id === "drafting" && draftingProgress && (
+                <div className="mt-2 space-y-1.5">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#172033] border border-white/12">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-[#F5C542] to-[#38BDF8] transition-all duration-500"
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.round(
+                            (draftingProgress.completedChapters.length /
+                              Math.max(1, draftingProgress.totalChapters)) *
+                              100
+                          )
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-[#94A3B8]">
+                    Completed: {draftingProgress.completedChapters.length} /{" "}
+                    {draftingProgress.totalChapters}
+                  </p>
+                  {draftingProgress.status === "retrying" &&
+                    draftingProgress.retryCount != null &&
+                    draftingProgress.maxRetries != null && (
+                      <p className="text-xs text-[#38BDF8]">
+                        Retrying chapter {draftingProgress.currentChapter}, attempt{" "}
+                        {draftingProgress.retryCount} / {draftingProgress.maxRetries}
+                      </p>
+                    )}
+                  {draftingProgress.status === "failed" &&
+                    draftingProgress.failedChapter != null && (
+                      <p className="text-xs text-destructive">
+                        Failed at chapter {draftingProgress.failedChapter}
+                      </p>
+                    )}
+                </div>
+              )}
               {draftWarning && (
                 <p className="flex items-start gap-1.5 text-xs text-amber-400/90 mt-2">
                   <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
@@ -217,6 +260,32 @@ export function AgentCard({
                 <RefreshCw className="size-3.5 mr-1" />
                 {agent.status === "failed" ? "Retry and Continue" : "Regenerate"}
               </Button>
+              {agent.id === "drafting" &&
+                agent.status === "failed" &&
+                draftingProgress?.failedChapter != null &&
+                onRetryChapter && (
+                  <Button
+                    variant="glass"
+                    size="sm"
+                    onClick={() => onRetryChapter(draftingProgress.failedChapter!)}
+                  >
+                    Retry chapter {draftingProgress.failedChapter}
+                  </Button>
+                )}
+              {agent.id === "drafting" &&
+                agent.status === "failed" &&
+                draftingProgress?.failedChapter != null &&
+                onContinueDrafting && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      onContinueDrafting(draftingProgress.failedChapter!)
+                    }
+                  >
+                    Continue from chapter {draftingProgress.failedChapter}
+                  </Button>
+                )}
               <Button
                 variant="ghost"
                 size="sm"

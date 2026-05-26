@@ -63,10 +63,22 @@ export function StoryStructurePanel({
         )}
       </p>
 
-      {progress && isRunning && (
-        <p className="text-xs text-[#38BDF8] mb-3">
-          Drafting chapter {progress.currentChapter} of{" "}
-          {progress.totalChapters}…
+      {progress && (
+        <p
+          className={cn(
+            "text-xs mb-3",
+            progress.status === "failed" ? "text-destructive" : "text-[#38BDF8]"
+          )}
+        >
+          {progress.status === "retrying"
+            ? `Retrying chapter ${progress.currentChapter} (${progress.retryCount ?? 0}/${progress.maxRetries ?? 0})`
+            : progress.status === "failed"
+              ? `Drafting failed at chapter ${progress.failedChapter ?? progress.currentChapter}. Completed: ${progress.completedChapters.length}/${progress.totalChapters}`
+              : `Drafting chapter ${progress.currentChapter} of ${progress.totalChapters}... Completed: ${progress.completedChapters.length}/${progress.totalChapters}`}
+          {progress.warning ? ` ${progress.warning}` : ""}
+          {!isRunning && progress.cancelled
+            ? " Generation stopped. You can resume drafting."
+            : ""}
         </p>
       )}
 

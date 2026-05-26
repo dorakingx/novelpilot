@@ -247,6 +247,13 @@ export interface AgentStep {
 export interface DraftingProgress {
   currentChapter: number;
   totalChapters: number;
+  completedChapters: number[];
+  failedChapter?: number;
+  retryCount?: number;
+  maxRetries?: number;
+  status: "running" | "retrying" | "failed" | "completed";
+  warning?: string;
+  cancelled?: boolean;
 }
 
 export interface StoryProject {

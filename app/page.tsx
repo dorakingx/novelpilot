@@ -46,7 +46,10 @@ export default function Home() {
     regenerateStructure,
     applyFallbackChapterOutline,
     continuePipeline,
+    continueDrafting,
+    resumeDraftingFromChapter,
     showContinuePipeline,
+    showContinueDrafting,
   } = useStoryProject();
 
   const projectStatus = getProjectStatus(project, isRunning);
@@ -258,7 +261,10 @@ export default function Home() {
               onApplyFallbackChapterOutline={applyFallbackChapterOutline}
               onReturnToStructureSettings={() => setPhase("launcher")}
               onContinuePipeline={continuePipeline}
+              onContinueDrafting={continueDrafting}
+              onResumeDraftingFromChapter={resumeDraftingFromChapter}
               showContinuePipeline={showContinuePipeline}
+              showContinueDrafting={showContinueDrafting}
             />
           )}
         </div>

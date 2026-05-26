@@ -44,7 +44,10 @@ interface AgentWorkspaceProps {
   onApplyFallbackChapterOutline?: () => void;
   onReturnToStructureSettings?: () => void;
   onContinuePipeline?: () => void;
+  onContinueDrafting?: () => void;
+  onResumeDraftingFromChapter?: (chapterNumber: number) => void;
   showContinuePipeline?: boolean;
+  showContinueDrafting?: boolean;
 }
 
 export function AgentWorkspace({
@@ -72,7 +75,10 @@ export function AgentWorkspace({
   onApplyFallbackChapterOutline,
   onReturnToStructureSettings,
   onContinuePipeline,
+  onContinueDrafting,
+  onResumeDraftingFromChapter,
   showContinuePipeline = false,
+  showContinueDrafting = false,
 }: AgentWorkspaceProps) {
   const readLabel = projectComplete ? "Read Finished Novel" : "Read Manuscript";
   const chapterOutlineAgent = project.agents.find(
@@ -153,7 +159,18 @@ export function AgentWorkspace({
               </>
             )}
             {showContinuePipeline && onContinuePipeline && (
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                {showContinueDrafting && onContinueDrafting && (
+                  <Button
+                    variant="glass"
+                    size="sm"
+                    onClick={onContinueDrafting}
+                    disabled={isRunning}
+                  >
+                    <Play className="size-3.5 mr-1.5" />
+                    Continue Drafting
+                  </Button>
+                )}
                 <Button
                   variant="premium"
                   size="sm"
@@ -201,6 +218,7 @@ export function AgentWorkspace({
               isRunning={isRunning}
               projectStatus={projectStatus}
               onRegenerate={onRegenerate}
+              onResumeDraftingFromChapter={onResumeDraftingFromChapter}
               onApprove={onApprove}
               onEditOutput={onEditOutput}
             />

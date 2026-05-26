@@ -14,6 +14,22 @@ const MANUSCRIPT_FULL_THRESHOLD = 12_000;
 const EXCERPT_CHARS = 2000;
 const PLOT_SUMMARY_MAX = 200;
 const STRING_FIELD_MAX = 280;
+const LOW_CREDIT_ENABLED =
+  process.env.OPENROUTER_LOW_CREDIT_MODE?.trim().toLowerCase() === "true";
+
+function isOpenRouterLowCreditMode(): boolean {
+  const provider = process.env.GEMMA_PROVIDER?.trim().toLowerCase() || "openrouter";
+  return LOW_CREDIT_ENABLED && provider === "openrouter";
+}
+
+function capLengthPlanForLowCredit(
+  targetLength: number | undefined,
+  language: StoryProject["language"]
+): number | undefined {
+  if (!targetLength || !isOpenRouterLowCreditMode()) return targetLength;
+  if (language === "ja") return Math.min(Math.max(targetLength, 3000), 4000);
+  return Math.min(Math.max(targetLength, 1000), 1500);
+}
 
 function truncate(text: string, max: number): string {
   const s = String(text ?? "").trim();
@@ -332,7 +348,7 @@ function priorChapterEndingExcerpt(
   if (!text) return "";
   if (language === "en") {
     const words = text.split(/\s+/).filter(Boolean);
-    const tail = words.slice(-120).join(" ");
+    const tail = words.slice(-100).join(" ");
     return tail.length > 600 ? tail.slice(-600) : tail;
   }
   return text.length > 300 ? text.slice(-300) : text;
@@ -351,6 +367,17 @@ export function buildDraftingContext(
   const prior = chapters.filter((c) => c.number < chapterNumber);
   const immediatePrior = prior.find((c) => c.number === chapterNumber - 1);
 
+  const cappedTarget = capLengthPlanForLowCredit(
+    target.lengthPlan?.targetLength,
+    project.language
+  );
+  const cappedLengthPlan = target.lengthPlan
+    ? {
+        ...target.lengthPlan,
+        targetLength: cappedTarget ?? target.lengthPlan.targetLength,
+      }
+    : target.lengthPlan;
+
   return {
     userPromptSummary: compactUserPrompt(project.userPrompt),
     ...baseSettings(project),
@@ -367,7 +394,7 @@ export function buildDraftingContext(
       emotionalTurn: target.emotionalTurn,
       keyEvents: (target.keyEvents ?? []).slice(0, 5),
       foreshadowing: (target.foreshadowing ?? []).slice(0, 3),
-      lengthPlan: target.lengthPlan,
+      lengthPlan: cappedLengthPlan,
     },
     previousChapterSummaries: prior.map((ch) => ({
       number: ch.number,

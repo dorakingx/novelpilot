@@ -13,6 +13,7 @@ interface AgentTimelineProps {
   isRunning: boolean;
   projectStatus: ProjectStatus;
   onRegenerate: (agentId: AgentId) => void;
+  onResumeDraftingFromChapter?: (chapterNumber: number) => void;
   onApprove: (agentId: AgentId) => void;
   onEditOutput: (agentId: AgentId, output: unknown) => void;
 }
@@ -59,6 +60,7 @@ export function AgentTimeline({
   isRunning,
   projectStatus,
   onRegenerate,
+  onResumeDraftingFromChapter,
   onApprove,
   onEditOutput,
 }: AgentTimelineProps) {
@@ -127,12 +129,19 @@ export function AgentTimeline({
                   : undefined
               }
               draftingSubstatus={
-                agent.id === "drafting" &&
-                agent.status === "running" &&
-                project.draftingProgress
-                  ? `Drafting chapter ${project.draftingProgress.currentChapter} of ${project.draftingProgress.totalChapters}`
+                agent.id === "drafting" && project.draftingProgress
+                  ? project.draftingProgress.status === "retrying"
+                    ? `Retrying chapter ${project.draftingProgress.currentChapter}, attempt ${project.draftingProgress.retryCount ?? 0} / ${project.draftingProgress.maxRetries ?? 0}`
+                    : project.draftingProgress.status === "failed"
+                      ? `Failed at chapter ${project.draftingProgress.failedChapter ?? project.draftingProgress.currentChapter}`
+                      : `Drafting chapter ${project.draftingProgress.currentChapter} of ${project.draftingProgress.totalChapters}`
                   : undefined
               }
+              draftingProgress={
+                agent.id === "drafting" ? project.draftingProgress : undefined
+              }
+              onRetryChapter={onResumeDraftingFromChapter}
+              onContinueDrafting={onResumeDraftingFromChapter}
               onRegenerate={onRegenerate}
               onApprove={onApprove}
               onEditOutput={(id) => setEditingAgentId(id)}
