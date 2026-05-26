@@ -1,6 +1,10 @@
+import {
+  resolveMaxTokens,
+  type CallGemmaOptions,
+} from "./agent-token-limits";
 import { DEFAULT_GEMMA_MODEL } from "./gemma-model";
 import { getMockOutputAsJson } from "./mock-outputs";
-import type { AgentId, Language } from "./types";
+export type { CallGemmaOptions } from "./agent-token-limits";
 
 export type GemmaProvider = "openrouter" | "google" | "custom";
 
@@ -201,8 +205,9 @@ function buildOpenRouterHeaders(apiKey: string): Record<string, string> {
 
 async function callOpenRouter(
   prompt: string,
-  options?: { signal?: AbortSignal }
+  options?: CallGemmaOptions
 ): Promise<string> {
+  const maxTokens = resolveMaxTokens(options);
   const apiKey = getApiKey();
   const response = await fetch(getOpenRouterUrl(), {
     method: "POST",
@@ -216,7 +221,7 @@ async function callOpenRouter(
       ],
       temperature: 0.8,
       top_p: 0.95,
-      max_tokens: 8192,
+      max_tokens: maxTokens,
     }),
   });
 
@@ -229,8 +234,9 @@ async function callOpenRouter(
 
 async function callGoogleGenerateContent(
   prompt: string,
-  options?: { signal?: AbortSignal }
+  options?: CallGemmaOptions
 ): Promise<string> {
+  const maxTokens = resolveMaxTokens(options);
   const apiKey = getApiKey();
   const model = getModel();
   const url = `${getGoogleApiUrl()}/${model}:generateContent?key=${apiKey}`;
@@ -243,7 +249,7 @@ async function callGoogleGenerateContent(
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.8,
-        maxOutputTokens: 8192,
+        maxOutputTokens: maxTokens,
         topP: 0.95,
       },
     }),
@@ -260,8 +266,9 @@ async function callGoogleGenerateContent(
 
 async function callCustomProvider(
   prompt: string,
-  options?: { signal?: AbortSignal }
+  options?: CallGemmaOptions
 ): Promise<string> {
+  const maxTokens = resolveMaxTokens(options);
   const apiKey = getApiKey();
   const response = await fetch(getCustomUrl(), {
     method: "POST",
@@ -278,7 +285,7 @@ async function callCustomProvider(
       ],
       temperature: 0.8,
       top_p: 0.95,
-      max_tokens: 8192,
+      max_tokens: maxTokens,
     }),
   });
 
@@ -315,12 +322,7 @@ function linkAbortSignals(
 /** Enforces a wall-clock timeout in addition to any caller abort signal. */
 export async function callGemmaWithTimeout(
   prompt: string,
-  options?: {
-    signal?: AbortSignal;
-    timeoutMs?: number;
-    mockAgentId?: AgentId;
-    mockLanguage?: Language;
-  }
+  options?: CallGemmaOptions & { timeoutMs?: number }
 ): Promise<string> {
   const timeoutMs = options?.timeoutMs ?? 60_000;
   const timeoutController = new AbortController();
@@ -353,11 +355,7 @@ export async function callGemmaWithTimeout(
 
 export async function callGemma(
   prompt: string,
-  options?: {
-    signal?: AbortSignal;
-    mockAgentId?: AgentId;
-    mockLanguage?: Language;
-  }
+  options?: CallGemmaOptions
 ): Promise<string> {
   if (isMockMode()) {
     if (options?.mockAgentId && options?.mockLanguage) {

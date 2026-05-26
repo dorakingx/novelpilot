@@ -11,9 +11,11 @@ import type {
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
+  let agentId: AgentId | undefined;
   try {
     const body = (await request.json()) as GenerateAgentRequest;
-    const { agentId, project, draftChapterNumber } = body;
+    agentId = body.agentId as AgentId;
+    const { project, draftChapterNumber } = body;
 
     if (!agentId || !project) {
       return Response.json(
@@ -51,7 +53,14 @@ export async function POST(request: Request) {
     }
     const { provider, model } = getLlmConfig();
     return Response.json(
-      { error: formatLiveGenerationError(raw, provider, model) },
+      {
+        error: formatLiveGenerationError(
+          raw,
+          provider,
+          model,
+          agentId
+        ),
+      },
       { status: 500 }
     );
   }

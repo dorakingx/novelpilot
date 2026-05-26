@@ -187,6 +187,23 @@ Set `GEMMA_PROVIDER=google` and point `GEMMA_API_URL` / `GEMMA_MODEL` at Google'
 
 The Gemma 4 Challenge requires a Gemma 4 model. If the default OpenRouter model name changes, choose a currently available Gemma 4 model from [OpenRouter's model list](https://openrouter.ai/models) and set `GEMMA_MODEL` accordingly.
 
+## OpenRouter 402 error
+
+If you see:
+
+> This request requires more credits, or fewer max_tokens
+
+OpenRouter rejected the request because your account cannot afford the requested max token budget for that call.
+
+**Fixes:**
+
+- Add OpenRouter credits
+- Lower approximate chapter length or chapter count in Story Structure
+- Set `GEMMA_MAX_TOKENS_CAP=4000` or `6000` in `.env.local` / Vercel (caps all agents)
+- Use a cheaper model via `GEMMA_MODEL`
+
+NovelPilot uses smaller per-agent `max_tokens` by default (e.g. Premise Architect ~1500, Prose Writer ~5500) instead of a flat 8192 for every agent.
+
 ## Deploying to Vercel
 
 1. Import this GitHub repository into Vercel.
@@ -198,6 +215,7 @@ The Gemma 4 Challenge requires a Gemma 4 model. If the default OpenRouter model 
    - `GEMMA_API_URL=https://openrouter.ai/api/v1/chat/completions`
    - `GEMMA_MODEL=google/gemma-4-31b-it`
    - `OPENROUTER_APP_NAME=NovelPilot`
+   - `GEMMA_MAX_TOKENS_CAP` (optional, e.g. `6000` for low-credit accounts)
 5. Deploy.
 6. Open the deployed URL and click **Run Judge Demo**.
 

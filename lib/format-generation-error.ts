@@ -22,6 +22,17 @@ export function isChapterOutlineGenerationError(raw: string): boolean {
   return CHAPTER_OUTLINE_ERROR_PATTERNS.some((re) => re.test(raw));
 }
 
+const OPENROUTER_402_MAX_TOKENS_MESSAGE =
+  "OpenRouter rejected the request because max_tokens is too high for your current credits. Try reducing chapter length, using a smaller model, or adding credits. NovelPilot will now use smaller token limits per agent.";
+
+export function isOpenRouter402MaxTokensError(raw: string): boolean {
+  const lower = raw.toLowerCase();
+  return (
+    lower.includes("402") &&
+    (lower.includes("fewer max_tokens") || lower.includes("requires more credits"))
+  );
+}
+
 export function formatChapterOutlineError(
   raw: string,
   provider: string,
@@ -43,6 +54,9 @@ export function formatLiveGenerationError(
   model: string,
   agentId?: string
 ): string {
+  if (isOpenRouter402MaxTokensError(raw)) {
+    return OPENROUTER_402_MAX_TOKENS_MESSAGE;
+  }
   if (agentId === "chapter-outline" && isChapterOutlineGenerationError(raw)) {
     return formatChapterOutlineError(raw, provider, model);
   }

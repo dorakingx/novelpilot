@@ -49,6 +49,13 @@ export function DemoModeBanner({
                 {provider}
                 {model ? ` / ${model}` : ""}
               </span>
+              {provider === "openrouter" && (
+                <span className="text-[#94A3B8]">
+                  {" "}
+                  — Live mode uses OpenRouter credits. Longer chapters require
+                  more credits.
+                </span>
+              )}
             </span>
           </>
         )}

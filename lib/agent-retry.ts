@@ -27,12 +27,15 @@ export function sleep(ms: number): Promise<void> {
 
 const NON_RETRYABLE_PATTERNS = [
   "401",
+  "402",
   "403",
   "unauthorized",
   "invalid api key",
   "invalid_api_key",
   "insufficient credits",
   "insufficient_credit",
+  "requires more credits",
+  "fewer max_tokens",
   "billing",
   "payment required",
   "model not found",

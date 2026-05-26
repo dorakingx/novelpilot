@@ -80,7 +80,8 @@ async function callLiveGemma(
   prompt: string,
   agentId: AgentId,
   signal: AbortSignal | undefined,
-  language: StoryProject["language"]
+  language: StoryProject["language"],
+  draftChapterNumber?: number
 ): Promise<string> {
   try {
     return await callGemmaWithTimeout(prompt, {
@@ -88,6 +89,8 @@ async function callLiveGemma(
       timeoutMs: AGENT_TIMEOUT_MS,
       mockAgentId: agentId,
       mockLanguage: language,
+      agentId,
+      draftChapterNumber,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -122,9 +125,16 @@ async function callAndParseAgentJson(
   agentId: AgentId,
   prompt: string,
   project: StoryProject,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  draftChapterNumber?: number
 ): Promise<unknown> {
-  let raw = await callLiveGemma(prompt, agentId, signal, project.language);
+  let raw = await callLiveGemma(
+    prompt,
+    agentId,
+    signal,
+    project.language,
+    draftChapterNumber
+  );
 
   try {
     return parseAgentJson(agentId, raw, project);
@@ -139,7 +149,8 @@ async function callAndParseAgentJson(
         `${prompt}\n\n${JSON_RETRY_INSTRUCTION}`,
         agentId,
         signal,
-        project.language
+        project.language,
+        draftChapterNumber
       );
       return parseAgentJson(agentId, raw, project);
     } catch (retryErr) {
@@ -169,7 +180,7 @@ export async function runAgent(
     });
   }
 
-  return callAndParseAgentJson(agentId, prompt, project, signal);
+  return callAndParseAgentJson(agentId, prompt, project, signal, draftChapterNumber);
 }
 
 export function shouldRunSequentialDraft(project: StoryProject): boolean {
