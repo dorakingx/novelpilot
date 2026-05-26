@@ -187,22 +187,38 @@ Set `GEMMA_PROVIDER=google` and point `GEMMA_API_URL` / `GEMMA_MODEL` at Google'
 
 The Gemma 4 Challenge requires a Gemma 4 model. If the default OpenRouter model name changes, choose a currently available Gemma 4 model from [OpenRouter's model list](https://openrouter.ai/models) and set `GEMMA_MODEL` accordingly.
 
-## OpenRouter 402 error
+## OpenRouter prompt tokens limit exceeded
+
+If you see:
+
+> Prompt tokens limit exceeded
+
+OpenRouter rejected the request because the **input prompt/context** is too large for your current credit or model allowance. This is not the same as `max_tokens` (output length).
+
+**Fixes:**
+
+- Shorten your user prompt
+- Reduce number of parts/chapters in Story Structure
+- Add OpenRouter credits or use an account/model with a larger context allowance
+
+NovelPilot compacts each agent’s context in live mode (summaries and excerpts instead of the full project JSON).
+
+## OpenRouter 402 error (max_tokens)
 
 If you see:
 
 > This request requires more credits, or fewer max_tokens
 
-OpenRouter rejected the request because your account cannot afford the requested max token budget for that call.
+OpenRouter rejected the request because your account cannot afford the requested **output** max token budget for that call.
 
 **Fixes:**
 
 - Add OpenRouter credits
 - Lower approximate chapter length or chapter count in Story Structure
-- Set `GEMMA_MAX_TOKENS_CAP=4000` or `6000` in `.env.local` / Vercel (caps all agents)
+- Set `GEMMA_MAX_TOKENS_CAP=1200` or `800` in `.env.local` / Vercel (caps all agents)
 - Use a cheaper model via `GEMMA_MODEL`
 
-NovelPilot uses smaller per-agent `max_tokens` by default (e.g. Premise Architect ~1500, Prose Writer ~5500) instead of a flat 8192 for every agent.
+NovelPilot uses smaller per-agent `max_tokens` by default (e.g. Premise Architect ~900, Prose Writer ~2200) instead of a flat 8192 for every agent.
 
 ## Deploying to Vercel
 

@@ -1,4 +1,4 @@
-import { getAllChapters } from "./structure-utils";
+import { buildDraftingContext } from "./agent-context";
 import type { AgentId, StoryProject } from "./types";
 
 const LANGUAGE_LABEL: Record<string, string> = {
@@ -154,21 +154,16 @@ export function buildChapterDraftPrompt(
 ): string {
   const language = project.language;
   const lang = langDirective(language);
-  const chapters = getAllChapters(project);
-  const target = chapters.find((c) => c.number === chapterNumber);
-  if (!target) {
-    throw new Error(`Chapter ${chapterNumber} not found in outline`);
-  }
+  const ctx = buildDraftingContext(project, chapterNumber);
+  const target = ctx.currentChapter as {
+    number: number;
+    title: string;
+    lengthPlan?: { targetLength?: number; unit?: string };
+    role?: string;
+  };
 
-  const prior = chapters.filter((c) => c.number < chapterNumber);
-  const priorContext = prior.map((ch) => ({
-    number: ch.number,
-    title: ch.title,
-    summary: ch.chapterSummary ?? "",
-    excerpt: ch.draft?.slice(0, 800) ?? "",
-  }));
-
-  const unit = target.lengthPlan?.unit ?? (language === "ja" ? "characters" : "words");
+  const unit =
+    target.lengthPlan?.unit ?? (language === "ja" ? "characters" : "words");
   const lengthHint = target.lengthPlan?.targetLength
     ? `Approximate length target: about ${target.lengthPlan.targetLength} ${unit} (${language === "ja" ? "count non-whitespace characters" : "count words"}). ±20% is acceptable. Length is pacing guidance only — do not truncate mid-scene for an exact count; prioritize narrative completeness. Do not use project-level total length as the primary guide.`
     : "";
@@ -176,21 +171,11 @@ export function buildChapterDraftPrompt(
     ? `Chapter role: ${target.role}.`
     : "";
 
-  const ctxJson = JSON.stringify(
-    {
-      chapterToWrite: target,
-      priorChapters: priorContext,
-      structure: project.structure,
-      storyBible: project.storyBible,
-      manuscriptSoFar: project.manuscript,
-    },
-    null,
-    2
-  );
+  const ctxJson = JSON.stringify(ctx);
 
   return `You are the Prose Writer. Write ONLY chapter ${chapterNumber} ("${target.title}") as literary fiction prose.
 Do not summarize. Write a full scene-based chapter with dialogue, atmosphere, and momentum.
-Use the Story Bible, part plan, chapter outline, prior chapter summaries, and prior draft excerpts for continuity.
+Use the compact story context, chapter outline, prior chapter summaries, and the previous chapter ending excerpt for continuity.
 Respect this chapter's purpose, emotionalTurn, role, and lengthPlan.
 ${roleHint}
 ${lengthHint}

@@ -37,14 +37,30 @@ export function isChapterOutlineGenerationError(raw: string): boolean {
   return CHAPTER_OUTLINE_ERROR_PATTERNS.some((re) => re.test(raw));
 }
 
+const OPENROUTER_402_PROMPT_TOKENS_MESSAGE =
+  "OpenRouter rejected the request because the input prompt/context is too large for your current credit/model limit. NovelPilot will compact agent context. Try shortening your prompt, reducing chapter count, or adding credits.";
+
 const OPENROUTER_402_MAX_TOKENS_MESSAGE =
   "OpenRouter rejected the request because max_tokens is too high for your current credits. Try reducing chapter length, setting GEMMA_MAX_TOKENS_CAP=1200 or 800, using a smaller model, or adding credits.";
 
+export function isOpenRouter402PromptTokensError(raw: string): boolean {
+  const lower = raw.toLowerCase();
+  return (
+    lower.includes("prompt tokens limit exceeded") ||
+    (lower.includes("402") &&
+      lower.includes("prompt tokens") &&
+      !lower.includes("max_tokens"))
+  );
+}
+
 export function isOpenRouter402MaxTokensError(raw: string): boolean {
+  if (isOpenRouter402PromptTokensError(raw)) return false;
   const lower = raw.toLowerCase();
   return (
     lower.includes("402") &&
-    (lower.includes("fewer max_tokens") || lower.includes("requires more credits"))
+    (lower.includes("fewer max_tokens") ||
+      lower.includes("requires more credits") ||
+      lower.includes("max_tokens"))
   );
 }
 
@@ -69,6 +85,9 @@ export function formatLiveGenerationError(
   model: string,
   agentId?: string
 ): string {
+  if (isOpenRouter402PromptTokensError(raw)) {
+    return OPENROUTER_402_PROMPT_TOKENS_MESSAGE;
+  }
   if (isOpenRouter402MaxTokensError(raw)) {
     return OPENROUTER_402_MAX_TOKENS_MESSAGE;
   }

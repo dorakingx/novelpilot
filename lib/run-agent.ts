@@ -1,6 +1,10 @@
 import { buildAgentContext } from "./agents";
 import { logAgentTiming } from "./agent-timing";
 import {
+  enforcePromptBudget,
+  logPromptSize,
+} from "./prompt-budget";
+import {
   buildChapterArchitectPrompt,
   buildChapterArchitectRetryPrompt,
 } from "./chapter-architect-context";
@@ -37,6 +41,7 @@ const HARD_PROVIDER_ERROR_PATTERNS = [
   "402",
   "401",
   "403",
+  "prompt tokens limit exceeded",
   "fewer max_tokens",
   "requires more credits",
   "insufficient credits",
@@ -139,6 +144,11 @@ async function runAgentWithTimeout<T>(
   }
 }
 
+function preparePromptForAgent(prompt: string, agentId: AgentId): string {
+  logPromptSize(agentId, prompt);
+  return enforcePromptBudget(prompt, agentId);
+}
+
 async function callLiveGemma(
   prompt: string,
   agentId: AgentId,
@@ -147,8 +157,9 @@ async function callLiveGemma(
   draftChapterNumber?: number,
   llmTimeoutMs = AGENT_TIMEOUT_MS
 ): Promise<string> {
+  const budgetedPrompt = preparePromptForAgent(prompt, agentId);
   try {
-    return await callGemmaWithTimeout(prompt, {
+    return await callGemmaWithTimeout(budgetedPrompt, {
       signal,
       timeoutMs: llmTimeoutMs,
       mockAgentId: agentId,

@@ -1,7 +1,6 @@
+import { buildChapterOutlineContext } from "./agent-context";
 import { buildSkeletonParts } from "./structure-chapter-defaults";
 import type { PartPlan, StoryProject } from "./types";
-
-const MAX_USER_PROMPT_CHARS = 800;
 
 const CHAPTER_OUTLINE_FILL_SCHEMA = `{
   "parts": [
@@ -42,11 +41,6 @@ const CHAPTER_OUTLINE_FILL_SCHEMA = `{
   ]
 }`;
 
-function truncate(text: string, max: number): string {
-  const s = text.trim();
-  return s.length > max ? s.slice(0, max) : s;
-}
-
 function languageDirective(language: string): string {
   const label = language === "ja" ? "Japanese" : "English";
   return `Write all creative text in ${label}. JSON keys stay in English.`;
@@ -64,69 +58,6 @@ export function buildChapterArchitectSkeleton(
     chapterLengthPreset: structure.chapterLengthPreset,
     existingParts: structure.parts?.length ? structure.parts : undefined,
   });
-}
-
-export function buildCompactChapterArchitectContext(
-  project: StoryProject,
-  skeleton: PartPlan[]
-): Record<string, unknown> {
-  const conceptAgent = project.agents.find((a) => a.id === "concept");
-  const characterAgent = project.agents.find((a) => a.id === "character");
-  const plotAgent = project.agents.find((a) => a.id === "plot");
-
-  const conceptOut = conceptAgent?.output as Record<string, unknown> | null;
-  const characterOut = characterAgent?.output as Record<string, unknown> | null;
-  const plotOut = plotAgent?.output as Record<string, unknown> | null;
-
-  const characters: Array<{ name: string; role: string }> = [];
-  const prot = characterOut?.protagonist as { name?: string; role?: string } | undefined;
-  const ant = characterOut?.antagonist as { name?: string; role?: string } | undefined;
-  if (prot?.name) characters.push({ name: prot.name, role: prot.role ?? "protagonist" });
-  if (ant?.name) characters.push({ name: ant.name, role: ant.role ?? "antagonist" });
-  if (Array.isArray(characterOut?.supporting)) {
-    for (const s of characterOut.supporting) {
-      const row = s as { name?: string; role?: string };
-      if (row.name) characters.push({ name: row.name, role: row.role ?? "supporting" });
-    }
-  }
-
-  return {
-    userPrompt: truncate(project.userPrompt, MAX_USER_PROMPT_CHARS),
-    language: project.language,
-    genre: project.genre,
-    tone: project.tone,
-    concept: {
-      logline: conceptOut?.logline ?? "",
-      coreTheme: conceptOut?.coreTheme ?? "",
-    },
-    characters,
-    plot: plotOut
-      ? {
-          beginning: plotOut.beginning ?? "",
-          middle: plotOut.middle ?? "",
-          climax: plotOut.climax ?? "",
-          ending: plotOut.ending ?? "",
-        }
-      : undefined,
-    structure: {
-      partCount: project.structure.partCount,
-      chaptersPerPart: project.structure.chaptersPerPart,
-      totalChapterCount: project.structure.totalChapterCount,
-      chapterLengthPreset: project.structure.chapterLengthPreset,
-      lengthUnit: project.structure.lengthUnit,
-      skeleton: skeleton.map((part) => ({
-        number: part.number,
-        title: part.title,
-        purpose: part.purpose,
-        chapters: part.chapters.map((ch) => ({
-          number: ch.number,
-          partNumber: ch.partNumber ?? part.number,
-          title: ch.title,
-          lengthPlan: ch.lengthPlan,
-        })),
-      })),
-    },
-  };
 }
 
 function buildFillInstructions(project: StoryProject, skeleton: PartPlan[]): string {
@@ -170,7 +101,7 @@ ${JSON.stringify(skeleton.map((p) => ({
 
 export function buildChapterArchitectPrompt(project: StoryProject): string {
   const skeleton = buildChapterArchitectSkeleton(project);
-  const context = buildCompactChapterArchitectContext(project, skeleton);
+  const context = buildChapterOutlineContext(project, skeleton);
 
   return `${buildFillInstructions(project, skeleton)}
 
@@ -185,7 +116,7 @@ const RETRY_LINE = `Your previous response was not valid JSON. Return ONLY valid
 
 export function buildChapterArchitectRetryPrompt(project: StoryProject): string {
   const skeleton = buildChapterArchitectSkeleton(project);
-  const context = buildCompactChapterArchitectContext(project, skeleton);
+  const context = buildChapterOutlineContext(project, skeleton);
 
   return `${RETRY_LINE}
 
