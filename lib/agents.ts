@@ -1,3 +1,4 @@
+import { normalizeAiModel } from "./ai-model-utils";
 import { buildAgentContextForId } from "./agent-context";
 import {
   buildCompleteManuscript,
@@ -138,6 +139,7 @@ export function createInitialProject(
     requiresStructureApproval: options?.requiresStructureApproval ?? true,
     structureApproved: false,
     awaitingStructureApproval: false,
+    aiModel: normalizeAiModel(settings.aiModel),
   };
 }
 

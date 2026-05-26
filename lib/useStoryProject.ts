@@ -21,6 +21,7 @@ import {
   setAgentStatus,
 } from "./agents";
 import { DEFAULT_GEMMA_MODEL } from "./gemma-model";
+import { DEFAULT_AI_MODEL, normalizeAiModel } from "./ai-model-utils";
 import type { LlmStatus } from "./llm-config";
 import {
   JUDGE_DEMO_REQUIRES_STRUCTURE_APPROVAL,
@@ -62,6 +63,7 @@ const DEFAULT_SETTINGS: ProjectSettings = {
   tone: "melancholic",
   targetLength: "short-story",
   structure: buildDefaultStructure("en", "short-3"),
+  aiModel: DEFAULT_AI_MODEL,
 };
 
 function normalizeSettings(settings: ProjectSettings): ProjectSettings {
@@ -84,6 +86,7 @@ function normalizeSettings(settings: ProjectSettings): ProjectSettings {
     structure,
     targetLength:
       settings.targetLength ?? presetToTargetLength(structure.presetId),
+    aiModel: normalizeAiModel(settings.aiModel),
   };
 }
 

@@ -4,7 +4,8 @@ import {
 } from "@/lib/agents";
 import { logAgentTiming } from "@/lib/agent-timing";
 import { formatLiveGenerationError } from "@/lib/format-generation-error";
-import { getLlmConfig, isMockMode } from "@/lib/gemma";
+import { getLlmConfig, shouldUseMockForRequest } from "@/lib/gemma";
+import { normalizeAiModel } from "@/lib/ai-model-utils";
 import { runAgent } from "@/lib/run-agent";
 import type {
   AgentId,
@@ -16,11 +17,13 @@ export const maxDuration = 60;
 
 export async function POST(request: Request) {
   let agentId: AgentId | undefined;
+  let project: GenerateAgentRequest["project"] | undefined;
   const requestStartedAt = Date.now();
   try {
     const body = (await request.json()) as GenerateAgentRequest;
     agentId = body.agentId as AgentId;
-    const { project, draftChapterNumber } = body;
+    project = body.project;
+    const { draftChapterNumber } = body;
 
     if (!agentId || !project) {
       return Response.json(
@@ -28,6 +31,11 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    project = {
+      ...project,
+      aiModel: normalizeAiModel(project.aiModel),
+    };
 
     logAgentTiming(agentId, "request_start", requestStartedAt);
 
@@ -63,7 +71,7 @@ export async function POST(request: Request) {
       storyBible: updated.storyBible,
       manuscript: updated.manuscript,
       reports: updated.reports,
-      mockMode: isMockMode(),
+      mockMode: shouldUseMockForRequest(normalizeAiModel(project.aiModel)),
       fallbackUsed: outlineFallbackUsed || undefined,
       providerUsed: result.providerUsed,
       providerFallbackUsed: result.providerFallbackUsed,
@@ -76,16 +84,20 @@ export async function POST(request: Request) {
     }
     const raw =
       err instanceof Error ? err.message : "Agent generation failed";
-    if (isMockMode()) {
+    const projectAi = normalizeAiModel(project?.aiModel);
+    if (shouldUseMockForRequest(projectAi)) {
       return Response.json({ error: raw }, { status: 500 });
     }
     const status = getLlmConfig();
+    const errorProvider =
+      projectAi.provider ?? status.primaryProvider;
+    const errorModel = projectAi.model ?? status.model;
     return Response.json(
       {
         error: formatLiveGenerationError(
           raw,
-          status.primaryProvider,
-          status.model,
+          errorProvider,
+          errorModel,
           agentId
         ),
       },

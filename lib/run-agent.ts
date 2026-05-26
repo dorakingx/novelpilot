@@ -14,10 +14,11 @@ import {
   getLlmConfig,
   getModel,
   getProvider,
-  isMockMode,
   parseJsonWithTimeout,
+  shouldUseMockForRequest,
   type CallGemmaResult,
 } from "./gemma";
+import { normalizeAiModel } from "./ai-model-utils";
 import type { LlmProvider } from "./llm-config";
 import { normalizeChapterOutlineOutput } from "./normalize-chapter-outline";
 import { getMockOutput } from "./mock-outputs";
@@ -165,8 +166,8 @@ function preparePromptForAgent(prompt: string, agentId: AgentId): string {
 async function callLiveGemma(
   prompt: string,
   agentId: AgentId,
+  project: StoryProject,
   signal: AbortSignal | undefined,
-  language: StoryProject["language"],
   draftChapterNumber?: number,
   llmTimeoutMs = AGENT_TIMEOUT_MS
 ): Promise<CallGemmaResult> {
@@ -176,9 +177,10 @@ async function callLiveGemma(
       signal,
       timeoutMs: llmTimeoutMs,
       mockAgentId: agentId,
-      mockLanguage: language,
+      mockLanguage: project.language,
       agentId,
       draftChapterNumber,
+      projectAiModel: normalizeAiModel(project.aiModel),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -228,8 +230,8 @@ async function callAndParseAgentJson(
   let llmResult = await callLiveGemma(
     prompt,
     agentId,
+    project,
     signal,
-    project.language,
     draftChapterNumber
   );
   let raw = llmResult.text;
@@ -258,8 +260,8 @@ async function callAndParseAgentJson(
       llmResult = await callLiveGemma(
         `${prompt}\n\n${JSON_RETRY_INSTRUCTION}`,
         agentId,
+        project,
         signal,
-        project.language,
         draftChapterNumber
       );
       raw = llmResult.text;
@@ -308,8 +310,8 @@ async function runChapterOutlineAgent(
     let llmResult = await callLiveGemma(
       prompt,
       agentId,
+      project,
       signal,
-      project.language,
       undefined,
       CHAPTER_OUTLINE_LLM_TIMEOUT_MS
     );
@@ -333,8 +335,8 @@ async function runChapterOutlineAgent(
         llmResult = await callLiveGemma(
           buildChapterArchitectRetryPrompt(project),
           agentId,
+          project,
           signal,
-          project.language,
           undefined,
           CHAPTER_OUTLINE_LLM_TIMEOUT_MS
         );
@@ -374,7 +376,7 @@ export async function runAgent(
   signal?: AbortSignal,
   draftChapterNumber?: number
 ): Promise<RunAgentResult> {
-  if (isMockMode()) {
+  if (shouldUseMockForRequest(project.aiModel)) {
     await new Promise((r) => setTimeout(r, 600));
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
     return {

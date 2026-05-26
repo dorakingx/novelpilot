@@ -169,6 +169,33 @@ AI_FALLBACK_PROVIDER=openrouter
 
 If `AI_PROVIDER` is omitted, a Google key selects Google as primary; an OpenRouter-only setup uses OpenRouter. Legacy `GEMMA_*` variables still work for backward compatibility.
 
+### Choosing Gemma or Gemini
+
+On the first prompt screen, pick the AI model for the whole pipeline:
+
+- **Auto** — use server default provider and fallback (from environment variables)
+- **Gemini** — Google AI Studio / Gemini (recommended for stable long-context generation)
+- **Gemma** — OpenRouter / Gemma (useful for Gemma-specific experiments)
+- **Demo Mode** — curated outputs with no API key (works even when keys are configured)
+
+Environment variables make each provider available to the server:
+
+Gemini:
+
+```env
+GOOGLE_AI_API_KEY=
+GOOGLE_AI_MODEL=gemini-2.5-flash
+```
+
+Gemma via OpenRouter:
+
+```env
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=google/gemma-4-31b-it
+```
+
+**Auto** mode uses the server defaults above. API keys are never sent from the browser.
+
 ### Live mode (OpenRouter only)
 
 Set `OPENROUTER_API_KEY` (or legacy `GEMMA_API_KEY`) and optionally `OPENROUTER_MODEL`. See [Using OpenRouter](#using-openrouter) below.

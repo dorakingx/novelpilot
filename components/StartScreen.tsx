@@ -1,15 +1,18 @@
 "use client";
 
 import { AgentChainPreview } from "@/components/AgentChainPreview";
+import { AiProviderSelector } from "@/components/AiProviderSelector";
 import { StorySettingsFields } from "@/components/StorySettingsFields";
 import { StoryStructureFields } from "@/components/StoryStructureFields";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { normalizeAiModel } from "@/lib/ai-model-utils";
 import {
   LAUNCHER_FEATURE_CARDS,
   LAUNCHER_TAGLINE,
   PROMPT_PLACEHOLDER,
 } from "@/lib/launcher-content";
+import type { LlmStatus } from "@/lib/llm-config";
 import type { ProjectSettings } from "@/lib/types";
 import { BookOpen, Gavel, Loader2, Sparkles } from "lucide-react";
 
@@ -19,6 +22,20 @@ interface StartScreenProps {
   onGenerate: () => void;
   onRunJudgeDemo: () => void;
   isRunning: boolean;
+  llmStatus?: LlmStatus | null;
+}
+
+function heroSubtitle(providerChoice: ReturnType<typeof normalizeAiModel>["providerChoice"]): string {
+  const base =
+    "writing room that plans, writes, edits, audits, and packages your story.";
+  switch (providerChoice) {
+    case "openrouter-gemma":
+      return `Launch a Gemma-powered ${base}`;
+    case "google-gemini":
+      return `Launch a Gemini-powered ${base}`;
+    default:
+      return `Launch an AI-powered ${base}`;
+  }
 }
 
 export function StartScreen({
@@ -27,7 +44,10 @@ export function StartScreen({
   onGenerate,
   onRunJudgeDemo,
   isRunning,
+  llmStatus,
 }: StartScreenProps) {
+  const providerChoice = normalizeAiModel(settings.aiModel).providerChoice;
+
   return (
     <main className="flex-1 flex flex-col items-center justify-center px-4 py-16 sm:py-20 animate-fade-in">
       <div className="w-full max-w-[980px] space-y-10">
@@ -42,8 +62,7 @@ export function StartScreen({
             {LAUNCHER_TAGLINE}
           </p>
           <p className="text-sm sm:text-base text-[#94A3B8] max-w-2xl mx-auto leading-relaxed">
-            Launch a Gemma-powered writing room that plans, writes, edits, audits,
-            and packages your story.
+            {heroSubtitle(providerChoice)}
           </p>
           <AgentChainPreview className="pt-2" />
         </div>
@@ -70,6 +89,13 @@ export function StartScreen({
             disabled={isRunning}
             compact
             pill
+          />
+
+          <AiProviderSelector
+            settings={settings}
+            onSettingsChange={onSettingsChange}
+            disabled={isRunning}
+            llmStatus={llmStatus}
           />
 
           <StoryStructureFields
@@ -130,17 +156,32 @@ export function StartScreen({
           ))}
         </div>
 
-        <div className="surface-card premium-border rounded-xl p-5 text-center sm:text-left">
-          <p className="text-sm font-medium text-[#CBD5E1] flex items-center justify-center sm:justify-start gap-2">
-            <Sparkles className="size-4 text-[#F5C542]" />
-            Why Gemma 4?
-          </p>
-          <ul className="mt-3 text-xs text-[#94A3B8] space-y-1.5 list-disc pl-5 inline-block text-left">
-            <li>Structured JSON across nine specialized agents</li>
-            <li>Long-context story memory for continuity and foreshadowing</li>
-            <li>Reasoning-heavy audits, not a single completion call</li>
-          </ul>
-        </div>
+        {providerChoice === "openrouter-gemma" && (
+          <div className="surface-card premium-border rounded-xl p-5 text-center sm:text-left">
+            <p className="text-sm font-medium text-[#CBD5E1] flex items-center justify-center sm:justify-start gap-2">
+              <Sparkles className="size-4 text-[#F5C542]" />
+              Why Gemma 4?
+            </p>
+            <ul className="mt-3 text-xs text-[#94A3B8] space-y-1.5 list-disc pl-5 inline-block text-left">
+              <li>Structured JSON across nine specialized agents</li>
+              <li>Long-context story memory for continuity and foreshadowing</li>
+              <li>Reasoning-heavy audits, not a single completion call</li>
+            </ul>
+          </div>
+        )}
+
+        {providerChoice === "google-gemini" && (
+          <div className="surface-card premium-border rounded-xl p-5 text-center sm:text-left">
+            <p className="text-sm font-medium text-[#CBD5E1] flex items-center justify-center sm:justify-start gap-2">
+              <Sparkles className="size-4 text-[#F5C542]" />
+              Why Gemini?
+            </p>
+            <p className="mt-3 text-xs text-[#94A3B8] leading-relaxed">
+              Google AI Studio / Gemini offers stable long-context generation for
+              multi-agent story pipelines with structured JSON outputs.
+            </p>
+          </div>
+        )}
       </div>
     </main>
   );

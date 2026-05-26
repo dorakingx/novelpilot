@@ -1,4 +1,5 @@
 import { DEFAULT_GEMMA_MODEL } from "./gemma-model";
+import type { ProviderChoicesAvailable } from "./types";
 
 export type LlmProvider = "openrouter" | "google" | "custom";
 
@@ -175,7 +176,9 @@ export type LlmStatus = {
   fallbackProvider: LlmProvider | null;
   activeProvider: LlmProvider;
   model: string;
+  activeModel: string;
   fallbackModel: string | null;
+  providerChoicesAvailable: ProviderChoicesAvailable;
   primaryDisplayName: string;
   fallbackDisplayName: string | null;
   googleConfigured: boolean;
@@ -201,7 +204,14 @@ export function getLlmStatus(): LlmStatus {
     fallbackProvider,
     activeProvider: primaryProvider,
     model: primaryConfig.model,
+    activeModel: primaryConfig.model,
     fallbackModel: fallbackConfig?.model ?? null,
+    providerChoicesAvailable: {
+      googleGemini: isProviderConfigured("google"),
+      openRouterGemma: isProviderConfigured("openrouter"),
+      mock: true,
+      auto: true,
+    },
     primaryDisplayName: getProviderDisplayName(
       primaryProvider,
       primaryConfig.model

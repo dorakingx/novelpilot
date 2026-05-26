@@ -19,7 +19,7 @@ const lora = Lora({
 });
 
 const siteDescription =
-  "One prompt. Nine Gemma-powered agents. A complete story pipeline.";
+  "One prompt. Nine AI-powered agents. A complete story pipeline.";
 
 export const metadata: Metadata = {
   title: "NovelPilot",

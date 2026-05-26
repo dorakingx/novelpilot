@@ -118,6 +118,7 @@ export function AgentWorkspace({
               settings={settings}
               mockMode={mockMode}
               llmStatus={llmStatus}
+              projectAiModel={project.aiModel}
               isRunning={isRunning}
               projectComplete={projectComplete}
               canReadNovel={canReadNovel}

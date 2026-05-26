@@ -2,7 +2,10 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getSelectedModelDisplay } from "@/lib/ai-provider-options";
+import { isEffectiveDemoMode, normalizeAiModel } from "@/lib/ai-model-utils";
 import type { LlmStatus } from "@/lib/llm-config";
+import type { AiModelSettings } from "@/lib/types";
 import { Loader2, Radio } from "lucide-react";
 import { useCallback, useState } from "react";
 
@@ -19,12 +22,16 @@ type TestProviderResponse = {
 interface ProviderStatusPanelProps {
   llmStatus: LlmStatus | null;
   mockMode: boolean;
+  projectAiModel?: AiModelSettings;
 }
 
 export function ProviderStatusPanel({
   llmStatus,
   mockMode,
+  projectAiModel,
 }: ProviderStatusPanelProps) {
+  const ai = normalizeAiModel(projectAiModel);
+  const effectiveDemo = isEffectiveDemoMode(projectAiModel, mockMode);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestProviderResponse | null>(
     null
@@ -44,7 +51,7 @@ export function ProviderStatusPanel({
     }
   }, []);
 
-  if (mockMode || !llmStatus) {
+  if (effectiveDemo || !llmStatus) {
     return (
       <div className="rounded-xl border border-white/12 bg-[#172033] p-3 space-y-2">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -79,7 +86,13 @@ export function ProviderStatusPanel({
 
       <dl className="space-y-1.5 text-xs">
         <div>
-          <dt className="text-[#94A3B8]">Primary</dt>
+          <dt className="text-[#94A3B8]">Selected for this story</dt>
+          <dd className="text-[#E2E8F0] font-mono text-[11px] mt-0.5">
+            {getSelectedModelDisplay(ai)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[#94A3B8]">Server primary</dt>
           <dd className="text-[#E2E8F0] font-mono text-[11px] mt-0.5">
             {llmStatus.primaryDisplayName}
           </dd>

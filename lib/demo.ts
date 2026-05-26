@@ -11,6 +11,7 @@ export const JUDGE_DEMO_SETTINGS: ProjectSettings = {
   tone: "melancholic",
   targetLength: "short-story",
   structure: buildDefaultStructure("en", "short-3"),
+  aiModel: { providerChoice: "mock" },
 };
 
 export const JUDGE_DEMO_REQUIRES_STRUCTURE_APPROVAL = false;

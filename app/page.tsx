@@ -172,6 +172,9 @@ export default function Home() {
         provider={llmProvider}
         model={llmModel}
         llmStatus={llmStatus}
+        projectAiModel={
+          phase === "launcher" ? settings.aiModel : project?.aiModel
+        }
       />
 
       {phase === "launcher" ? (
@@ -181,6 +184,7 @@ export default function Home() {
           onGenerate={generateStory}
           onRunJudgeDemo={runJudgeDemo}
           isRunning={isRunning}
+          llmStatus={llmStatus}
         />
       ) : (
         <div className="animate-fade-in flex flex-col flex-1">

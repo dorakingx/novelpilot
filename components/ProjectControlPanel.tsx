@@ -12,7 +12,7 @@ import {
 import { computeTotalPlannedLength, formatLengthLabel } from "@/lib/length-planning";
 import { getPresetById } from "@/lib/structure-presets";
 import type { LlmStatus } from "@/lib/llm-config";
-import type { ProjectSettings, StoryProject } from "@/lib/types";
+import type { AiModelSettings, ProjectSettings, StoryProject } from "@/lib/types";
 import { FileText, Gavel, Plus, Square } from "lucide-react";
 
 interface ProjectControlPanelProps {
@@ -20,6 +20,7 @@ interface ProjectControlPanelProps {
   settings: ProjectSettings;
   mockMode: boolean;
   llmStatus?: LlmStatus | null;
+  projectAiModel?: AiModelSettings;
   isRunning: boolean;
   projectComplete: boolean;
   canReadNovel: boolean;
@@ -37,6 +38,7 @@ export function ProjectControlPanel({
   settings,
   mockMode,
   llmStatus = null,
+  projectAiModel,
   isRunning,
   projectComplete,
   canReadNovel,
@@ -105,7 +107,11 @@ export function ProjectControlPanel({
         )}
       </div>
 
-      <ProviderStatusPanel llmStatus={llmStatus} mockMode={mockMode} />
+      <ProviderStatusPanel
+        llmStatus={llmStatus}
+        mockMode={mockMode}
+        projectAiModel={projectAiModel}
+      />
 
       <div className="flex flex-col gap-2">
         {isRunning && (

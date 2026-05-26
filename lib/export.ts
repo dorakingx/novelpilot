@@ -292,7 +292,7 @@ export function buildDevDemoSummary(project: StoryProject): string {
   ).length;
 
   return [
-    `NovelPilot — Gemma 4 Multi-Agent Writing Room`,
+    `NovelPilot — AI Multi-Agent Writing Room`,
     ``,
     `Project: ${project.title}`,
     `Logline: ${logline}`,
@@ -303,7 +303,7 @@ export function buildDevDemoSummary(project: StoryProject): string {
     ``,
     `One prompt → story bible, custom part/chapter structure, complete multi-chapter short novel draft (chapter-by-chapter for long works), style edit, continuity audit, publisher package.`,
     ``,
-    `Gemma 4 acts as structured creative reasoning across agents—not just paragraph completion.`,
+    `AI agents provide structured creative reasoning across the pipeline—not just paragraph completion.`,
     `Demo: https://github.com/dorakingx/novelpilot`,
   ].join("\n");
 }

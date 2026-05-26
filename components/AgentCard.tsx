@@ -178,10 +178,10 @@ export function AgentCard({
                 {agent.fallbackProviderUsed && (
                   <Badge variant="outline" className="text-[10px] border-sky-500/40 text-sky-200">
                     {agent.fallbackProviderUsed === "google"
-                      ? "Used Google fallback"
+                      ? "Recovered using Gemini fallback"
                       : agent.fallbackProviderUsed === "openrouter"
-                        ? "Used OpenRouter fallback"
-                        : "Used provider fallback"}
+                        ? "Recovered using Gemma fallback"
+                        : "Recovered using provider fallback"}
                   </Badge>
                 )}
               </div>

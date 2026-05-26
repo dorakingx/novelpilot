@@ -50,6 +50,25 @@ export type AgentId =
 
 export type LlmProviderId = "openrouter" | "google" | "custom";
 
+export type AiProviderChoice =
+  | "auto"
+  | "openrouter-gemma"
+  | "google-gemini"
+  | "mock";
+
+export interface AiModelSettings {
+  providerChoice: AiProviderChoice;
+  provider?: LlmProviderId;
+  model?: string;
+}
+
+export interface ProviderChoicesAvailable {
+  googleGemini: boolean;
+  openRouterGemma: boolean;
+  mock: true;
+  auto: true;
+}
+
 export type ForeshadowingStatus = "planned" | "unresolved" | "paid-off";
 
 export interface ForeshadowingItem {
@@ -280,6 +299,7 @@ export interface StoryProject {
   requiresStructureApproval?: boolean;
   structureFallbackUsed?: boolean;
   draftingProgress?: DraftingProgress;
+  aiModel: AiModelSettings;
 }
 
 export interface ProjectSettings {
@@ -289,6 +309,7 @@ export interface ProjectSettings {
   tone: Tone;
   targetLength: TargetLength;
   structure: StoryStructureSettings;
+  aiModel: AiModelSettings;
 }
 
 export interface GenerateAgentRequest {

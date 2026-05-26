@@ -1,6 +1,6 @@
 import type { LlmProvider } from "./llm-config";
 import { isLowCreditMode } from "./llm-config";
-import type { AgentId, Language } from "./types";
+import type { AgentId, AiModelSettings, Language } from "./types";
 
 export type CallGemmaOptions = {
   signal?: AbortSignal;
@@ -10,6 +10,8 @@ export type CallGemmaOptions = {
   draftChapterNumber?: number;
   maxTokens?: number;
   provider?: LlmProvider;
+  model?: string;
+  projectAiModel?: AiModelSettings;
 };
 
 const OPENROUTER_LOW_CREDIT_LIMITS: Partial<Record<AgentId, number>> = {

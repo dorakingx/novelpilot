@@ -1,15 +1,21 @@
 import {
+  assertProviderConfigured,
+  resolveRequestProviders,
+  shouldUseMockForRequest,
+} from "./ai-provider-resolution";
+import {
   resolveMaxTokens,
   type CallGemmaOptions,
 } from "./agent-token-limits";
 import {
-  getFallbackProvider,
   getLlmStatus,
   getPrimaryProvider,
   getProviderConfig,
   hasAnyLiveProviderKey,
   type LlmProvider,
 } from "./llm-config";
+
+export { shouldUseMockForRequest } from "./ai-provider-resolution";
 import { getMockOutputAsJson } from "./mock-outputs";
 
 export type { CallGemmaOptions } from "./agent-token-limits";
@@ -251,12 +257,13 @@ async function callOpenRouter(
     throw new Error("OpenRouter API key is not configured");
   }
   const maxTokens = resolveMaxTokens(options, provider);
+  const model = options?.model ?? config.model;
   const response = await fetch(config.apiUrl, {
     method: "POST",
     headers: buildOpenRouterHeaders(config.apiKey),
     signal: options?.signal,
     body: JSON.stringify({
-      model: config.model,
+      model,
       messages: [
         { role: "system", content: SYSTEM_MESSAGE },
         { role: "user", content: prompt },
@@ -285,7 +292,8 @@ async function callGoogleOnce(
     throw new Error("Google AI API key is not configured");
   }
   const maxTokens = resolveMaxTokens(options, provider);
-  const url = `${config.apiUrl}/${config.model}:generateContent?key=${config.apiKey}`;
+  const model = options?.model ?? config.model;
+  const url = `${config.apiUrl}/${model}:generateContent?key=${config.apiKey}`;
 
   const generationConfig: Record<string, unknown> = {
     temperature: 0.8,
@@ -380,6 +388,7 @@ async function callCustomProvider(
     throw new Error("Custom provider is not configured (GEMMA_API_URL and API key required)");
   }
   const maxTokens = resolveMaxTokens(options, provider);
+  const model = options?.model ?? config.model;
   const response = await fetch(config.apiUrl, {
     method: "POST",
     headers: {
@@ -388,7 +397,7 @@ async function callCustomProvider(
     },
     signal: options?.signal,
     body: JSON.stringify({
-      model: config.model,
+      model,
       messages: [
         { role: "system", content: SYSTEM_MESSAGE },
         { role: "user", content: prompt },
@@ -449,7 +458,7 @@ export async function callGemma(
   prompt: string,
   options?: CallGemmaOptions
 ): Promise<CallGemmaResult> {
-  if (isMockMode()) {
+  if (shouldUseMockForRequest(options?.projectAiModel)) {
     if (options?.mockAgentId && options?.mockLanguage) {
       return {
         text: await getMockOutputAsJson(
@@ -468,12 +477,27 @@ export async function callGemma(
     };
   }
 
+  assertProviderConfigured(options?.projectAiModel);
+
   const forced = options?.provider;
-  const primary = forced ?? getPrimaryProvider();
-  const fallback = forced ? null : getFallbackProvider(primary);
+  const resolved = forced
+    ? {
+        primary: forced,
+        fallback: null as LlmProvider | null,
+        model: options?.model ?? getProviderConfig(forced).model,
+      }
+    : resolveRequestProviders(options?.projectAiModel);
+
+  const primary = resolved.primary;
+  const fallback = resolved.fallback;
+  const callOptions: CallGemmaOptions = {
+    ...options,
+    model: resolved.model,
+    provider: primary,
+  };
 
   try {
-    const text = await callProvider(primary, prompt, options);
+    const text = await callProvider(primary, prompt, callOptions);
     console.info("[LLM_PROVIDER]", {
       primary,
       fallback,
@@ -503,7 +527,12 @@ export async function callGemma(
     });
 
     try {
-      const text = await callProvider(fallback, prompt, options);
+      const fallbackOptions: CallGemmaOptions = {
+        ...callOptions,
+        provider: fallback,
+        model: getProviderConfig(fallback).model,
+      };
+      const text = await callProvider(fallback, prompt, fallbackOptions);
       console.info("[LLM_PROVIDER]", {
         primary,
         fallback,
