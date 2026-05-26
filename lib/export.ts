@@ -1,4 +1,4 @@
-import { buildCompleteManuscript } from "./format-manuscript";
+import { buildMarkdownManuscript } from "./format-manuscript";
 import { getAllChapters } from "./structure-utils";
 import type { ContinuityIssue, StoryProject } from "./types";
 
@@ -120,11 +120,15 @@ export function exportStoryBibleMarkdown(project: StoryProject): string {
 }
 
 export function exportManuscriptMarkdown(project: StoryProject): string {
-  const body = buildCompleteManuscript(project);
-  if (!body.trim()) {
+  const body = buildMarkdownManuscript(project);
+  if (!body.trim() || body.endsWith("_No draft yet._")) {
     return `# ${project.title}\n\n_No draft yet._`;
   }
-  return `# ${project.title}\n\n${body}`;
+  return body;
+}
+
+export function exportProjectJson(project: StoryProject): string {
+  return JSON.stringify(project, null, 2);
 }
 
 export function exportContinuityMarkdown(project: StoryProject): string {
@@ -276,10 +280,6 @@ export function buildDevDemoSummary(project: StoryProject): string {
     `AI agents provide structured creative reasoning across the pipeline—not just paragraph completion.`,
     `Demo: https://github.com/dorakingx/novelpilot`,
   ].join("\n");
-}
-
-export function exportProjectJson(project: StoryProject): string {
-  return JSON.stringify(project, null, 2);
 }
 
 export function downloadFile(

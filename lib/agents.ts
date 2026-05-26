@@ -142,6 +142,9 @@ export function createInitialProject(
     structureApproved: false,
     awaitingStructureApproval: false,
     aiModel: normalizeAiModel(settings.aiModel),
+    workflowStage: "launcher",
+    planningElements: [],
+    chapterDrafts: [],
   };
 }
 
@@ -184,7 +187,7 @@ function parseCharacter(raw: Record<string, unknown>): Character {
   };
 }
 
-function applyChapterDraftToBible(
+export function applyChapterDraftToBible(
   bible: StoryBible,
   chapterNumber: number,
   patch: {

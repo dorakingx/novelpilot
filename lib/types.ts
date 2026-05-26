@@ -113,6 +113,53 @@ export interface Chapter {
   draft?: string;
   chapterSummary?: string;
   continuityNotes?: string[];
+  needsRevision?: boolean;
+}
+
+export type WorkflowStage =
+  | "launcher"
+  | "planning"
+  | "drafting"
+  | "final";
+
+export type ChapterDraftStatus =
+  | "pending"
+  | "generating"
+  | "completed"
+  | "failed"
+  | "edited"
+  | "skipped";
+
+export interface ChapterDraftState {
+  chapterNumber: number;
+  partNumber?: number;
+  status: ChapterDraftStatus;
+  draft?: string;
+  preview?: string;
+  error?: string;
+  lastGeneratedAt?: string;
+  retryCount?: number;
+  actualLength?: number;
+  needsRevision?: boolean;
+}
+
+export type PlanningElementId =
+  | "concept"
+  | "characters"
+  | "worldbuilding"
+  | "plot"
+  | "structure"
+  | "styleGuide"
+  | "foreshadowing";
+
+export interface PlanningElementState {
+  id: PlanningElementId;
+  label: string;
+  status: "pending" | "generating" | "completed" | "failed" | "edited";
+  data: unknown;
+  error?: string;
+  lastGeneratedAt?: string;
+  fallbackUsed?: boolean;
 }
 
 export interface PartPlan {
@@ -300,6 +347,9 @@ export interface StoryProject {
   structureFallbackUsed?: boolean;
   draftingProgress?: DraftingProgress;
   aiModel: AiModelSettings;
+  workflowStage?: WorkflowStage;
+  planningElements?: PlanningElementState[];
+  chapterDrafts?: ChapterDraftState[];
 }
 
 export interface ProjectSettings {
@@ -329,6 +379,44 @@ export interface GenerateAgentResponse {
   autoRecovered?: boolean;
   providerUsed?: LlmProviderId;
   providerFallbackUsed?: LlmProviderId;
+}
+
+export interface GenerateChapterRequest {
+  project: StoryProject;
+  chapterNumber: number;
+  forceRegenerate?: boolean;
+}
+
+export interface GenerateChapterResponse {
+  chapterNumber: number;
+  title: string;
+  draft: string;
+  chapterSummary: string;
+  continuityNotes: string[];
+  mockMode?: boolean;
+}
+
+export interface RevisePlanRequest {
+  project: StoryProject;
+  instruction: string;
+}
+
+export interface RevisePlanResponse {
+  patch: Partial<StoryBible>;
+  explanation: string;
+  structureChanged?: boolean;
+}
+
+export interface ReviseChapterRequest {
+  project: StoryProject;
+  chapterNumber: number;
+  instruction: string;
+}
+
+export interface ReviseChapterResponse {
+  chapterNumber: number;
+  revisedDraft: string;
+  revisionSummary: string;
 }
 
 export const EMPTY_STORY_BIBLE: StoryBible = {

@@ -13,19 +13,25 @@ export function getProjectStatus(
   isRunning: boolean
 ): ProjectStatus {
   if (!project) return "Ready";
+  if (project.workflowStage === "planning" && !isRunning) {
+    if (project.agents.some((a) => a.status === "failed")) return "Failed";
+    return "Ready";
+  }
   if (project.awaitingStructureApproval && !isRunning) {
     return "Awaiting structure approval";
   }
   if (isRunning) return "Running";
   if (project.agents.some((a) => a.status === "failed")) return "Failed";
+  if (project.workflowStage === "final") return "Completed";
   if (project.agents.every((a) => a.status === "completed")) return "Completed";
   return "Ready";
 }
 
 export function isProjectComplete(project: StoryProject | null): boolean {
+  if (!project) return false;
+  if (project.workflowStage === "final") return hasManuscript(project);
   return Boolean(
-    project &&
-      hasManuscript(project) &&
+    hasManuscript(project) &&
       project.agents.length > 0 &&
       project.agents.every((agent) => agent.status === "completed")
   );

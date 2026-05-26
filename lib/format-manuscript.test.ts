@@ -139,6 +139,22 @@ describe("format-manuscript", () => {
     assert.match(manuscript, /P2C3/);
   });
 
+  it("buildCompleteManuscript with placeholders marks missing chapters", () => {
+    const parts = [
+      mkPart(1, [
+        mkChapter(1, 1, "Done."),
+        mkChapter(2, 1),
+        mkChapter(3, 1),
+      ]),
+    ];
+    const manuscript = buildCompleteManuscript(projectWithParts(parts), {
+      includePlaceholders: true,
+    });
+    assert.match(manuscript, /Done\./);
+    assert.match(manuscript, /\[Chapter 2 has not been generated yet\]/);
+    assert.match(manuscript, /\[Chapter 3 has not been generated yet\]/);
+  });
+
   it("mergeChapterDraftOutput preserves chapter 1 when merging chapter 2", () => {
     const parts = [
       mkPart(1, [

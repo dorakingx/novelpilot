@@ -47,6 +47,8 @@ interface CompletedNovelReaderProps {
   onDownloadPdf: () => void;
   onExportMarkdown?: () => void;
   isGeneratingPdf?: boolean;
+  /** When true, omits the workspace header (used inside Final Manuscript stage). */
+  embedded?: boolean;
 }
 
 export function CompletedNovelReader({
@@ -56,6 +58,7 @@ export function CompletedNovelReader({
   onDownloadPdf,
   onExportMarkdown,
   isGeneratingPdf = false,
+  embedded = false,
 }: CompletedNovelReaderProps) {
   const [theme, setTheme] = useState<ReaderTheme>("paper");
   const [fontSize, setFontSize] = useState<FontSize>("medium");
@@ -137,7 +140,13 @@ export function CompletedNovelReader({
   } as const;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#080B12]">
+    <div
+      className={cn(
+        "flex flex-col bg-[#080B12]",
+        embedded ? "flex-1" : "min-h-screen"
+      )}
+    >
+      {!embedded && (
       <header className="no-print sticky top-0 z-10 border-b border-white/12 bg-[#111827]/95 backdrop-blur-sm px-3 sm:px-4 py-2.5 sm:py-3">
         <div className="mx-auto max-w-[860px] flex flex-wrap items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-2 shrink-0">
@@ -193,6 +202,7 @@ export function CompletedNovelReader({
           </div>
         </div>
       </header>
+      )}
 
       <div className="no-print mx-auto max-w-[820px] w-full px-4 sm:px-8 py-4">
         <div className="flex flex-wrap gap-2">
