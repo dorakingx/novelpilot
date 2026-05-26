@@ -293,6 +293,7 @@ export interface GenerateAgentResponse {
   manuscript?: string;
   reports?: Partial<ProjectReports>;
   mockMode: boolean;
+  fallbackUsed?: boolean;
 }
 
 export const EMPTY_STORY_BIBLE: StoryBible = {

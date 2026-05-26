@@ -11,6 +11,7 @@ import {
   createInitialProject,
   getAgentIndex,
   markAgentAutoRecovered,
+  markAgentFallbackUsed,
   mergeAgentOutput,
   mergeChapterDraftOutput,
   resetFromAgent,
@@ -163,6 +164,10 @@ export function useStoryProject() {
         );
         setMockMode(data.mockMode);
         current = mergeAgentOutput(current, agentId, data.output);
+        if (data.fallbackUsed) {
+          current = markAgentFallbackUsed(current, agentId);
+          current = { ...current, structureFallbackUsed: true };
+        }
         current = clearAgentRetryState(current, agentId);
         if (hadRetriesRef.value) {
           current = markAgentAutoRecovered(current, agentId);

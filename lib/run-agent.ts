@@ -1,10 +1,16 @@
 import { buildAgentContext } from "./agents";
+import { logAgentTiming } from "./agent-timing";
+import {
+  buildChapterArchitectPrompt,
+  buildChapterArchitectRetryPrompt,
+} from "./chapter-architect-context";
+import { buildFallbackChapterOutline } from "./chapter-outline-fallback";
 import {
   callGemmaWithTimeout,
   getModel,
   getProvider,
   isMockMode,
-  parseJsonFromLlm,
+  parseJsonWithTimeout,
 } from "./gemma";
 import { normalizeChapterOutlineOutput } from "./normalize-chapter-outline";
 import { getMockOutput } from "./mock-outputs";
@@ -13,9 +19,12 @@ import { shouldUseSequentialDrafting } from "./structure-utils";
 import { buildAgentPrompt, buildChapterDraftPrompt } from "./prompts";
 import type { AgentId, StoryProject } from "./types";
 
-export const AGENT_TIMEOUT_MS = 60_000;
-const MAX_RAW_RESPONSE_CHARS = 200_000;
-const MAX_RETRY_RAW_CHARS = 50_000;
+export const AGENT_TIMEOUT_MS = 45_000;
+export const CHAPTER_OUTLINE_LLM_TIMEOUT_MS = 40_000;
+const JSON_PARSE_TIMEOUT_MS = 5_000;
+export const MAX_RAW_RESPONSE_CHARS = 80_000;
+export const MAX_CHAPTER_OUTLINE_CHARS = 30_000;
+const MAX_RETRY_RAW_CHARS = 30_000;
 
 const JSON_RETRY_INSTRUCTION = `Your previous response was not valid JSON.
 Return ONLY valid JSON.
@@ -44,6 +53,14 @@ function logParseError(
 }
 
 function guardRawSize(agentId: AgentId, raw: string): void {
+  if (agentId === "chapter-outline") {
+    if (raw.length > MAX_CHAPTER_OUTLINE_CHARS) {
+      throw new Error(
+        `Agent "chapter-outline" returned too much text (${raw.length} chars). Reduce chapter count or structure complexity.`
+      );
+    }
+    return;
+  }
   if (raw.length > MAX_RAW_RESPONSE_CHARS) {
     throw new Error(
       `Agent "${agentId}" returned too much text (${raw.length} chars). Please reduce chapter count or chapter lengths.`
@@ -72,8 +89,35 @@ function throwParseError(agentId: AgentId, raw: string, cause?: unknown): never 
 
 function throwTimeoutError(agentId: AgentId): never {
   throw new Error(
-    `Agent "${agentId}" timed out after ${AGENT_TIMEOUT_MS / 1000} seconds. Try reducing chapter count or chapter length.`
+    `Agent "${agentId}" timed out after ${AGENT_TIMEOUT_MS / 1000} seconds before Vercel timeout. Try reducing structure complexity.`
   );
+}
+
+async function runAgentWithTimeout<T>(
+  agentId: AgentId,
+  fn: () => Promise<T>
+): Promise<T> {
+  const startedAt = Date.now();
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      fn(),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`Agent "${agentId}" timed out after ${AGENT_TIMEOUT_MS / 1000} seconds`));
+        }, AGENT_TIMEOUT_MS);
+      }),
+    ]);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("timed out")) {
+      logAgentTiming(agentId, "agent_timeout", startedAt);
+      throwTimeoutError(agentId);
+    }
+    throw err;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 async function callLiveGemma(
@@ -81,12 +125,13 @@ async function callLiveGemma(
   agentId: AgentId,
   signal: AbortSignal | undefined,
   language: StoryProject["language"],
-  draftChapterNumber?: number
+  draftChapterNumber?: number,
+  llmTimeoutMs = AGENT_TIMEOUT_MS
 ): Promise<string> {
   try {
     return await callGemmaWithTimeout(prompt, {
       signal,
-      timeoutMs: AGENT_TIMEOUT_MS,
+      timeoutMs: llmTimeoutMs,
       mockAgentId: agentId,
       mockLanguage: language,
       agentId,
@@ -101,16 +146,24 @@ async function callLiveGemma(
   }
 }
 
-function parseAgentJson(
+async function parseAgentJsonAsync(
   agentId: AgentId,
   raw: string,
-  project: StoryProject
-): unknown {
+  project: StoryProject,
+  startedAt: number
+): Promise<unknown> {
   guardRawSize(agentId, raw);
+  logAgentTiming(agentId, "before_parse_json", startedAt, {
+    rawLength: raw.length,
+  });
   try {
-    const parsed = parseJsonFromLlm(raw);
+    const parsed = await parseJsonWithTimeout(raw, JSON_PARSE_TIMEOUT_MS);
+    logAgentTiming(agentId, "after_parse_json", startedAt);
     if (agentId === "chapter-outline") {
-      return normalizeChapterOutlineOutput(parsed, project);
+      logAgentTiming(agentId, "before_normalize", startedAt);
+      const normalized = normalizeChapterOutlineOutput(parsed, project);
+      logAgentTiming(agentId, "after_normalize", startedAt);
+      return normalized;
     }
     return parsed;
   } catch (firstErr) {
@@ -128,6 +181,7 @@ async function callAndParseAgentJson(
   signal?: AbortSignal,
   draftChapterNumber?: number
 ): Promise<unknown> {
+  const startedAt = Date.now();
   let raw = await callLiveGemma(
     prompt,
     agentId,
@@ -135,9 +189,12 @@ async function callAndParseAgentJson(
     project.language,
     draftChapterNumber
   );
+  logAgentTiming(agentId, "openrouter_response_received", startedAt, {
+    rawLength: raw.length,
+  });
 
   try {
-    return parseAgentJson(agentId, raw, project);
+    return await parseAgentJsonAsync(agentId, raw, project, startedAt);
   } catch (firstErr) {
     if (raw.length > MAX_RETRY_RAW_CHARS) {
       logParseError(agentId, raw, firstErr);
@@ -152,10 +209,81 @@ async function callAndParseAgentJson(
         project.language,
         draftChapterNumber
       );
-      return parseAgentJson(agentId, raw, project);
+      logAgentTiming(agentId, "openrouter_response_received_retry", startedAt, {
+        rawLength: raw.length,
+      });
+      return await parseAgentJsonAsync(agentId, raw, project, startedAt);
     } catch (retryErr) {
       throwParseError(agentId, raw, retryErr);
     }
+  }
+}
+
+function logChapterOutlineFallback(reason: string, project: StoryProject): void {
+  console.warn("[CHAPTER_OUTLINE_FALLBACK]", {
+    reason,
+    partCount: project.structure.partCount,
+    totalChapters: project.structure.totalChapterCount,
+  });
+}
+
+async function runChapterOutlineAgent(
+  project: StoryProject,
+  signal?: AbortSignal
+): Promise<unknown> {
+  const agentId = "chapter-outline" as const;
+  const startedAt = Date.now();
+  const prompt = buildChapterArchitectPrompt(project);
+
+  const attemptParse = async (raw: string): Promise<unknown> => {
+    logAgentTiming(agentId, "openrouter_response_received", startedAt, {
+      rawLength: raw.length,
+    });
+    return parseAgentJsonAsync(agentId, raw, project, startedAt);
+  };
+
+  try {
+    let raw = await callLiveGemma(
+      prompt,
+      agentId,
+      signal,
+      project.language,
+      undefined,
+      CHAPTER_OUTLINE_LLM_TIMEOUT_MS
+    );
+    try {
+      return await attemptParse(raw);
+    } catch {
+      if (raw.length > MAX_CHAPTER_OUTLINE_CHARS) {
+        logChapterOutlineFallback("oversize_first_response", project);
+        return buildFallbackChapterOutline(project);
+      }
+
+      try {
+        raw = await callLiveGemma(
+          buildChapterArchitectRetryPrompt(project),
+          agentId,
+          signal,
+          project.language,
+          undefined,
+          CHAPTER_OUTLINE_LLM_TIMEOUT_MS
+        );
+        return await attemptParse(raw);
+      } catch (retryErr) {
+        logParseError(agentId, raw, retryErr);
+        logChapterOutlineFallback(
+          retryErr instanceof Error ? retryErr.message : "parse_retry_failed",
+          project
+        );
+        return buildFallbackChapterOutline(project);
+      }
+    }
+  } catch (err) {
+    logChapterOutlineFallback(
+      err instanceof Error ? err.message : "llm_or_timeout",
+      project
+    );
+    return buildFallbackChapterOutline(project);
   }
 }
 
@@ -165,12 +293,6 @@ export async function runAgent(
   signal?: AbortSignal,
   draftChapterNumber?: number
 ): Promise<unknown> {
-  const context = buildAgentContext(project, agentId);
-  const prompt =
-    agentId === "drafting" && draftChapterNumber != null
-      ? buildChapterDraftPrompt(project, draftChapterNumber)
-      : buildAgentPrompt(agentId, context);
-
   if (isMockMode()) {
     await new Promise((r) => setTimeout(r, 600));
     if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -180,7 +302,25 @@ export async function runAgent(
     });
   }
 
-  return callAndParseAgentJson(agentId, prompt, project, signal, draftChapterNumber);
+  return runAgentWithTimeout(agentId, async () => {
+    if (agentId === "chapter-outline") {
+      return runChapterOutlineAgent(project, signal);
+    }
+
+    const context = buildAgentContext(project, agentId);
+    const prompt =
+      agentId === "drafting" && draftChapterNumber != null
+        ? buildChapterDraftPrompt(project, draftChapterNumber)
+        : buildAgentPrompt(agentId, context);
+
+    return callAndParseAgentJson(
+      agentId,
+      prompt,
+      project,
+      signal,
+      draftChapterNumber
+    );
+  });
 }
 
 export function shouldRunSequentialDraft(project: StoryProject): boolean {

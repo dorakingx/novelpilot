@@ -36,8 +36,7 @@ const CHAPTER_OUTLINE_SCHEMA = `{
     "pov": "string",
     "tense": "string",
     "proseStyle": "string",
-    "dialogueNotes": "string",
-    "taboos": []
+    "dialogueNotes": "string"
   },
   "foreshadowingTracker": [
     {
@@ -145,7 +144,7 @@ Approximate chapter length preset: ${chapterLengthPreset}. Treat each chapter's 
 ${hasUserPlans ? `Preserve each chapter's lengthPlan.targetLength from structure.parts when provided; they are approximate targets.` : `Assign sensible per-chapter lengthPlan values in ${unit} consistent with preset ${chapterLengthPreset}.`}
 User prompt for title and tone cues: ${userPrompt.slice(0, 500)}
 Keep the outline compact. Do not write scene prose here. Use short phrases, not paragraphs. Each chapter purpose, emotionalTurn, and key event should be concise. Save long prose for the Prose Writer.
-Keep every field concise. Do not write prose. Do not include long explanations. Do not include markdown. Limit foreshadowingTracker to max 4 items. Each string under 180 characters. Return only valid JSON.
+Keep every field concise. Do not write prose. Do not include scene text. Do not include long explanations. Do not include markdown. Limit foreshadowingTracker to max 4 items. Each string under 140 characters. No paragraphs. Valid JSON only. Chapter titles should be short. Chapter purposes should be one sentence.
 ${lang}`;
 }
 

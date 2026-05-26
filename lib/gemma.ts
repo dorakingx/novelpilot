@@ -136,6 +136,21 @@ export function parseJsonFromLlm(text: string): unknown {
   return JSON.parse(jsonStr);
 }
 
+export async function parseJsonWithTimeout(
+  raw: string,
+  timeoutMs = 5000
+): Promise<unknown> {
+  return await Promise.race([
+    Promise.resolve().then(() => parseJsonFromLlm(raw)),
+    new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error("JSON parsing timed out")),
+        timeoutMs
+      )
+    ),
+  ]);
+}
+
 function extractGoogleText(data: unknown): string {
   const d = data as {
     candidates?: Array<{

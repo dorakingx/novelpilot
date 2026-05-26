@@ -1,4 +1,5 @@
 import { mergeAgentOutput } from "@/lib/agents";
+import { logAgentTiming } from "@/lib/agent-timing";
 import { formatLiveGenerationError } from "@/lib/format-generation-error";
 import { getLlmConfig, isMockMode } from "@/lib/gemma";
 import { runAgent } from "@/lib/run-agent";
@@ -12,6 +13,7 @@ export const maxDuration = 60;
 
 export async function POST(request: Request) {
   let agentId: AgentId | undefined;
+  const requestStartedAt = Date.now();
   try {
     const body = (await request.json()) as GenerateAgentRequest;
     agentId = body.agentId as AgentId;
@@ -24,13 +26,26 @@ export async function POST(request: Request) {
       );
     }
 
+    logAgentTiming(agentId, "request_start", requestStartedAt);
+
+    logAgentTiming(agentId, "before_runAgent", requestStartedAt);
     const output = await runAgent(
       project,
       agentId as AgentId,
       request.signal,
       draftChapterNumber
     );
+    logAgentTiming(agentId, "after_runAgent", requestStartedAt);
+
+    const fallbackUsed =
+      agentId === "chapter-outline" &&
+      typeof output === "object" &&
+      output !== null &&
+      Boolean((output as Record<string, unknown>).fallbackGenerated);
+
+    logAgentTiming(agentId, "before_mergeAgentOutput", requestStartedAt);
     const updated = mergeAgentOutput(project, agentId as AgentId, output);
+    logAgentTiming(agentId, "after_mergeAgentOutput", requestStartedAt);
 
     const response: GenerateAgentResponse = {
       agentId: agentId as AgentId,
@@ -39,6 +54,7 @@ export async function POST(request: Request) {
       manuscript: updated.manuscript,
       reports: updated.reports,
       mockMode: isMockMode(),
+      fallbackUsed: fallbackUsed || undefined,
     };
 
     return Response.json(response);

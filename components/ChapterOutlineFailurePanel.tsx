@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { isChapterOutlineTimeoutError } from "@/lib/format-generation-error";
 import { AlertTriangle, ArrowLeft, RefreshCw, Wand2 } from "lucide-react";
 
 interface ChapterOutlineFailurePanelProps {
@@ -18,6 +19,9 @@ export function ChapterOutlineFailurePanel({
   onUseFallback,
   onReturnToStructureSettings,
 }: ChapterOutlineFailurePanelProps) {
+  const isTimeout =
+    errorMessage != null && isChapterOutlineTimeoutError(errorMessage);
+
   return (
     <div className="rounded-2xl border border-amber-500/35 bg-amber-500/10 p-5 space-y-4">
       <div className="flex items-start gap-3">
@@ -27,10 +31,9 @@ export function ChapterOutlineFailurePanel({
             Chapter Architect failed
           </h3>
           <p className="text-sm text-[#CBD5E1] leading-relaxed">
-            Chapter Architect failed after automatic retries. This often happens
-            when the requested structure is too large or the model returned prose
-            instead of JSON. Try reducing chapter count, use fallback structure,
-            or retry manually.
+            {isTimeout
+              ? "Chapter Architect timed out while building the story structure. NovelPilot can use a safe fallback structure so you can continue."
+              : "Chapter Architect failed after automatic retries. This often happens when the requested structure is too large or the model returned prose instead of JSON. Try reducing chapter count, use fallback structure, or retry manually."}
           </p>
           {errorMessage && (
             <p className="text-xs text-amber-200/90 font-mono break-words">
@@ -47,7 +50,7 @@ export function ChapterOutlineFailurePanel({
           onClick={onRetryAndContinue}
         >
           <RefreshCw className="size-3.5 mr-1.5" />
-          Retry and Continue
+          Retry with smaller structure
         </Button>
         <Button
           variant="glass"

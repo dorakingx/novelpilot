@@ -15,8 +15,23 @@ const CHAPTER_OUTLINE_ERROR_PATTERNS = [
   /malformed large response/i,
   /too much text/i,
   /timed out after/i,
+  /json parsing timed out/i,
   /could not be applied/i,
+  /before vercel timeout/i,
 ];
+
+const CHAPTER_OUTLINE_TIMEOUT_MESSAGE =
+  "Chapter Architect timed out while building the story structure. NovelPilot can use a safe fallback structure so you can continue.";
+
+export function isChapterOutlineTimeoutError(raw: string): boolean {
+  const lower = raw.toLowerCase();
+  return (
+    lower.includes("timed out") &&
+    (lower.includes("chapter-outline") ||
+      lower.includes("chapter architect") ||
+      lower.includes("before vercel timeout"))
+  );
+}
 
 export function isChapterOutlineGenerationError(raw: string): boolean {
   return CHAPTER_OUTLINE_ERROR_PATTERNS.some((re) => re.test(raw));
@@ -56,6 +71,12 @@ export function formatLiveGenerationError(
 ): string {
   if (isOpenRouter402MaxTokensError(raw)) {
     return OPENROUTER_402_MAX_TOKENS_MESSAGE;
+  }
+  if (
+    agentId === "chapter-outline" &&
+    isChapterOutlineTimeoutError(raw)
+  ) {
+    return CHAPTER_OUTLINE_TIMEOUT_MESSAGE;
   }
   if (agentId === "chapter-outline" && isChapterOutlineGenerationError(raw)) {
     return formatChapterOutlineError(raw, provider, model);

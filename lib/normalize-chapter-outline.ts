@@ -1,13 +1,11 @@
+import { buildChapterArchitectSkeleton } from "./chapter-architect-context";
 import {
   flattenPartsToChapters,
-  generateStructureId,
-  parseChapterFromRaw,
   parsePartFromRaw,
-  wrapChaptersInSinglePart,
 } from "./structure-utils";
 import type { Chapter, PartPlan, StoryProject } from "./types";
 
-const MAX_STRING_LEN = 180;
+export const MAX_STRING_LEN = 140;
 const MAX_KEY_EVENTS = 3;
 const MAX_FORESHADOWING = 2;
 const MAX_TRACKER_ITEMS = 4;
@@ -23,40 +21,6 @@ function trimStringArray(value: unknown, maxItems: number): string[] {
     .map((v) => trimStr(v))
     .filter(Boolean)
     .slice(0, maxItems);
-}
-
-function normalizeChapterRaw(
-  ch: Record<string, unknown>,
-  partNumber: number
-): Record<string, unknown> {
-  return {
-    id: ch.id != null ? String(ch.id) : generateStructureId("ch"),
-    number: Number(ch.number ?? 0),
-    partNumber: ch.partNumber != null ? Number(ch.partNumber) : partNumber,
-    title: trimStr(ch.title) || `Chapter ${ch.number ?? ""}`,
-    role: ch.role != null ? trimStr(ch.role) : undefined,
-    purpose: trimStr(ch.purpose),
-    emotionalTurn: trimStr(ch.emotionalTurn),
-    keyEvents: trimStringArray(ch.keyEvents, MAX_KEY_EVENTS),
-    foreshadowing: trimStringArray(ch.foreshadowing, MAX_FORESHADOWING),
-    lengthPlan: ch.lengthPlan,
-  };
-}
-
-function normalizePartRaw(part: Record<string, unknown>): Record<string, unknown> {
-  const partNumber = Number(part.number ?? 0);
-  const chaptersRaw = Array.isArray(part.chapters) ? part.chapters : [];
-  return {
-    id: part.id != null ? String(part.id) : generateStructureId("part"),
-    number: partNumber,
-    title: trimStr(part.title) || `Part ${partNumber}`,
-    purpose: trimStr(part.purpose),
-    targetLength:
-      part.targetLength != null ? Number(part.targetLength) : undefined,
-    chapters: chaptersRaw.map((ch) =>
-      normalizeChapterRaw(ch as Record<string, unknown>, partNumber)
-    ),
-  };
 }
 
 function chapterToJson(ch: Chapter): Record<string, unknown> {
@@ -85,6 +49,66 @@ function partToJson(part: PartPlan): Record<string, unknown> {
   };
 }
 
+function findParsedChapter(
+  parsed: Record<string, unknown>,
+  partNumber: number,
+  chapterNumber: number
+): Record<string, unknown> | undefined {
+  const parts = Array.isArray(parsed.parts) ? parsed.parts : [];
+  for (const part of parts) {
+    const p = part as Record<string, unknown>;
+    if (Number(p.number) !== partNumber) continue;
+    const chapters = Array.isArray(p.chapters) ? p.chapters : [];
+    for (const ch of chapters) {
+      const row = ch as Record<string, unknown>;
+      if (Number(row.number) === chapterNumber) return row;
+    }
+  }
+  const flat = Array.isArray(parsed.chapters) ? parsed.chapters : [];
+  for (const ch of flat) {
+    const row = ch as Record<string, unknown>;
+    if (Number(row.number) === chapterNumber) return row;
+  }
+  return undefined;
+}
+
+export function mergeOutlineFillIntoSkeleton(
+  skeleton: PartPlan[],
+  parsed: Record<string, unknown>
+): PartPlan[] {
+  return skeleton.map((part) => {
+    const parsedPart = (Array.isArray(parsed.parts) ? parsed.parts : []).find(
+      (p) => Number((p as Record<string, unknown>).number) === part.number
+    ) as Record<string, unknown> | undefined;
+
+    return {
+      ...part,
+      title: trimStr(parsedPart?.title) || part.title,
+      purpose: trimStr(parsedPart?.purpose) || part.purpose,
+      chapters: part.chapters.map((ch) => {
+        const fill =
+          findParsedChapter(parsed, part.number, ch.number) ??
+          (parsedPart
+            ? (Array.isArray(parsedPart.chapters) ? parsedPart.chapters : [])
+                .map((c) => c as Record<string, unknown>)
+                .find((c) => Number(c.number) === ch.number)
+            : undefined);
+
+        return {
+          ...ch,
+          title: trimStr(fill?.title) || ch.title,
+          role: fill?.role != null ? trimStr(fill.role) : ch.role,
+          purpose: trimStr(fill?.purpose) || ch.purpose,
+          emotionalTurn: trimStr(fill?.emotionalTurn) || ch.emotionalTurn,
+          keyEvents: trimStringArray(fill?.keyEvents, MAX_KEY_EVENTS),
+          foreshadowing: trimStringArray(fill?.foreshadowing, MAX_FORESHADOWING),
+          lengthPlan: ch.lengthPlan,
+        };
+      }),
+    };
+  });
+}
+
 export function normalizeChapterOutlineOutput(
   raw: unknown,
   project: StoryProject
@@ -95,29 +119,11 @@ export function normalizeChapterOutlineOutput(
     unknown
   >;
 
-  const partsRaw = Array.isArray(o.parts)
-    ? (o.parts as Record<string, unknown>[]).map(normalizePartRaw)
-    : [];
-
-  const flatRaw = Array.isArray(o.chapters)
-    ? (o.chapters as Record<string, unknown>[]).map((ch) => {
-        const partNum = ch.partNumber != null ? Number(ch.partNumber) : 1;
-        return normalizeChapterRaw(ch, partNum);
-      })
-    : [];
-
-  let parsedParts: PartPlan[] =
-    partsRaw.length > 0
-      ? partsRaw.map((p) => parsePartFromRaw(p, language))
-      : [];
-
-  if (parsedParts.length === 0 && flatRaw.length > 0) {
-    const chapters = flatRaw.map((ch) =>
-      parseChapterFromRaw(ch, language)
-    );
-    parsedParts = wrapChaptersInSinglePart(chapters);
-  }
-
+  const skeleton = buildChapterArchitectSkeleton(project);
+  const mergedParts = mergeOutlineFillIntoSkeleton(skeleton, o);
+  const parsedParts = mergedParts.map((p) =>
+    parsePartFromRaw(partToJson(p) as Record<string, unknown>, language)
+  );
   const flatChapters = flattenPartsToChapters(parsedParts);
 
   const foreshadowingTracker = Array.isArray(o.foreshadowingTracker)

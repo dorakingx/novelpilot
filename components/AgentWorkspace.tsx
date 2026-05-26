@@ -12,7 +12,7 @@ import { ReadNovelButton } from "@/components/ReadNovelButton";
 import { ChapterOutlineFailurePanel } from "@/components/ChapterOutlineFailurePanel";
 import { StructureDesigner } from "@/components/StructureDesigner";
 import { Button } from "@/components/ui/button";
-import { Info, Play } from "lucide-react";
+import { AlertTriangle, Info, Play } from "lucide-react";
 import { StoryBiblePreview } from "@/components/StoryBiblePreview";
 import { StoryStructurePanel } from "@/components/StoryStructurePanel";
 import type { PartPlan } from "@/lib/types";
@@ -132,13 +132,25 @@ export function AgentWorkspace({
               Writing room
             </p>
             {project.awaitingStructureApproval && !isRunning && (
-              <div className="rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 py-3 flex items-start gap-3">
-                <Info className="size-5 text-[#38BDF8] shrink-0 mt-0.5" />
-                <p className="text-sm text-[#CBD5E1]">
-                  Structure is ready. Review and approve to continue — this pause
-                  is intentional, not an error.
-                </p>
-              </div>
+              <>
+                {project.structureFallbackUsed && (
+                  <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 flex items-start gap-3">
+                    <AlertTriangle className="size-5 text-amber-400 shrink-0 mt-0.5" />
+                    <p className="text-sm text-[#CBD5E1]">
+                      Fallback structure used. You can edit it before drafting.
+                      Chapter Architect returned invalid structure, so NovelPilot
+                      used a safe editable structure.
+                    </p>
+                  </div>
+                )}
+                <div className="rounded-2xl border border-[#38BDF8]/30 bg-[#38BDF8]/10 px-4 py-3 flex items-start gap-3">
+                  <Info className="size-5 text-[#38BDF8] shrink-0 mt-0.5" />
+                  <p className="text-sm text-[#CBD5E1]">
+                    Structure is ready. Review and approve to continue — this pause
+                    is intentional, not an error.
+                  </p>
+                </div>
+              </>
             )}
             {showContinuePipeline && onContinuePipeline && (
               <div className="flex justify-end">
