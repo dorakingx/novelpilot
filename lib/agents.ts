@@ -4,6 +4,7 @@ import {
   buildCompleteManuscript,
   buildManuscriptFromProject,
 } from "./format-manuscript";
+import { normalizeAgentOutput } from "./normalize-agent-output";
 import { parseContinuityReport, parseForeshadowingItems } from "./parse-agent-output";
 import { syncStructureTotal } from "./length-planning";
 import { presetToTargetLength } from "./structure-chapter-defaults";
@@ -329,7 +330,8 @@ export function mergeAgentOutput(
   let bible: StoryBible = { ...project.storyBible };
   let manuscript = project.manuscript;
   const reports: ProjectReports = { ...project.reports };
-  const o = output as Record<string, unknown>;
+  const normalized = normalizeAgentOutput(agentId, output, project);
+  const o = normalized as Record<string, unknown>;
 
   switch (agentId) {
     case "concept": {

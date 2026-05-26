@@ -50,6 +50,13 @@ const CHAPTER_OUTLINE_SCHEMA = `{
   ]
 }`;
 
+export const COMPACT_JSON_RULES = `Return valid JSON only. No markdown, no explanations, no comments.
+Use short sentences for string values. Close all quotes and braces. JSON keys stay in English; creative values use the project language.`;
+
+export function getAgentSchema(agentId: AgentId): string {
+  return SCHEMAS[agentId];
+}
+
 const SCHEMAS: Record<AgentId, string> = {
   concept: `{
   "logline": "short string",
@@ -200,21 +207,20 @@ export function buildAgentPrompt(
   const agentInstructions: Record<AgentId, string> = {
     concept: `You are the Premise Architect in NovelPilot, a multi-agent writing room.
 From the user prompt and project settings, create a compelling story concept.
-Return a compact JSON object only.
-Do not write paragraphs.
-Do not include markdown.
-Do not include explanations.
-Each value must be one short sentence.
-The entire JSON response must be under 700 characters.
-Finish the JSON object completely.
-Close all quotes and braces.
+Each value must be one short sentence. Entire JSON under 700 characters.
+${COMPACT_JSON_RULES}
 ${lang}`,
     character: `You are the Character Director. Using the concept output, create rich characters.
+supporting array: maximum 2 characters. Entire JSON response under 1500 characters.
+${COMPACT_JSON_RULES}
 ${lang}`,
     worldbuilding: `You are the World Builder. Using concept and characters, build the story world.
+locations and symbols: maximum 3 strings each. Keep every field to one short sentence.
+${COMPACT_JSON_RULES}
 ${lang}`,
     plot: `You are the Plot Strategist. Structure a complete plot from concept, characters, and world.
-Optionally include foreshadowingTracker seeds (status: planned).
+twists and foreshadowingPlan: maximum 3 strings each. Optionally include foreshadowingTracker seeds (status: planned).
+${COMPACT_JSON_RULES}
 ${lang}`,
     "chapter-outline": chapterOutlineInstructions(context),
     drafting: `You are the Prose Writer. Write full prose fiction for EVERY chapter in the chapter outline. Do not summarize. Each chapter must be an actual scene-based chapter with dialogue, atmosphere, emotional progression, and narrative momentum. Maintain continuity across chapters. Return all chapter drafts and a combined completeManuscript.
@@ -222,12 +228,17 @@ Use the existing chapter outline exactly. Write one draft per chapter. The numbe
 For each chapter, treat lengthPlan as approximate pacing guidance (±20% acceptable). Japanese targets use non-whitespace character count; English targets use word count. Do not truncate mid-scene for an exact count. Respect role, purpose, and emotionalTurn. Do not use project-level total length as the primary guide.
 ${lang}`,
     editor: `You are the Style Editor. Critique the complete manuscript against the story bible. Consider pacing across chapters, dialogue, emotional arc, prose style, and ending payoff. Be specific and constructive.
+Each array field: maximum 4 short strings.
+${COMPACT_JSON_RULES}
 ${lang}`,
     continuity: `You are the Continuity Detective. Audit the complete manuscript against characters, plot, chapter outline, and foreshadowingTracker.
 Check continuity across all chapters, unresolved foreshadowing, missing payoffs, inconsistent character behavior, timeline issues, and whether the ending resolves the central conflict.
-Return structured issues with category, severity, evidence, and suggestedFix. Include overallDiagnosis and missingPayoffs.
+Return structured issues with category, severity, evidence, and suggestedFix. issues array: maximum 6 items. Include overallDiagnosis and missingPayoffs.
+${COMPACT_JSON_RULES}
 ${lang}`,
     publisher: `You are the Publisher Agent. Create marketing and submission package from the completed manuscript and story bible.
+titleIdeas: maximum 3. Keep summaries to 2 sentences each.
+${COMPACT_JSON_RULES}
 ${lang}`,
   };
 

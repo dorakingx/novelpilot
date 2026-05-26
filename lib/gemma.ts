@@ -307,7 +307,7 @@ async function callGoogleOnce(
   const url = `${config.apiUrl}/${model}:generateContent?key=${config.apiKey}`;
 
   const generationConfig: Record<string, unknown> = {
-    temperature: 0.4,
+    temperature: options?.agentId === "drafting" ? 0.7 : 0.4,
     maxOutputTokens: maxTokens,
     topP: 0.9,
   };

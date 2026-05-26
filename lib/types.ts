@@ -326,6 +326,7 @@ export interface GenerateAgentResponse {
   reports?: Partial<ProjectReports>;
   mockMode: boolean;
   fallbackUsed?: boolean;
+  autoRecovered?: boolean;
   providerUsed?: LlmProviderId;
   providerFallbackUsed?: LlmProviderId;
 }

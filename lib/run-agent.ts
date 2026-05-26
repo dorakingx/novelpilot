@@ -1,6 +1,10 @@
 import { buildAgentContext } from "./agents";
 import { logAgentTiming } from "./agent-timing";
 import {
+  buildFallbackAgentOutput,
+} from "./agent-fallbacks";
+import { buildCompactRetryPrompt } from "./agent-retry-prompts";
+import {
   enforcePromptBudget,
   logPromptSize,
 } from "./prompt-budget";
@@ -8,11 +12,6 @@ import {
   buildChapterArchitectPrompt,
   buildChapterArchitectRetryPrompt,
 } from "./chapter-architect-context";
-import { buildFallbackChapterOutline } from "./chapter-outline-fallback";
-import {
-  buildConceptRetryPrompt,
-  buildFallbackConcept,
-} from "./concept-fallback";
 import {
   callGemmaWithTimeout,
   parseJsonWithTimeout,
@@ -33,10 +32,20 @@ export type RunAgentResult = {
   providerUsed?: LlmProviderId;
   providerFallbackUsed?: LlmProviderId;
   fallbackUsed?: boolean;
+  autoRecovered?: boolean;
 };
 
 function toProviderId(provider: LlmProvider): LlmProviderId {
   return provider;
+}
+
+function withRecoveryFlags(
+  result: Omit<RunAgentResult, "autoRecovered"> & { fallbackUsed?: boolean }
+): RunAgentResult {
+  return {
+    ...result,
+    autoRecovered: Boolean(result.fallbackUsed),
+  };
 }
 
 export const AGENT_TIMEOUT_MS = 45_000;
@@ -45,13 +54,6 @@ const JSON_PARSE_TIMEOUT_MS = 5_000;
 export const MAX_RAW_RESPONSE_CHARS = 80_000;
 export const MAX_CHAPTER_OUTLINE_CHARS = 30_000;
 const MAX_RETRY_RAW_CHARS = 30_000;
-
-const JSON_RETRY_INSTRUCTION = `Your previous response was not valid JSON.
-Return ONLY valid JSON.
-Do not include markdown.
-Do not include explanations.
-Do not include comments.
-Use the exact schema from the prompt.`;
 
 const HARD_PROVIDER_ERROR_PATTERNS = [
   "402",
@@ -73,10 +75,6 @@ function isHardProviderError(error: unknown): boolean {
   return HARD_PROVIDER_ERROR_PATTERNS.some((p) => message.includes(p));
 }
 
-function previewRaw(raw: string, max = 200): string {
-  return raw.replace(/\s+/g, " ").trim().slice(0, max);
-}
-
 function logParseError(
   agentId: AgentId,
   raw: string,
@@ -90,6 +88,15 @@ function logParseError(
     rawLength: raw.length,
     rawPreview: raw.slice(0, 500),
     error: cause instanceof Error ? cause.message : String(cause),
+  });
+}
+
+function logAgentFallback(agentId: AgentId, reason: string, project: StoryProject): void {
+  console.warn("[AGENT_FALLBACK]", {
+    agentId,
+    reason,
+    language: project.language,
+    promptLength: project.userPrompt.length,
   });
 }
 
@@ -114,23 +121,6 @@ function largeMalformedMessage(agentId: AgentId): string {
     return "Chapter Architect returned a malformed large response. Try reducing the structure size.";
   }
   return `Agent "${agentId}" returned a malformed large response. Try reducing the request size.`;
-}
-
-function throwParseError(
-  agentId: AgentId,
-  raw: string,
-  cause?: unknown,
-  context?: { provider?: LlmProvider; model?: string }
-): never {
-  logParseError(agentId, raw, cause, context);
-  const provider = context?.provider ?? "unknown";
-  const model = context?.model ?? "unknown";
-  const preview = previewRaw(raw);
-  const hint =
-    cause instanceof Error ? cause.message : "Invalid JSON structure";
-  throw new Error(
-    `Agent "${agentId}" failed to parse JSON (provider: ${provider}, model: ${model}). ${hint}. Response preview: "${preview}${raw.length > 200 ? "…" : ""}"`
-  );
 }
 
 function throwTimeoutError(agentId: AgentId): never {
@@ -228,266 +218,126 @@ async function parseAgentJsonAsync(
   }
 }
 
-async function callAndParseAgentJson(
-  agentId: AgentId,
-  prompt: string,
-  project: StoryProject,
-  requestAiModel: StoryProject["aiModel"],
-  signal?: AbortSignal,
-  draftChapterNumber?: number
+type ExecuteAgentRecoveryOptions = {
+  agentId: AgentId;
+  project: StoryProject;
+  requestAiModel: StoryProject["aiModel"];
+  signal?: AbortSignal;
+  draftChapterNumber?: number;
+  buildPrompt: () => string;
+  buildRetryPrompt: () => string;
+  llmTimeoutMs?: number;
+  oversizeFirstResponseLimit?: number;
+  allowLocalFallbackOnLlmError?: boolean;
+};
+
+async function executeAgentWithRecovery(
+  options: ExecuteAgentRecoveryOptions
 ): Promise<RunAgentResult> {
-  const startedAt = Date.now();
-  let llmResult = await callLiveGemma(
-    prompt,
+  const {
     agentId,
-    project.language,
+    project,
     requestAiModel,
     signal,
-    draftChapterNumber
-  );
-  let raw = llmResult.text;
-  logAgentTiming(agentId, "llm_response_received", startedAt, {
-    rawLength: raw.length,
-    providerUsed: llmResult.providerUsed,
-    usedProviderFallback: llmResult.usedProviderFallback,
-  });
+    draftChapterNumber,
+    buildPrompt,
+    buildRetryPrompt,
+    llmTimeoutMs = AGENT_TIMEOUT_MS,
+    oversizeFirstResponseLimit = MAX_RETRY_RAW_CHARS,
+    allowLocalFallbackOnLlmError = true,
+  } = options;
 
-  try {
-    const output = await parseAgentJsonAsync(agentId, raw, project, startedAt);
-    return {
-      output,
-      providerUsed: toProviderId(llmResult.providerUsed),
-      providerFallbackUsed: llmResult.usedProviderFallback
-        ? toProviderId(llmResult.providerUsed)
-        : undefined,
-    };
-  } catch (firstErr) {
-    if (raw.length > MAX_RETRY_RAW_CHARS) {
-      logParseError(agentId, raw, firstErr, {
-        provider: llmResult.providerUsed,
-        model: llmResult.modelUsed,
-      });
-      throw new Error(largeMalformedMessage(agentId));
-    }
-
-    try {
-      llmResult = await callLiveGemma(
-        `${prompt}\n\n${JSON_RETRY_INSTRUCTION}`,
-        agentId,
-        project.language,
-        requestAiModel,
-        signal,
-        draftChapterNumber
-      );
-      raw = llmResult.text;
-      logAgentTiming(agentId, "llm_response_received_retry", startedAt, {
-        rawLength: raw.length,
-        providerUsed: llmResult.providerUsed,
-      });
-      const output = await parseAgentJsonAsync(agentId, raw, project, startedAt);
-      return {
-        output,
-        providerUsed: toProviderId(llmResult.providerUsed),
-        providerFallbackUsed: llmResult.usedProviderFallback
-          ? toProviderId(llmResult.providerUsed)
-          : undefined,
-      };
-    } catch (retryErr) {
-      throwParseError(agentId, raw, retryErr, {
-        provider: llmResult.providerUsed,
-        model: llmResult.modelUsed,
-      });
-    }
-  }
-}
-
-function logChapterOutlineFallback(reason: string, project: StoryProject): void {
-  console.warn("[CHAPTER_OUTLINE_FALLBACK]", {
-    reason,
-    partCount: project.structure.partCount,
-    totalChapters: project.structure.totalChapterCount,
-  });
-}
-
-function logConceptFallback(reason: string, project: StoryProject): void {
-  console.warn("[CONCEPT_FALLBACK]", {
-    reason,
-    language: project.language,
-    promptLength: project.userPrompt.length,
-  });
-}
-
-async function runConceptAgent(
-  project: StoryProject,
-  requestAiModel: StoryProject["aiModel"],
-  signal?: AbortSignal
-): Promise<RunAgentResult> {
-  const agentId = "concept" as const;
   const startedAt = Date.now();
-  const conceptContext = buildAgentContext(project, agentId);
-  const prompt = buildAgentPrompt(agentId, conceptContext);
+  const providerMeta = (llmResult: CallGemmaResult) => ({
+    providerUsed: toProviderId(llmResult.providerUsed),
+    providerFallbackUsed: llmResult.usedProviderFallback
+      ? toProviderId(llmResult.providerUsed)
+      : undefined,
+  });
 
-  try {
-    let llmResult = await callLiveGemma(
-      prompt,
-      agentId,
-      project.language,
-      requestAiModel,
-      signal
-    );
-    let raw = llmResult.text;
-    try {
-      const output = await parseAgentJsonAsync(agentId, raw, project, startedAt);
-      return {
-        output,
-        providerUsed: toProviderId(llmResult.providerUsed),
-        providerFallbackUsed: llmResult.usedProviderFallback
-          ? toProviderId(llmResult.providerUsed)
-          : undefined,
-      };
-    } catch {
-      if (raw.length > MAX_RETRY_RAW_CHARS) {
-        logConceptFallback("oversize_first_response", project);
-        return {
-          output: buildFallbackConcept(project),
-          fallbackUsed: true,
-          providerUsed: toProviderId(llmResult.providerUsed),
-          providerFallbackUsed: llmResult.usedProviderFallback
-            ? toProviderId(llmResult.providerUsed)
-            : undefined,
-        };
-      }
-
-      try {
-        llmResult = await callLiveGemma(
-          buildConceptRetryPrompt(project),
-          agentId,
-          project.language,
-          requestAiModel,
-          signal
-        );
-        raw = llmResult.text;
-        const output = await parseAgentJsonAsync(agentId, raw, project, startedAt);
-        return {
-          output,
-          providerUsed: toProviderId(llmResult.providerUsed),
-          providerFallbackUsed: llmResult.usedProviderFallback
-            ? toProviderId(llmResult.providerUsed)
-            : undefined,
-        };
-      } catch (retryErr) {
-        logParseError(agentId, raw, retryErr, {
-          provider: llmResult.providerUsed,
-          model: llmResult.modelUsed,
-        });
-        logConceptFallback(
-          retryErr instanceof Error ? retryErr.message : "parse_retry_failed",
-          project
-        );
-        return {
-          output: buildFallbackConcept(project),
-          fallbackUsed: true,
-          providerUsed: toProviderId(llmResult.providerUsed),
-          providerFallbackUsed: llmResult.usedProviderFallback
-            ? toProviderId(llmResult.providerUsed)
-            : undefined,
-        };
-      }
-    }
-  } catch (err) {
-    if (isHardProviderError(err)) {
-      throw err;
-    }
-    logConceptFallback(
-      err instanceof Error ? err.message : "llm_or_timeout",
-      project
-    );
-    return { output: buildFallbackConcept(project), fallbackUsed: true };
-  }
-}
-
-async function runChapterOutlineAgent(
-  project: StoryProject,
-  requestAiModel: StoryProject["aiModel"],
-  signal?: AbortSignal
-): Promise<RunAgentResult> {
-  const agentId = "chapter-outline" as const;
-  const startedAt = Date.now();
-  const prompt = buildChapterArchitectPrompt(project);
-
-  const attemptParse = async (raw: string): Promise<unknown> => {
-    logAgentTiming(agentId, "openrouter_response_received", startedAt, {
-      rawLength: raw.length,
+  const localFallback = (llmResult?: CallGemmaResult, reason?: string): RunAgentResult => {
+    if (reason) logAgentFallback(agentId, reason, project);
+    return withRecoveryFlags({
+      output: buildFallbackAgentOutput(agentId, project),
+      fallbackUsed: true,
+      ...(llmResult ? providerMeta(llmResult) : {}),
     });
-    return parseAgentJsonAsync(agentId, raw, project, startedAt);
   };
 
   try {
     let llmResult = await callLiveGemma(
-      prompt,
+      buildPrompt(),
       agentId,
       project.language,
       requestAiModel,
       signal,
-      undefined,
-      CHAPTER_OUTLINE_LLM_TIMEOUT_MS
+      draftChapterNumber,
+      llmTimeoutMs
     );
     let raw = llmResult.text;
+    logAgentTiming(agentId, "llm_response_received", startedAt, {
+      rawLength: raw.length,
+      providerUsed: llmResult.providerUsed,
+      usedProviderFallback: llmResult.usedProviderFallback,
+    });
+
     try {
-      const output = await attemptParse(raw);
-      return {
+      const output = await parseAgentJsonAsync(agentId, raw, project, startedAt);
+      return withRecoveryFlags({
         output,
-        providerUsed: toProviderId(llmResult.providerUsed),
-        providerFallbackUsed: llmResult.usedProviderFallback
-          ? toProviderId(llmResult.providerUsed)
-          : undefined,
-      };
-    } catch {
-      if (raw.length > MAX_CHAPTER_OUTLINE_CHARS) {
-        logChapterOutlineFallback("oversize_first_response", project);
-        return { output: buildFallbackChapterOutline(project) };
+        ...providerMeta(llmResult),
+      });
+    } catch (firstErr) {
+      if (raw.length > oversizeFirstResponseLimit) {
+        logParseError(agentId, raw, firstErr, {
+          provider: llmResult.providerUsed,
+          model: llmResult.modelUsed,
+        });
+        return localFallback(llmResult, "oversize_first_response");
       }
 
       try {
         llmResult = await callLiveGemma(
-          buildChapterArchitectRetryPrompt(project),
+          buildRetryPrompt(),
           agentId,
           project.language,
           requestAiModel,
           signal,
-          undefined,
-          CHAPTER_OUTLINE_LLM_TIMEOUT_MS
+          draftChapterNumber,
+          llmTimeoutMs
         );
         raw = llmResult.text;
-        const output = await attemptParse(raw);
-        return {
+        logAgentTiming(agentId, "llm_response_received_retry", startedAt, {
+          rawLength: raw.length,
+          providerUsed: llmResult.providerUsed,
+        });
+        const output = await parseAgentJsonAsync(agentId, raw, project, startedAt);
+        return withRecoveryFlags({
           output,
-          providerUsed: toProviderId(llmResult.providerUsed),
-          providerFallbackUsed: llmResult.usedProviderFallback
-            ? toProviderId(llmResult.providerUsed)
-            : undefined,
-        };
+          ...providerMeta(llmResult),
+        });
       } catch (retryErr) {
         logParseError(agentId, raw, retryErr, {
           provider: llmResult.providerUsed,
           model: llmResult.modelUsed,
         });
-        logChapterOutlineFallback(
-          retryErr instanceof Error ? retryErr.message : "parse_retry_failed",
-          project
+        return localFallback(
+          llmResult,
+          retryErr instanceof Error ? retryErr.message : "parse_retry_failed"
         );
-        return { output: buildFallbackChapterOutline(project) };
       }
     }
   } catch (err) {
     if (isHardProviderError(err)) {
       throw err;
     }
-    logChapterOutlineFallback(
-      err instanceof Error ? err.message : "llm_or_timeout",
-      project
+    if (!allowLocalFallbackOnLlmError) {
+      throw err;
+    }
+    return localFallback(
+      undefined,
+      err instanceof Error ? err.message : "llm_or_timeout"
     );
-    return { output: buildFallbackChapterOutline(project) };
   }
 }
 
@@ -511,11 +361,17 @@ export async function runAgent(
   }
 
   return runAgentWithTimeout<RunAgentResult>(agentId, async () => {
-    if (agentId === "concept") {
-      return runConceptAgent(project, requestAiModel, signal);
-    }
     if (agentId === "chapter-outline") {
-      return runChapterOutlineAgent(project, requestAiModel, signal);
+      return executeAgentWithRecovery({
+        agentId,
+        project,
+        requestAiModel,
+        signal,
+        llmTimeoutMs: CHAPTER_OUTLINE_LLM_TIMEOUT_MS,
+        oversizeFirstResponseLimit: MAX_CHAPTER_OUTLINE_CHARS,
+        buildPrompt: () => buildChapterArchitectPrompt(project),
+        buildRetryPrompt: () => buildChapterArchitectRetryPrompt(project),
+      });
     }
 
     const context = buildAgentContext(project, agentId);
@@ -524,14 +380,15 @@ export async function runAgent(
         ? buildChapterDraftPrompt(project, draftChapterNumber)
         : buildAgentPrompt(agentId, context);
 
-    return callAndParseAgentJson(
+    return executeAgentWithRecovery({
       agentId,
-      prompt,
       project,
       requestAiModel,
       signal,
-      draftChapterNumber
-    );
+      draftChapterNumber,
+      buildPrompt: () => prompt,
+      buildRetryPrompt: () => buildCompactRetryPrompt(agentId, project),
+    });
   });
 }
 

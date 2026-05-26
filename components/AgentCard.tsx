@@ -2,7 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CONCEPT_FALLBACK_RECOVERY_MESSAGE } from "@/lib/concept-fallback";
+import { AGENT_FALLBACK_RECOVERY_MESSAGE } from "@/lib/agent-fallbacks";
 import { getAgentIcon } from "@/lib/agent-icons";
 import type { AgentId, AgentStep, DraftingProgress } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -249,12 +249,10 @@ export function AgentCard({
                   <span>{draftWarning}</span>
                 </p>
               )}
-              {agent.id === "concept" &&
-                agent.fallbackUsed &&
-                agent.status === "completed" && (
+              {agent.fallbackUsed && agent.status === "completed" && (
                   <p className="flex items-start gap-1.5 text-xs text-amber-300/90 mt-2">
                     <AlertTriangle className="size-3.5 shrink-0 mt-0.5" />
-                    <span>{CONCEPT_FALLBACK_RECOVERY_MESSAGE}</span>
+                    <span>{AGENT_FALLBACK_RECOVERY_MESSAGE}</span>
                   </p>
                 )}
             </div>
