@@ -28,6 +28,10 @@ import {
   JUDGE_DEMO_SETTINGS,
 } from "./demo";
 import { formatLiveGenerationError } from "./format-generation-error";
+import {
+  getChapterDraftCoverage,
+  rebuildProjectManuscript,
+} from "./format-manuscript";
 import { distributeLength, syncStructureTotal } from "./length-planning";
 import {
   applyFallbackChapterOutlineToProject,
@@ -305,6 +309,7 @@ export function useStoryProject() {
         try {
           const { data } = await runDraftingCall(current);
           current = mergeAgentOutput(current, "drafting", data.output);
+          current = rebuildProjectManuscript(current);
           current = clearAgentRetryState(current, "drafting");
           setProject({ ...current });
           return current;
@@ -396,14 +401,20 @@ export function useStoryProject() {
         }
       }
 
+      const coverage = getChapterDraftCoverage(current);
+      current = rebuildProjectManuscript(current);
+      const draftingComplete =
+        coverage.expected > 0 && coverage.drafted >= coverage.expected;
       const now = new Date().toISOString();
       const agents = current.agents.map((agent) =>
         agent.id === "drafting"
           ? {
               ...agent,
-              status: "completed" as const,
+              status: draftingComplete
+                ? ("completed" as const)
+                : ("running" as const),
               output: { chapters: draftOutputs },
-              completedAt: now,
+              completedAt: draftingComplete ? now : undefined,
               error: undefined,
               retryCount: undefined,
               lastRetryError: undefined,
@@ -417,9 +428,12 @@ export function useStoryProject() {
           currentChapter: total,
           totalChapters: total,
           completedChapters: [...completedChapters],
-          status: "completed",
+          status: draftingComplete ? "completed" : "failed",
           maxRetries: policy.maxRetries,
-          warning: longChapterWarning,
+          warning: coverage.warning ?? longChapterWarning,
+          failedChapter: draftingComplete
+            ? undefined
+            : current.draftingProgress?.currentChapter,
         },
         updatedAt: now,
       };

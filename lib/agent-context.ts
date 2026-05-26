@@ -1,4 +1,7 @@
-import { buildManuscriptFromProject } from "./format-manuscript";
+import {
+  buildCompleteManuscript,
+  getDraftedChapters,
+} from "./format-manuscript";
 import { isLowCreditMode } from "./llm-config";
 import { compactUserPrompt } from "./prompt-budget";
 import { getAllChapters } from "./structure-utils";
@@ -419,9 +422,10 @@ function chapterSummariesList(
 }
 
 function manuscriptText(project: StoryProject): string {
-  const fromProject = project.manuscript?.trim();
-  if (fromProject) return fromProject;
-  return buildManuscriptFromProject(project);
+  if (getDraftedChapters(project).length > 0) {
+    return buildCompleteManuscript(project);
+  }
+  return project.manuscript?.trim() ?? "";
 }
 
 export function sliceExcerpt(text: string, maxChars: number): string {

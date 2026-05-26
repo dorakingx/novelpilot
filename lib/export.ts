@@ -1,5 +1,4 @@
-import { estimateTextLength } from "./length-planning";
-import { getDraftedChapters } from "./format-manuscript";
+import { buildCompleteManuscript } from "./format-manuscript";
 import { getAllChapters } from "./structure-utils";
 import type { ContinuityIssue, StoryProject } from "./types";
 
@@ -121,40 +120,11 @@ export function exportStoryBibleMarkdown(project: StoryProject): string {
 }
 
 export function exportManuscriptMarkdown(project: StoryProject): string {
-  const drafted = getDraftedChapters(project);
-  const parts = project.storyBible.parts ?? [];
-  const lines: string[] = [`# ${project.title}`, ""];
-
-  const appendChapter = (ch: (typeof drafted)[0]) => {
-    const target = ch.lengthPlan?.targetLength;
-    const unit = ch.lengthPlan?.unit ?? project.structure.lengthUnit;
-    const meta =
-      target != null
-        ? `_Target: ${target} ${unit}${
-            ch.draft
-              ? ` · Actual: ${estimateTextLength(ch.draft, unit)} ${unit}_`
-              : ""
-          }_\n\n`
-        : "";
-    lines.push(`## Chapter ${ch.number}: ${ch.title}`, "", meta, ch.draft!, "");
-  };
-
-  if (parts.length > 0) {
-    for (const part of parts) {
-      lines.push(`# Part ${part.number}: ${part.title}`, "");
-      for (const ch of part.chapters.filter((c) => c.draft?.trim())) {
-        appendChapter(ch);
-      }
-    }
-  } else if (drafted.length > 0) {
-    for (const ch of drafted) {
-      appendChapter(ch);
-    }
-  } else {
-    lines.push(project.manuscript || "_No draft yet._");
+  const body = buildCompleteManuscript(project);
+  if (!body.trim()) {
+    return `# ${project.title}\n\n_No draft yet._`;
   }
-
-  return lines.join("\n");
+  return `# ${project.title}\n\n${body}`;
 }
 
 export function exportContinuityMarkdown(project: StoryProject): string {

@@ -1,4 +1,4 @@
-import { buildCompleteManuscript } from "./format-manuscript";
+import { buildCompleteManuscriptFromDrafts } from "./format-manuscript";
 import type { AgentId, ChapterDraft, ForeshadowingItem, Language } from "./types";
 
 const DRAFTING_CHAPTERS_EN: ChapterDraft[] = [
@@ -341,7 +341,7 @@ const MOCK_EN: Record<AgentId, unknown> = {
   },
   drafting: {
     chapters: DRAFTING_CHAPTERS_EN,
-    completeManuscript: buildCompleteManuscript(DRAFTING_CHAPTERS_EN),
+    completeManuscript: buildCompleteManuscriptFromDrafts(DRAFTING_CHAPTERS_EN),
   },
   editor: {
     strengths: [
@@ -547,7 +547,7 @@ const MOCK_JA: Record<AgentId, unknown> = {
   },
   drafting: {
     chapters: DRAFTING_CHAPTERS_JA,
-    completeManuscript: buildCompleteManuscript(DRAFTING_CHAPTERS_JA),
+    completeManuscript: buildCompleteManuscriptFromDrafts(DRAFTING_CHAPTERS_JA),
   },
   editor: {
     strengths: [

@@ -1,3 +1,4 @@
+import { hasManuscript } from "./format-manuscript";
 import type { StoryProject } from "./types";
 
 export type ProjectStatus =
@@ -24,12 +25,12 @@ export function getProjectStatus(
 export function isProjectComplete(project: StoryProject | null): boolean {
   return Boolean(
     project &&
-      project.manuscript?.trim() &&
+      hasManuscript(project) &&
       project.agents.length > 0 &&
       project.agents.every((agent) => agent.status === "completed")
   );
 }
 
 export function canReadNovel(project: StoryProject | null): boolean {
-  return Boolean(project?.manuscript?.trim());
+  return hasManuscript(project);
 }

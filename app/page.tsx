@@ -8,6 +8,7 @@ import { StartScreen } from "@/components/StartScreen";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { downloadFile, exportFullDemoMarkdown } from "@/lib/export";
+import { rebuildProjectManuscript } from "@/lib/format-manuscript";
 import { downloadNovelPdf } from "@/lib/print-novel-pdf";
 import {
   canReadNovel,
@@ -128,7 +129,7 @@ export default function Home() {
       return;
     }
     setIsGeneratingPdf(true);
-    downloadNovelPdf(project);
+    downloadNovelPdf(rebuildProjectManuscript(project));
     setTimeout(() => setIsGeneratingPdf(false), 600);
   }, [phase, project]);
 

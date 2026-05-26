@@ -82,7 +82,14 @@ export function syncPartsAndChapters(
     ...part,
     chapters: part.chapters.map((ch) => {
       const flat = chaptersByNumber.get(ch.number);
-      return flat ? { ...flat, ...ch, id: flat.id ?? ch.id } : ch;
+      return flat
+        ? {
+            ...ch,
+            ...flat,
+            draft: flat.draft?.trim() ? flat.draft : ch.draft,
+            id: flat.id ?? ch.id,
+          }
+        : ch;
     }),
   }));
 

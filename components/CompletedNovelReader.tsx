@@ -8,6 +8,8 @@ import {
   formatLengthLabel,
 } from "@/lib/length-planning";
 import {
+  buildCompleteManuscript,
+  countRenderedChapters,
   getChapterTitle,
   getDraftedChapters,
   splitManuscriptParagraphs,
@@ -61,11 +63,11 @@ export function CompletedNovelReader({
 
   const isJa = project.language === "ja";
   const draftedChapters = getDraftedChapters(project);
-  const partsWithDrafts =
-    project.storyBible.parts?.filter((p) =>
-      p.chapters.some((c) => c.draft?.trim())
-    ) ?? [];
+  const partsWithDrafts = [...(project.storyBible.parts ?? [])]
+    .filter((p) => p.chapters.some((c) => c.draft?.trim()))
+    .sort((a, b) => a.number - b.number);
   const useParts = partsWithDrafts.length > 0;
+  const sortedDraftedChapters = [...draftedChapters];
   const subtitle = getChapterTitle(project);
   const unit = project.structure?.lengthUnit ?? (isJa ? "characters" : "words");
 
@@ -83,12 +85,26 @@ export function CompletedNovelReader({
   };
 
   const handleCopy = useCallback(async () => {
-    const ok = await copyToClipboard(project.manuscript);
+    const ok = await copyToClipboard(buildCompleteManuscript(project));
     if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  }, [project.manuscript]);
+  }, [project]);
+
+  useEffect(() => {
+    const draftedChapterCount = getDraftedChapters(project).length;
+    const renderedChapterCount = countRenderedChapters(project);
+    if (
+      draftedChapterCount > 0 &&
+      renderedChapterCount < draftedChapterCount
+    ) {
+      console.warn("[READER_CHAPTER_MISMATCH]", {
+        draftedChapterCount,
+        renderedChapterCount,
+      });
+    }
+  }, [project]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -327,8 +343,9 @@ export function CompletedNovelReader({
               </p>
               <ul className="mt-2 text-sm space-y-1">
                 {(useParts ? partsWithDrafts : []).flatMap((part) =>
-                  part.chapters
+                  [...part.chapters]
                     .filter((c) => c.draft?.trim())
+                    .sort((a, b) => a.number - b.number)
                     .map((ch) => (
                       <li key={ch.number}>
                         {isJa
@@ -338,7 +355,7 @@ export function CompletedNovelReader({
                     ))
                 )}
                 {!useParts &&
-                  draftedChapters.map((ch) => (
+                  sortedDraftedChapters.map((ch) => (
                     <li key={ch.number}>
                       {isJa
                         ? `第${ch.number}章 ${ch.title}`
@@ -374,8 +391,9 @@ export function CompletedNovelReader({
                         : `Part ${romanPart(part.number)}: ${part.title}`}
                     </h2>
                   </section>
-                  {part.chapters
+                  {[...part.chapters]
                     .filter((c) => c.draft?.trim())
+                    .sort((a, b) => a.number - b.number)
                     .map((ch, chIndex) => (
                       <section
                         key={ch.number}
@@ -437,8 +455,8 @@ export function CompletedNovelReader({
                     ))}
                 </div>
               ))
-            ) : draftedChapters.length > 0 ? (
-              draftedChapters.map((ch, index) => (
+            ) : sortedDraftedChapters.length > 0 ? (
+              sortedDraftedChapters.map((ch, index) => (
                 <section
                   key={ch.number}
                   id={`reader-chapter-${ch.number}`}
@@ -471,7 +489,7 @@ export function CompletedNovelReader({
                 className={cn(proseClass, "space-y-6 sm:space-y-8")}
                 style={proseStyle}
               >
-                {splitManuscriptParagraphs(project.manuscript).map(
+                {splitManuscriptParagraphs(buildCompleteManuscript(project)).map(
                   (para, i) => (
                     <p key={i}>{para}</p>
                   )

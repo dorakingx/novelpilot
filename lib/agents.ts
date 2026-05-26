@@ -2,8 +2,9 @@ import { normalizeAiModel } from "./ai-model-utils";
 import { buildAgentContextForId } from "./agent-context";
 import {
   buildCompleteManuscript,
-  buildManuscriptFromProject,
+  rebuildProjectManuscript,
 } from "./format-manuscript";
+import { getAllChapters } from "./structure-utils";
 import { normalizeAgentOutput } from "./normalize-agent-output";
 import { parseContinuityReport, parseForeshadowingItems } from "./parse-agent-output";
 import { syncStructureTotal } from "./length-planning";
@@ -183,8 +184,50 @@ function parseCharacter(raw: Record<string, unknown>): Character {
   };
 }
 
+function applyChapterDraftToBible(
+  bible: StoryBible,
+  chapterNumber: number,
+  patch: {
+    draft: string;
+    title?: string;
+    chapterSummary?: string;
+    continuityNotes?: string[];
+  }
+): StoryBible {
+  const updateChapter = (ch: Chapter): Chapter =>
+    ch.number === chapterNumber
+      ? {
+          ...ch,
+          draft: patch.draft,
+          title: patch.title ?? ch.title,
+          chapterSummary: patch.chapterSummary ?? ch.chapterSummary,
+          continuityNotes: patch.continuityNotes ?? ch.continuityNotes,
+        }
+      : ch;
+
+  const flatChapters =
+    bible.chapters.length > 0
+      ? bible.chapters.map(updateChapter)
+      : flattenPartsToChapters(bible.parts).map(updateChapter);
+
+  const synced = syncPartsAndChapters(
+    bible.parts?.length ? bible.parts : wrapChaptersInSinglePart(flatChapters),
+    flatChapters
+  );
+
+  return { ...bible, parts: synced.parts, chapters: synced.chapters };
+}
+
+function manuscriptForBible(
+  project: StoryProject,
+  bible: StoryBible
+): string {
+  return buildCompleteManuscript({ ...project, storyBible: bible });
+}
+
 function parseDraftingOutput(
   o: Record<string, unknown>,
+  project: StoryProject,
   bible: StoryBible
 ): { manuscript: string; bible: StoryBible; title?: string } {
   if (Array.isArray(o.chapters) && o.chapters.length > 0) {
@@ -201,9 +244,10 @@ function parseDraftingOutput(
 
     const draftByNumber = new Map(drafts.map((d) => [d.number, d]));
 
+    const outlineChapters = getAllChapters({ ...project, storyBible: bible });
     const chapters: Chapter[] =
-      bible.chapters.length > 0
-        ? bible.chapters.map((ch) => {
+      outlineChapters.length > 0
+        ? outlineChapters.map((ch) => {
             const d = draftByNumber.get(ch.number);
             if (d) {
               return {
@@ -224,49 +268,37 @@ function parseDraftingOutput(
             draft: d.draft,
           }));
 
-    const completeFromOutput = String(o.completeManuscript ?? "").trim();
     const synced = syncPartsAndChapters(
       bible.parts?.length ? bible.parts : wrapChaptersInSinglePart(chapters),
       chapters
     );
-    const manuscript =
-      completeFromOutput ||
-      buildCompleteManuscript(
-        synced.chapters
-          .filter((c) => c.draft?.trim())
-          .map((c) => ({
-            number: c.number,
-            title: c.title,
-            draft: c.draft!,
-            partNumber: c.partNumber,
-          })),
-        synced.parts
-      );
+    const nextBible = { ...bible, parts: synced.parts, chapters: synced.chapters };
+    const manuscript = manuscriptForBible(project, nextBible);
 
     const title = drafts[0]?.title;
     return {
       manuscript,
-      bible: { ...bible, parts: synced.parts, chapters: synced.chapters },
+      bible: nextBible,
       title,
     };
   }
 
+  const number = Number(o.number ?? 1);
   const draft = String(o.draft ?? "");
-  let chapters = bible.chapters;
-  if (chapters.length > 0) {
-    chapters = chapters.map((ch, i) =>
-      i === 0 ? { ...ch, draft } : ch
-    );
-  }
+  const nextBible = applyChapterDraftToBible(bible, number, {
+    draft,
+    title: String(o.title ?? ""),
+    chapterSummary: String(o.chapterSummary ?? ""),
+    continuityNotes: Array.isArray(o.continuityNotes)
+      ? o.continuityNotes.map(String)
+      : [],
+  });
   const title = String(o.title ?? "");
-  const synced = syncPartsAndChapters(
-    bible.parts?.length ? bible.parts : wrapChaptersInSinglePart(chapters),
-    chapters
-  );
+
   return {
-    manuscript: draft,
-    bible: { ...bible, parts: synced.parts, chapters: synced.chapters },
-    title,
+    manuscript: manuscriptForBible(project, nextBible),
+    bible: nextBible,
+    title: title || undefined,
   };
 }
 
@@ -278,33 +310,13 @@ export function mergeChapterDraftOutput(
   const number = Number(o.number ?? 0);
   if (!number) return project;
 
-  const bible: StoryBible = { ...project.storyBible };
-  const draft = String(o.draft ?? "");
-  const chapterSummary = String(o.chapterSummary ?? "");
-  const continuityNotes = Array.isArray(o.continuityNotes)
-    ? o.continuityNotes.map(String)
-    : [];
-
-  const updateChapter = (ch: Chapter): Chapter =>
-    ch.number === number
-      ? {
-          ...ch,
-          draft,
-          title: String(o.title ?? ch.title),
-          chapterSummary,
-          continuityNotes,
-        }
-      : ch;
-
-  bible.chapters = bible.chapters.map(updateChapter);
-  bible.parts = bible.parts.map((part) => ({
-    ...part,
-    chapters: part.chapters.map(updateChapter),
-  }));
-
-  const manuscript = buildManuscriptFromProject({
-    ...project,
-    storyBible: bible,
+  const bible = applyChapterDraftToBible(project.storyBible, number, {
+    draft: String(o.draft ?? ""),
+    title: String(o.title ?? ""),
+    chapterSummary: String(o.chapterSummary ?? ""),
+    continuityNotes: Array.isArray(o.continuityNotes)
+      ? o.continuityNotes.map(String)
+      : [],
   });
 
   const title =
@@ -313,10 +325,7 @@ export function mergeChapterDraftOutput(
       : undefined;
 
   return {
-    ...project,
-    updatedAt: new Date().toISOString(),
-    storyBible: bible,
-    manuscript,
+    ...rebuildProjectManuscript({ ...project, storyBible: bible }),
     ...(title ? { title } : {}),
   };
 }
@@ -447,7 +456,7 @@ export function mergeAgentOutput(
       break;
     }
     case "drafting": {
-      const parsed = parseDraftingOutput(o, bible);
+      const parsed = parseDraftingOutput(o, project, bible);
       manuscript = parsed.manuscript;
       bible = parsed.bible;
       if (parsed.title && project.title === "Untitled Project") {
