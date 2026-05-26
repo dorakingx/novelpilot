@@ -1,6 +1,9 @@
-import { buildChapterOutlineContext } from "./agent-context";
+import { compactUserPrompt } from "./prompt-budget";
 import { buildSkeletonParts } from "./structure-chapter-defaults";
 import type { PartPlan, StoryProject } from "./types";
+
+export const CHAPTER_OUTLINE_FALLBACK_MESSAGE =
+  "NovelPilot used a safe editable structure because the model returned an incomplete outline.";
 
 const CHAPTER_OUTLINE_FILL_SCHEMA = `{
   "parts": [
@@ -11,14 +14,11 @@ const CHAPTER_OUTLINE_FILL_SCHEMA = `{
       "chapters": [
         {
           "number": 1,
-          "partNumber": 1,
           "title": "string",
           "purpose": "string",
-          "role": "Opening | Development | Climax | Resolution",
           "emotionalTurn": "string",
           "keyEvents": ["string"],
-          "foreshadowing": ["string"],
-          "lengthPlan": { "targetLength": 4000, "unit": "characters" }
+          "foreshadowing": ["string"]
         }
       ]
     }
@@ -41,16 +41,37 @@ const CHAPTER_OUTLINE_FILL_SCHEMA = `{
   ]
 }`;
 
+const MAX_TEXT_LEN = 120;
+
+const ROLE_CYCLE_3 = ["Opening", "Development", "Resolution"] as const;
+
+export function defaultChapterRole(
+  chapterIndex: number,
+  totalChapters: number
+): string {
+  if (totalChapters === 3) {
+    return ROLE_CYCLE_3[chapterIndex] ?? "Development";
+  }
+  if (chapterIndex === 0) return "Opening";
+  if (chapterIndex >= totalChapters - 1) return "Resolution";
+  if (chapterIndex === Math.floor(totalChapters / 2)) return "Climax";
+  return "Development";
+}
+
 function languageDirective(language: string): string {
   const label = language === "ja" ? "Japanese" : "English";
   return `Write all creative text in ${label}. JSON keys stay in English.`;
+}
+
+export function buildChapterOutlineFillSchema(): string {
+  return CHAPTER_OUTLINE_FILL_SCHEMA;
 }
 
 export function buildChapterArchitectSkeleton(
   project: StoryProject
 ): PartPlan[] {
   const { structure, language } = project;
-  return buildSkeletonParts({
+  const skeleton = buildSkeletonParts({
     language,
     presetId: structure.presetId,
     partCount: structure.partCount,
@@ -58,70 +79,113 @@ export function buildChapterArchitectSkeleton(
     chapterLengthPreset: structure.chapterLengthPreset,
     existingParts: structure.parts?.length ? structure.parts : undefined,
   });
+  const totalChapters = structure.totalChapterCount;
+  let chapterIndex = 0;
+  return skeleton.map((part) => ({
+    ...part,
+    chapters: part.chapters.map((ch) => {
+      const role = defaultChapterRole(chapterIndex, totalChapters);
+      chapterIndex += 1;
+      return {
+        ...ch,
+        role,
+      };
+    }),
+  }));
 }
 
-function buildFillInstructions(project: StoryProject, skeleton: PartPlan[]): string {
-  const totalChapters = project.structure.totalChapterCount;
-  const lang = languageDirective(project.language);
+function compactCharacters(project: StoryProject): string {
+  const rows = project.storyBible.characters
+    .slice(0, 6)
+    .map((ch) => `${ch.name || "Unknown"} (${ch.role || "Character"})`);
+  return rows.join(", ");
+}
 
-  return `You are the Chapter Architect. Fill in the provided structure skeleton ONLY.
-Do NOT add or remove parts or chapters. The skeleton has exactly ${project.structure.partCount} part(s) and ${totalChapters} chapter(s) total.
+function compactPlot(project: StoryProject): string {
+  const plot = project.storyBible.plot;
+  if (!plot) return "";
+  return [
+    `beginning: ${plot.beginning || ""}`,
+    `middle: ${plot.middle || ""}`,
+    `climax: ${plot.climax || ""}`,
+    `ending: ${plot.ending || ""}`,
+  ].join("\n");
+}
 
-For each part: fill title and purpose (short phrases).
-For each chapter: fill title, purpose, role, emotionalTurn, keyEvents, foreshadowing.
-Preserve each chapter's lengthPlan.targetLength and unit from the skeleton exactly.
-Generate chapter titles from the user prompt, genre, and tone. If the prompt mentions desired chapter titles, use those exact titles.
-
-Also return styleGuide and foreshadowingTracker (max 4 items).
-
-Keep the response compact. Do not write prose. Do not include scene text. Do not include markdown. Every string must be concise.
-Rules: max 3 keyEvents per chapter; max 2 foreshadowing per chapter; max 4 foreshadowingTracker items; each string under 140 characters; no paragraphs; no explanations; valid JSON only.
-Chapter titles should be short. Chapter purposes should be one sentence.
-Return ONLY the "parts" array nested structure plus styleGuide and foreshadowingTracker. Do NOT include a separate top-level "chapters" array.
-${lang}
-
-Structure skeleton to fill (preserve array sizes and lengthPlan values):
-${JSON.stringify(skeleton.map((p) => ({
-  number: p.number,
-  title: "",
-  purpose: "",
-  chapters: p.chapters.map((ch) => ({
-    number: ch.number,
-    partNumber: ch.partNumber ?? p.number,
+function skeletonForFill(skeleton: PartPlan[]): Record<string, unknown>[] {
+  return skeleton.map((part) => ({
+    number: part.number,
     title: "",
     purpose: "",
-    role: "",
-    emotionalTurn: "",
-    keyEvents: [],
-    foreshadowing: [],
-    lengthPlan: ch.lengthPlan,
-  })),
-})))}`;
+    chapters: part.chapters.map((ch) => ({
+      number: ch.number,
+      title: "",
+      purpose: "",
+      emotionalTurn: "",
+      keyEvents: [],
+      foreshadowing: [],
+      role: ch.role,
+      lengthPlan: ch.lengthPlan,
+    })),
+  }));
+}
+
+function buildFillPrompt(
+  project: StoryProject,
+  skeleton: PartPlan[],
+  retry: boolean
+): string {
+  const totalChapters = project.structure.totalChapterCount;
+  const lang = languageDirective(project.language);
+  const concept = project.storyBible.concept;
+  const skeletonJson = JSON.stringify(skeletonForFill(skeleton));
+  const baseRules = `Rules:
+- Return valid JSON only.
+- No markdown, no explanations, no prose scenes.
+- Each string under ${MAX_TEXT_LEN} characters.
+- keyEvents max 2 per chapter.
+- foreshadowing max 1 per chapter.
+- foreshadowingTracker max 3 items.
+- Preserve all part/chapter numbers, role, and lengthPlan exactly.
+- Do not add or remove chapters or parts.
+- Return only: parts, styleGuide, foreshadowingTracker.
+- Do not return top-level chapters.`;
+  const header = retry
+    ? "Previous output was invalid JSON. Retry with the same skeleton and stricter compact output."
+    : "You are the Chapter Architect. Fill only short text fields in the provided skeleton.";
+  const contextLines = [
+    `language: ${project.language}`,
+    `genre: ${project.genre}`,
+    `tone: ${project.tone}`,
+    `userPrompt: ${compactUserPrompt(project.userPrompt, 500)}`,
+    `conceptLogline: ${concept?.logline ?? ""}`,
+    `conceptConflict: ${concept?.centralConflict ?? ""}`,
+    `characters: ${compactCharacters(project)}`,
+    `plot:\n${compactPlot(project)}`,
+  ];
+
+  return `${header}
+The skeleton already has exactly ${project.structure.partCount} part(s) and ${totalChapters} chapter(s).
+
+${baseRules}
+${lang}
+
+Schema:
+${buildChapterOutlineFillSchema()}
+
+Context:
+${contextLines.join("\n")}
+
+Skeleton to fill:
+${skeletonJson}`;
 }
 
 export function buildChapterArchitectPrompt(project: StoryProject): string {
   const skeleton = buildChapterArchitectSkeleton(project);
-  const context = buildChapterOutlineContext(project, skeleton);
-
-  return `${buildFillInstructions(project, skeleton)}
-
-Respond with ONLY valid JSON matching this schema (no markdown fences):
-${CHAPTER_OUTLINE_FILL_SCHEMA}
-
-Project context:
-${JSON.stringify(context)}`;
+  return buildFillPrompt(project, skeleton, false);
 }
-
-const RETRY_LINE = `Your previous response was not valid JSON. Return ONLY valid JSON. No markdown. No explanations. Fill the same skeleton exactly.`;
 
 export function buildChapterArchitectRetryPrompt(project: StoryProject): string {
   const skeleton = buildChapterArchitectSkeleton(project);
-  const context = buildChapterOutlineContext(project, skeleton);
-
-  return `${RETRY_LINE}
-
-${buildFillInstructions(project, skeleton)}
-
-Project context:
-${JSON.stringify(context)}`;
+  return buildFillPrompt(project, skeleton, true);
 }

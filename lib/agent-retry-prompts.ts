@@ -18,7 +18,7 @@ const AGENT_RETRY_HINTS: Partial<Record<AgentId, string>> = {
     "locations and symbols: max 3 each. Keep all strings short.",
   plot: "twists and foreshadowingPlan: max 3 strings each.",
   "chapter-outline":
-    "Use short phrases only. foreshadowingTracker max 4 items.",
+    "Use short phrases only. strings <= 120 chars, keyEvents max 2, foreshadowing max 1, foreshadowingTracker max 3 items.",
   drafting: "Write full prose only in draft fields.",
   editor: "Each array: max 4 short strings.",
   continuity: "issues array: max 6 items with short fields.",

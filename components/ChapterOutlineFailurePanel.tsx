@@ -32,8 +32,8 @@ export function ChapterOutlineFailurePanel({
           </h3>
           <p className="text-sm text-[#CBD5E1] leading-relaxed">
             {isTimeout
-              ? "Chapter Architect timed out while building the story structure. NovelPilot can use a safe fallback structure so you can continue."
-              : "Chapter Architect failed after automatic retries. This often happens when the requested structure is too large or the model returned prose instead of JSON. Try reducing chapter count, use fallback structure, or retry manually."}
+              ? "Chapter Architect timed out while building the story structure. NovelPilot can use a safe editable structure so you can continue."
+              : "Chapter Architect returned an incomplete outline after automatic retries. You can continue with a safe editable structure or retry manually."}
           </p>
           {errorMessage && (
             <p className="text-xs text-amber-200/90 font-mono break-words">

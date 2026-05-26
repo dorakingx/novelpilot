@@ -21,7 +21,7 @@ const CHAPTER_OUTLINE_ERROR_PATTERNS = [
 ];
 
 const CHAPTER_OUTLINE_TIMEOUT_MESSAGE =
-  "Chapter Architect timed out while building the story structure. NovelPilot can use a safe fallback structure so you can continue.";
+  "Chapter Architect timed out while building the story structure. NovelPilot can use a safe editable structure so you can continue.";
 
 export function isChapterOutlineTimeoutError(raw: string): boolean {
   const lower = raw.toLowerCase();
@@ -73,7 +73,7 @@ export function formatChapterOutlineError(
   model: string
 ): string {
   const headline =
-    "Chapter Architect failed to return valid structure JSON. This often happens when the requested structure is too large or the model returned prose instead of JSON. Try reducing chapter count or use the fallback structure.";
+    "Chapter Architect returned an incomplete outline. NovelPilot can switch to a safe editable structure and continue.";
   const detail = sanitizeErrorMessage(raw);
   const tech = `provider=${provider}, model=${model}`;
   if (!detail || detail === "[redacted]") {

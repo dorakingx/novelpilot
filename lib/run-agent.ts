@@ -20,12 +20,15 @@ import {
 } from "./gemma";
 import { normalizeAiModel } from "./ai-model-utils";
 import type { LlmProvider } from "./llm-config";
-import { normalizeChapterOutlineOutput } from "./normalize-chapter-outline";
+import {
+  normalizeChapterOutlineOutput,
+  validateChapterOutline,
+} from "./normalize-chapter-outline";
 import { getMockOutput } from "./mock-outputs";
 import { getAllChapters } from "./structure-utils";
 import { shouldUseSequentialDrafting } from "./structure-utils";
 import { buildAgentPrompt, buildChapterDraftPrompt } from "./prompts";
-import type { AgentId, LlmProviderId, StoryProject } from "./types";
+import type { AgentId, LlmProviderId, PartPlan, StoryProject } from "./types";
 
 export type RunAgentResult = {
   output: unknown;
@@ -206,6 +209,17 @@ async function parseAgentJsonAsync(
     if (agentId === "chapter-outline") {
       logAgentTiming(agentId, "before_normalize", startedAt);
       const normalized = normalizeChapterOutlineOutput(parsed, project);
+      const parts = Array.isArray(
+        (normalized as Record<string, unknown>).parts
+      )
+        ? ((normalized as Record<string, unknown>).parts as PartPlan[])
+        : [];
+      const validation = validateChapterOutline(parts, project);
+      if (!validation.valid) {
+        throw new Error(
+          `Chapter outline validation failed: ${validation.errors.join(", ")}`
+        );
+      }
       logAgentTiming(agentId, "after_normalize", startedAt);
       return normalized;
     }

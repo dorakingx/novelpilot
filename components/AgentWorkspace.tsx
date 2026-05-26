@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { AlertTriangle, Info, Play } from "lucide-react";
 import { StoryBiblePreview } from "@/components/StoryBiblePreview";
 import { StoryStructurePanel } from "@/components/StoryStructurePanel";
+import { CHAPTER_OUTLINE_FALLBACK_MESSAGE } from "@/lib/chapter-architect-context";
 import type { PartPlan } from "@/lib/types";
 import type { ProjectStatus } from "@/lib/project-status";
 import type { LlmStatus } from "@/lib/llm-config";
@@ -143,8 +144,8 @@ export function AgentWorkspace({
                     <AlertTriangle className="size-5 text-amber-400 shrink-0 mt-0.5" />
                     <p className="text-sm text-[#CBD5E1]">
                       Fallback structure used. You can edit it before drafting.
-                      Chapter Architect returned invalid structure, so NovelPilot
-                      used a safe editable structure.
+                      {" "}
+                      {CHAPTER_OUTLINE_FALLBACK_MESSAGE}
                     </p>
                   </div>
                 )}

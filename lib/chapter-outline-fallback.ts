@@ -1,9 +1,10 @@
-import { buildSkeletonParts } from "./structure-chapter-defaults";
+import {
+  buildChapterArchitectSkeleton,
+  defaultChapterRole,
+} from "./chapter-architect-context";
 import type { Chapter, StoryProject } from "./types";
 
 const MAX_STRING_LEN = 140;
-
-const ROLE_CYCLE_3 = ["Opening", "Development", "Resolution"] as const;
 
 function shortPhrase(text: string | undefined, fallback: string): string {
   const s = (text ?? "").trim();
@@ -11,17 +12,31 @@ function shortPhrase(text: string | undefined, fallback: string): string {
   return s.length > MAX_STRING_LEN ? s.slice(0, MAX_STRING_LEN) : s;
 }
 
-function defaultChapterRole(
-  chapterIndex: number,
-  totalChapters: number
-): string {
-  if (totalChapters === 3) {
-    return ROLE_CYCLE_3[chapterIndex] ?? "Development";
-  }
-  if (chapterIndex === 0) return "Opening";
-  if (chapterIndex >= totalChapters - 1) return "Resolution";
-  if (chapterIndex === Math.floor(totalChapters / 2)) return "Climax";
-  return "Development";
+function beatForIndex(project: StoryProject, chapterIndex: number, totalChapters: number): string {
+  const plot = project.storyBible.plot;
+  if (!plot) return "";
+  const ratio = totalChapters <= 1 ? 1 : chapterIndex / (totalChapters - 1);
+  if (ratio < 0.25) return plot.beginning;
+  if (ratio < 0.75) return plot.middle;
+  if (ratio < 0.95) return plot.climax;
+  return plot.ending;
+}
+
+function mainCharacterLabel(project: StoryProject): string {
+  const protagonist = project.storyBible.characters.find((c) =>
+    c.role.toLowerCase().includes("protagonist")
+  );
+  if (protagonist?.name) return protagonist.name;
+  const first = project.storyBible.characters[0];
+  return first?.name || (project.language === "ja" ? "主人公" : "Protagonist");
+}
+
+function conflictLabel(project: StoryProject): string {
+  return (
+    project.storyBible.concept?.centralConflict ||
+    project.storyBible.concept?.logline ||
+    project.userPrompt
+  );
 }
 
 function buildTrackerFromPlot(project: StoryProject) {
@@ -29,7 +44,7 @@ function buildTrackerFromPlot(project: StoryProject) {
     project.storyBible.plot?.foreshadowingPlan ??
     project.storyBible.foreshadowingTracker?.map((f) => f.item) ??
     [];
-  return seeds.slice(0, 4).map((item, i) => ({
+  return seeds.slice(0, 3).map((item, i) => ({
     item: shortPhrase(item, `Thread ${i + 1}`),
     introducedIn: "Act 1",
     status: "planned" as const,
@@ -46,15 +61,10 @@ export function buildFallbackChapterOutline(
   const logline = storyBible.concept?.logline ?? project.userPrompt;
   const themeHint = storyBible.concept?.coreTheme ?? project.tone;
   const totalChapters = structure.totalChapterCount;
+  const protagonist = mainCharacterLabel(project);
+  const conflict = conflictLabel(project);
 
-  const skeleton = buildSkeletonParts({
-    language,
-    presetId: structure.presetId,
-    partCount: structure.partCount,
-    chaptersPerPart: structure.chaptersPerPart,
-    chapterLengthPreset: structure.chapterLengthPreset,
-    existingParts: structure.parts?.length ? structure.parts : undefined,
-  });
+  const skeleton = buildChapterArchitectSkeleton(project);
 
   let chapterIndex = 0;
   const parts = skeleton.map((part) => ({
@@ -65,22 +75,37 @@ export function buildFallbackChapterOutline(
     chapters: part.chapters.map((ch) => {
       const idx = chapterIndex++;
       const role = defaultChapterRole(idx, totalChapters);
+      const beat = shortPhrase(
+        beatForIndex(project, idx, totalChapters),
+        shortPhrase(conflict, shortPhrase(logline, "the story"))
+      );
+      const titleSeed =
+        role === "Opening"
+          ? `${protagonist} notices a fracture`
+          : role === "Climax"
+            ? `${protagonist} faces the core choice`
+            : role === "Resolution"
+              ? `${protagonist} accepts the cost`
+              : `${protagonist} follows the next clue`;
       return {
         id: ch.id,
         number: ch.number,
         partNumber: ch.partNumber ?? part.number,
-        title: `Chapter ${ch.number}: ${role}`,
+        title: shortPhrase(
+          ch.title,
+          `${titleSeed} (${language === "ja" ? `第${ch.number}章` : `Ch.${ch.number}`})`
+        ),
         role,
         purpose: shortPhrase(
           ch.purpose,
-          `${role}: advance "${shortPhrase(logline, "the story")}"`
+          `${role}: advance "${beat}"`
         ),
         emotionalTurn: shortPhrase(ch.emotionalTurn, `${themeHint} tone`),
         keyEvents: [
-          shortPhrase(undefined, `${role} beat`),
-          shortPhrase(undefined, "Conflict escalates"),
+          shortPhrase(undefined, `${protagonist} acts on a new clue`),
+          shortPhrase(undefined, `Pressure rises around ${shortPhrase(conflict, "the conflict")}`),
         ].slice(0, 2),
-        foreshadowing: [shortPhrase(undefined, "Plant mystery")],
+        foreshadowing: [shortPhrase(undefined, `Hint tied to ${shortPhrase(conflict, "the central conflict")}`)],
         lengthPlan: ch.lengthPlan,
       };
     }),

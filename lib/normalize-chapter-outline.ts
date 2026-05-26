@@ -5,10 +5,10 @@ import {
 } from "./structure-utils";
 import type { Chapter, PartPlan, StoryProject } from "./types";
 
-export const MAX_STRING_LEN = 140;
-const MAX_KEY_EVENTS = 3;
-const MAX_FORESHADOWING = 2;
-const MAX_TRACKER_ITEMS = 4;
+export const MAX_STRING_LEN = 120;
+const MAX_KEY_EVENTS = 2;
+const MAX_FORESHADOWING = 1;
+const MAX_TRACKER_ITEMS = 3;
 
 function trimStr(value: unknown, max = MAX_STRING_LEN): string {
   const s = String(value ?? "").trim();
@@ -49,11 +49,7 @@ function partToJson(part: PartPlan): Record<string, unknown> {
   };
 }
 
-function findParsedChapter(
-  parsed: Record<string, unknown>,
-  partNumber: number,
-  chapterNumber: number
-): Record<string, unknown> | undefined {
+function findParsedChapter(parsed: Record<string, unknown>, partNumber: number, chapterNumber: number): Record<string, unknown> | undefined {
   const parts = Array.isArray(parsed.parts) ? parsed.parts : [];
   for (const part of parts) {
     const p = part as Record<string, unknown>;
@@ -63,11 +59,6 @@ function findParsedChapter(
       const row = ch as Record<string, unknown>;
       if (Number(row.number) === chapterNumber) return row;
     }
-  }
-  const flat = Array.isArray(parsed.chapters) ? parsed.chapters : [];
-  for (const ch of flat) {
-    const row = ch as Record<string, unknown>;
-    if (Number(row.number) === chapterNumber) return row;
   }
   return undefined;
 }
@@ -96,9 +87,9 @@ export function mergeOutlineFillIntoSkeleton(
 
         return {
           ...ch,
-          title: trimStr(fill?.title) || ch.title,
-          role: fill?.role != null ? trimStr(fill.role) : ch.role,
-          purpose: trimStr(fill?.purpose) || ch.purpose,
+          title: trimStr(fill?.title) || ch.title || `Chapter ${ch.number}`,
+          role: ch.role,
+          purpose: trimStr(fill?.purpose) || ch.purpose || `Chapter ${ch.number} progresses the main conflict.`,
           emotionalTurn: trimStr(fill?.emotionalTurn) || ch.emotionalTurn,
           keyEvents: trimStringArray(fill?.keyEvents, MAX_KEY_EVENTS),
           foreshadowing: trimStringArray(fill?.foreshadowing, MAX_FORESHADOWING),
@@ -107,6 +98,37 @@ export function mergeOutlineFillIntoSkeleton(
       }),
     };
   });
+}
+
+export function validateChapterOutline(
+  parts: PartPlan[],
+  project: StoryProject
+): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+  if (parts.length !== project.structure.partCount) {
+    errors.push("Part count mismatch");
+  }
+  const chapters = flattenPartsToChapters(parts);
+  if (chapters.length !== project.structure.totalChapterCount) {
+    errors.push("Chapter count mismatch");
+  }
+
+  const numbers = new Set<number>();
+  for (const ch of chapters) {
+    if (!Number.isFinite(ch.number) || ch.number <= 0) {
+      errors.push("Invalid chapter number");
+    }
+    if (numbers.has(ch.number)) {
+      errors.push(`Duplicate chapter number: ${ch.number}`);
+    }
+    numbers.add(ch.number);
+    if (!ch.title?.trim()) errors.push(`Missing chapter title: ${ch.number}`);
+    if (!ch.purpose?.trim()) errors.push(`Missing chapter purpose: ${ch.number}`);
+    if (!ch.lengthPlan?.targetLength || ch.lengthPlan.targetLength <= 0) {
+      errors.push(`Missing chapter lengthPlan: ${ch.number}`);
+    }
+  }
+  return { valid: errors.length === 0, errors };
 }
 
 export function normalizeChapterOutlineOutput(
@@ -121,9 +143,25 @@ export function normalizeChapterOutlineOutput(
 
   const skeleton = buildChapterArchitectSkeleton(project);
   const mergedParts = mergeOutlineFillIntoSkeleton(skeleton, o);
-  const parsedParts = mergedParts.map((p) =>
+  let parsedParts = mergedParts.map((p) =>
     parsePartFromRaw(partToJson(p) as Record<string, unknown>, language)
   );
+
+  let validation = validateChapterOutline(parsedParts, project);
+  if (!validation.valid) {
+    parsedParts = parsedParts.map((part) => ({
+      ...part,
+      title: part.title || `Part ${part.number}`,
+      purpose: part.purpose || `Part ${part.number} arc`,
+      chapters: part.chapters.map((ch) => ({
+        ...ch,
+        title: ch.title || `Chapter ${ch.number}`,
+        purpose: ch.purpose || `Chapter ${ch.number} progresses the narrative.`,
+      })),
+    }));
+    validation = validateChapterOutline(parsedParts, project);
+  }
+
   const flatChapters = flattenPartsToChapters(parsedParts);
 
   const foreshadowingTracker = Array.isArray(o.foreshadowingTracker)
@@ -167,5 +205,6 @@ export function normalizeChapterOutlineOutput(
     ...(styleGuide ? { styleGuide } : {}),
     foreshadowingTracker,
     ...(o.fallbackGenerated ? { fallbackGenerated: true } : {}),
+    ...(validation.valid ? {} : { validationErrors: validation.errors }),
   };
 }
