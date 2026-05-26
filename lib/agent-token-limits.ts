@@ -14,27 +14,29 @@ export function getMaxTokensForAgent(
   draftChapterNumber?: number
 ): number {
   void draftChapterNumber;
+  // Intentionally conservative defaults to avoid OpenRouter 402 errors
+  // on low-credit accounts.
   switch (agentId) {
     case "concept":
-      return 1500;
+      return 900;
     case "character":
-      return 2500;
+      return 1200;
     case "worldbuilding":
-      return 2500;
+      return 1200;
     case "plot":
-      return 3000;
+      return 1400;
     case "chapter-outline":
-      return 4000;
+      return 1800;
     case "drafting":
-      return 5500;
+      return 2200;
     case "editor":
-      return 2500;
+      return 1200;
     case "continuity":
-      return 3000;
+      return 1400;
     case "publisher":
-      return 2000;
+      return 1000;
     default:
-      return 3000;
+      return 1200;
   }
 }
 
@@ -42,6 +44,10 @@ export function resolveMaxTokens(options?: CallGemmaOptions): number {
   const base =
     options?.maxTokens ??
     getMaxTokensForAgent(options?.agentId, options?.draftChapterNumber);
-  const cap = Number(process.env.GEMMA_MAX_TOKENS_CAP);
-  return cap > 0 ? Math.min(base, cap) : base;
+  const capRaw = process.env.GEMMA_MAX_TOKENS_CAP;
+  const cap = Number(capRaw);
+  if (!Number.isFinite(cap) || cap <= 0) {
+    return base;
+  }
+  return Math.min(base, cap);
 }

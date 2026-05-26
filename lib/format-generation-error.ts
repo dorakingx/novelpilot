@@ -38,7 +38,7 @@ export function isChapterOutlineGenerationError(raw: string): boolean {
 }
 
 const OPENROUTER_402_MAX_TOKENS_MESSAGE =
-  "OpenRouter rejected the request because max_tokens is too high for your current credits. Try reducing chapter length, using a smaller model, or adding credits. NovelPilot will now use smaller token limits per agent.";
+  "OpenRouter rejected the request because max_tokens is too high for your current credits. Try reducing chapter length, setting GEMMA_MAX_TOKENS_CAP=1200 or 800, using a smaller model, or adding credits.";
 
 export function isOpenRouter402MaxTokensError(raw: string): boolean {
   const lower = raw.toLowerCase();

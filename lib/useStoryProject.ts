@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchAgentWithRetry,
   getRetryPolicyForAgent,
+  isRetryableError,
 } from "./agent-retry";
 import {
   AGENT_DEFINITIONS,
@@ -174,7 +175,10 @@ export function useStoryProject() {
         }
         return current;
       } catch (err) {
-        if (agentId === "chapter-outline") {
+        if (
+          agentId === "chapter-outline" &&
+          isRetryableError(err instanceof Error ? err.message : String(err))
+        ) {
           return applyFallbackChapterOutlineToProject(current);
         }
         throw err;

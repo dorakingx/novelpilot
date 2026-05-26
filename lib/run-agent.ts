@@ -33,6 +33,25 @@ Do not include explanations.
 Do not include comments.
 Use the exact schema from the prompt.`;
 
+const HARD_PROVIDER_ERROR_PATTERNS = [
+  "402",
+  "401",
+  "403",
+  "fewer max_tokens",
+  "requires more credits",
+  "insufficient credits",
+  "billing",
+  "payment required",
+  "invalid api key",
+  "model not found",
+  "no such model",
+];
+
+function isHardProviderError(error: unknown): boolean {
+  const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
+  return HARD_PROVIDER_ERROR_PATTERNS.some((p) => message.includes(p));
+}
+
 function previewRaw(raw: string, max = 200): string {
   return raw.replace(/\s+/g, " ").trim().slice(0, max);
 }
@@ -279,6 +298,9 @@ async function runChapterOutlineAgent(
       }
     }
   } catch (err) {
+    if (isHardProviderError(err)) {
+      throw err;
+    }
     logChapterOutlineFallback(
       err instanceof Error ? err.message : "llm_or_timeout",
       project
