@@ -54,6 +54,13 @@ export async function POST(request: Request) {
       typeof output === "object" &&
       output !== null &&
       Boolean((output as Record<string, unknown>).fallbackGenerated);
+    const conceptFallbackUsed =
+      agentId === "concept" &&
+      typeof output === "object" &&
+      output !== null &&
+      Boolean((output as Record<string, unknown>).fallbackGenerated);
+    const fallbackUsed =
+      result.fallbackUsed || outlineFallbackUsed || conceptFallbackUsed;
 
     logAgentTiming(agentId, "before_mergeAgentOutput", requestStartedAt);
     let updated = mergeAgentOutput(project, agentId as AgentId, output);
@@ -72,7 +79,7 @@ export async function POST(request: Request) {
       manuscript: updated.manuscript,
       reports: updated.reports,
       mockMode: shouldUseMockForRequest(normalizeAiModel(project.aiModel)),
-      fallbackUsed: outlineFallbackUsed || undefined,
+      fallbackUsed: fallbackUsed || undefined,
       providerUsed: result.providerUsed,
       providerFallbackUsed: result.providerFallbackUsed,
     };

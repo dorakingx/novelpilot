@@ -196,7 +196,9 @@ export function useStoryProject() {
         current = mergeAgentOutput(current, agentId, data.output);
         if (data.fallbackUsed) {
           current = markAgentFallbackUsed(current, agentId);
-          current = { ...current, structureFallbackUsed: true };
+          if (agentId === "chapter-outline") {
+            current = { ...current, structureFallbackUsed: true };
+          }
         }
         if (data.providerUsed) {
           current = markAgentProviderFallback(current, agentId, {

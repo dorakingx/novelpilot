@@ -222,6 +222,15 @@ export function shouldFallbackToProvider(error: unknown): boolean {
   const msg = (error instanceof Error ? error.message : String(error)).toLowerCase();
   if (msg.includes("abort")) return false;
   if (
+    msg.includes("unbalanced json") ||
+    msg.includes("no json object") ||
+    msg.includes("failed to parse json") ||
+    msg.includes("malformed model output") ||
+    msg.includes("schema mismatch")
+  ) {
+    return false;
+  }
+  if (
     msg.includes("402") ||
     msg.includes("prompt tokens limit exceeded") ||
     msg.includes("fewer max_tokens") ||
@@ -298,9 +307,9 @@ async function callGoogleOnce(
   const url = `${config.apiUrl}/${model}:generateContent?key=${config.apiKey}`;
 
   const generationConfig: Record<string, unknown> = {
-    temperature: 0.8,
+    temperature: 0.4,
     maxOutputTokens: maxTokens,
-    topP: 0.95,
+    topP: 0.9,
   };
   if (useJsonMime) {
     generationConfig.responseMimeType = "application/json";

@@ -10,6 +10,10 @@ import {
 } from "./chapter-architect-context";
 import { buildFallbackChapterOutline } from "./chapter-outline-fallback";
 import {
+  buildConceptRetryPrompt,
+  buildFallbackConcept,
+} from "./concept-fallback";
+import {
   callGemmaWithTimeout,
   parseJsonWithTimeout,
   shouldUseMockForRequest,
@@ -28,6 +32,7 @@ export type RunAgentResult = {
   output: unknown;
   providerUsed?: LlmProviderId;
   providerFallbackUsed?: LlmProviderId;
+  fallbackUsed?: boolean;
 };
 
 function toProviderId(provider: LlmProvider): LlmProviderId {
@@ -304,6 +309,103 @@ function logChapterOutlineFallback(reason: string, project: StoryProject): void 
   });
 }
 
+function logConceptFallback(reason: string, project: StoryProject): void {
+  console.warn("[CONCEPT_FALLBACK]", {
+    reason,
+    language: project.language,
+    promptLength: project.userPrompt.length,
+  });
+}
+
+async function runConceptAgent(
+  project: StoryProject,
+  requestAiModel: StoryProject["aiModel"],
+  signal?: AbortSignal
+): Promise<RunAgentResult> {
+  const agentId = "concept" as const;
+  const startedAt = Date.now();
+  const conceptContext = buildAgentContext(project, agentId);
+  const prompt = buildAgentPrompt(agentId, conceptContext);
+
+  try {
+    let llmResult = await callLiveGemma(
+      prompt,
+      agentId,
+      project.language,
+      requestAiModel,
+      signal
+    );
+    let raw = llmResult.text;
+    try {
+      const output = await parseAgentJsonAsync(agentId, raw, project, startedAt);
+      return {
+        output,
+        providerUsed: toProviderId(llmResult.providerUsed),
+        providerFallbackUsed: llmResult.usedProviderFallback
+          ? toProviderId(llmResult.providerUsed)
+          : undefined,
+      };
+    } catch {
+      if (raw.length > MAX_RETRY_RAW_CHARS) {
+        logConceptFallback("oversize_first_response", project);
+        return {
+          output: buildFallbackConcept(project),
+          fallbackUsed: true,
+          providerUsed: toProviderId(llmResult.providerUsed),
+          providerFallbackUsed: llmResult.usedProviderFallback
+            ? toProviderId(llmResult.providerUsed)
+            : undefined,
+        };
+      }
+
+      try {
+        llmResult = await callLiveGemma(
+          buildConceptRetryPrompt(project),
+          agentId,
+          project.language,
+          requestAiModel,
+          signal
+        );
+        raw = llmResult.text;
+        const output = await parseAgentJsonAsync(agentId, raw, project, startedAt);
+        return {
+          output,
+          providerUsed: toProviderId(llmResult.providerUsed),
+          providerFallbackUsed: llmResult.usedProviderFallback
+            ? toProviderId(llmResult.providerUsed)
+            : undefined,
+        };
+      } catch (retryErr) {
+        logParseError(agentId, raw, retryErr, {
+          provider: llmResult.providerUsed,
+          model: llmResult.modelUsed,
+        });
+        logConceptFallback(
+          retryErr instanceof Error ? retryErr.message : "parse_retry_failed",
+          project
+        );
+        return {
+          output: buildFallbackConcept(project),
+          fallbackUsed: true,
+          providerUsed: toProviderId(llmResult.providerUsed),
+          providerFallbackUsed: llmResult.usedProviderFallback
+            ? toProviderId(llmResult.providerUsed)
+            : undefined,
+        };
+      }
+    }
+  } catch (err) {
+    if (isHardProviderError(err)) {
+      throw err;
+    }
+    logConceptFallback(
+      err instanceof Error ? err.message : "llm_or_timeout",
+      project
+    );
+    return { output: buildFallbackConcept(project), fallbackUsed: true };
+  }
+}
+
 async function runChapterOutlineAgent(
   project: StoryProject,
   requestAiModel: StoryProject["aiModel"],
@@ -409,6 +511,9 @@ export async function runAgent(
   }
 
   return runAgentWithTimeout<RunAgentResult>(agentId, async () => {
+    if (agentId === "concept") {
+      return runConceptAgent(project, requestAiModel, signal);
+    }
     if (agentId === "chapter-outline") {
       return runChapterOutlineAgent(project, requestAiModel, signal);
     }

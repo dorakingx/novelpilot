@@ -52,11 +52,11 @@ const CHAPTER_OUTLINE_SCHEMA = `{
 
 const SCHEMAS: Record<AgentId, string> = {
   concept: `{
-  "logline": "string",
-  "coreTheme": "string",
-  "centralConflict": "string",
-  "emotionalPromise": "string",
-  "uniqueHook": "string"
+  "logline": "short string",
+  "coreTheme": "short string",
+  "centralConflict": "short string",
+  "emotionalPromise": "short string",
+  "uniqueHook": "short string"
 }`,
   character: `{
   "protagonist": { "name", "role", "desire", "fear", "flaw", "secret", "arc", "speechStyle" },
@@ -200,6 +200,14 @@ export function buildAgentPrompt(
   const agentInstructions: Record<AgentId, string> = {
     concept: `You are the Premise Architect in NovelPilot, a multi-agent writing room.
 From the user prompt and project settings, create a compelling story concept.
+Return a compact JSON object only.
+Do not write paragraphs.
+Do not include markdown.
+Do not include explanations.
+Each value must be one short sentence.
+The entire JSON response must be under 700 characters.
+Finish the JSON object completely.
+Close all quotes and braces.
 ${lang}`,
     character: `You are the Character Director. Using the concept output, create rich characters.
 ${lang}`,
