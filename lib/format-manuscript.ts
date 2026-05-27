@@ -1,4 +1,5 @@
 import { getMissingChapterNumbers } from "./workflow-utils";
+import { getOrderedChapters as getOrderedChaptersFromGeneration } from "./chapter-generation-utils";
 import { getAllChapters } from "./structure-utils";
 import type { Chapter, PartPlan, StoryProject } from "./types";
 
@@ -30,7 +31,7 @@ export function getOrderedParts(project: StoryProject): PartPlan[] {
 }
 
 export function getOrderedChapters(project: StoryProject): Chapter[] {
-  return getAllChapters(project);
+  return getOrderedChaptersFromGeneration(project);
 }
 
 export function getDraftedChapters(project: StoryProject): Chapter[] {

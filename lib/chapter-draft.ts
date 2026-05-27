@@ -1,5 +1,6 @@
 import { applyChapterDraftToBible } from "./agents";
 import { rebuildProjectManuscript } from "./format-manuscript";
+import { countByUnit, getLengthStatus } from "./text-length";
 import { buildChapterDraftStates } from "./workflow-utils";
 import type {
   Chapter,
@@ -18,6 +19,9 @@ export interface ChapterDraftPatch {
   needsRevision?: boolean;
   lastGeneratedAt?: string;
   retryCount?: number;
+  lengthStatus?: ChapterDraftState["lengthStatus"];
+  lengthWarning?: string;
+  needsExpansion?: boolean;
 }
 
 export function updateChapterDraft(
@@ -97,6 +101,16 @@ export function updateChapterDraft(
     ? draftText.slice(0, 800) + (draftText.length > 800 ? "…" : "")
     : undefined;
 
+  const chapter = getChapterFromProject(next, chapterNumber);
+  const targetLength = chapter?.lengthPlan?.targetLength;
+  const unit = chapter?.lengthPlan?.unit;
+  const measuredLength =
+    draftText && unit ? countByUnit(draftText, unit) : undefined;
+  const computedLengthStatus =
+    measuredLength && targetLength
+      ? getLengthStatus(measuredLength, targetLength)
+      : undefined;
+
   const chapterDrafts: ChapterDraftState[] = buildChapterDraftStates(next).map(
     (state) => {
       if (state.chapterNumber !== chapterNumber) return state;
@@ -109,11 +123,25 @@ export function updateChapterDraft(
         lastGeneratedAt:
           patch.lastGeneratedAt ?? state.lastGeneratedAt,
         retryCount: patch.retryCount ?? state.retryCount,
-        actualLength: draftText.length || state.actualLength,
+        actualLength: measuredLength ?? state.actualLength,
         needsRevision:
           patch.needsRevision !== undefined
             ? patch.needsRevision
             : state.needsRevision,
+        lengthStatus: patch.lengthStatus ?? computedLengthStatus ?? state.lengthStatus,
+        lengthWarning:
+          patch.lengthWarning ??
+          (patch.lengthStatus === "too-short" ||
+          computedLengthStatus === "too-short"
+            ? `Chapter ${chapterNumber} is far below target length.`
+            : state.lengthWarning),
+        needsExpansion:
+          patch.needsExpansion !== undefined
+            ? patch.needsExpansion
+            : patch.lengthStatus === "too-short" ||
+                computedLengthStatus === "too-short"
+              ? true
+              : state.needsExpansion,
       };
     }
   );

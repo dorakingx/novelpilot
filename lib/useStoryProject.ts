@@ -47,7 +47,13 @@ import {
 import { presetToTargetLength } from "./structure-chapter-defaults";
 import { buildDefaultStructure } from "./structure-presets";
 import { getAllChapters, syncPartsAndChapters } from "./structure-utils";
-import { fetchGenerateChapter } from "./workflow-api";
+import { fetchExpandChapter, fetchGenerateChapter } from "./workflow-api";
+import { countByUnit, getLengthStatus } from "./text-length";
+import {
+  getChaptersToGenerate,
+  getNextUnfinishedChapter,
+  getOrderedChapters,
+} from "./chapter-generation-utils";
 import {
   buildChapterDraftStates,
   buildPlanningElements,
@@ -57,7 +63,6 @@ import {
   isPlanningComplete,
   mergeStoryBiblePatch,
   planningElementToAgentId,
-  shouldSkipChapter,
 } from "./workflow-utils";
 import type {
   AgentId,
@@ -154,6 +159,10 @@ export function useStoryProject() {
   const [llmStatus, setLlmStatus] = useState<LlmStatus | null>(null);
   const [llmProvider, setLlmProvider] = useState("openrouter");
   const [llmModel, setLlmModel] = useState(DEFAULT_GEMMA_MODEL);
+  const [isGeneratingChapters, setIsGeneratingChapters] = useState(false);
+  const [activeChapterNumber, setActiveChapterNumber] = useState<
+    number | undefined
+  >(undefined);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -257,6 +266,103 @@ export function useStoryProject() {
     []
   );
 
+  const generateChapterWithProject = useCallback(
+    async (
+      currentProject: StoryProject,
+      chapterNumber: number,
+      controller: AbortController
+    ): Promise<StoryProject> => {
+      const now = new Date().toISOString();
+      let next = setChapterDraftStatus(currentProject, chapterNumber, "generating", {
+        error: undefined,
+        lastGeneratedAt: now,
+      });
+      setActiveChapterNumber(chapterNumber);
+      setProject({ ...next });
+
+      const data = await withTimeout(
+        fetchGenerateChapter(next, chapterNumber, controller.signal),
+        DRAFT_CHAPTER_TIMEOUT_MS,
+        () =>
+          new Error(
+            `Drafting timed out at chapter ${chapterNumber}. Try reducing approximate chapter length or switching to a cheaper/smaller model.`
+          )
+      );
+      if (typeof data.mockMode === "boolean") setMockMode(data.mockMode);
+
+      next = data.project
+        ? hydrateWorkflowFields(data.project)
+        : updateChapterDraft(next, chapterNumber, {
+            draft: data.draft,
+            title: data.title,
+            chapterSummary: data.chapterSummary,
+            continuityNotes: data.continuityNotes,
+            status: "completed",
+            lastGeneratedAt: now,
+          });
+
+      if (
+        chapterNumber === 1 &&
+        next.title === "Untitled Project" &&
+        data.title
+      ) {
+        next = { ...next, title: data.title };
+      }
+
+      const generatedChapter = getOrderedChapters(next).find(
+        (item) => item.number === chapterNumber
+      );
+      const targetLength = generatedChapter?.lengthPlan?.targetLength ?? 0;
+      const unit = generatedChapter?.lengthPlan?.unit ?? next.structure.lengthUnit;
+      const actualLength = countByUnit(generatedChapter?.draft ?? "", unit);
+      const lengthStatus =
+        targetLength > 0 ? getLengthStatus(actualLength, targetLength) : undefined;
+      const tooShortForAutoExpand =
+        targetLength > 0 && actualLength < Math.floor(targetLength * 0.75);
+
+      if (tooShortForAutoExpand) {
+        const expanded = await withTimeout(
+          fetchExpandChapter(next, chapterNumber, controller.signal),
+          DRAFT_CHAPTER_TIMEOUT_MS,
+          () =>
+            new Error(
+              `Expansion timed out at chapter ${chapterNumber}.`
+            )
+        );
+        const expandedLength = countByUnit(expanded.draft, unit);
+        const expandedStatus =
+          targetLength > 0
+            ? getLengthStatus(expandedLength, targetLength)
+            : undefined;
+        const reachedThreshold = expandedLength >= Math.floor(targetLength * 0.85);
+
+        next = updateChapterDraft(next, chapterNumber, {
+          draft: expanded.draft,
+          status: "completed",
+          lastGeneratedAt: now,
+          lengthStatus: expandedStatus,
+          needsExpansion: !reachedThreshold,
+          lengthWarning: reachedThreshold
+            ? undefined
+            : "Still under target after expansion",
+        });
+      } else {
+        next = updateChapterDraft(next, chapterNumber, {
+          status: "completed",
+          lastGeneratedAt: now,
+          lengthStatus,
+          needsExpansion: lengthStatus === "too-short",
+          lengthWarning:
+            lengthStatus === "too-short"
+              ? `Chapter ${chapterNumber} is far below target length.`
+              : undefined,
+        });
+      }
+      return next;
+    },
+    []
+  );
+
   const runDraftingPhase = useCallback(
     async (
       startProject: StoryProject,
@@ -265,141 +371,152 @@ export function useStoryProject() {
         forceRegenerate?: boolean;
         stopOnFailure?: boolean;
         chapterNumbers?: number[];
+        includeTooShort?: boolean;
       }
     ): Promise<StoryProject> => {
       const policy = getRetryPolicyForAgent("drafting");
-      let current = setAgentStatus(startProject, "drafting", "running", {
+      let currentProject = setAgentStatus(startProject, "drafting", "running", {
         maxRetries: policy.maxRetries,
         error: undefined,
       });
-      current = setWorkflowStage(current, "drafting");
-      setProject({ ...current });
+      currentProject = setWorkflowStage(currentProject, "drafting");
+      setProject({ ...currentProject });
 
-      const chapters = getAllChapters(current);
-      const total = chapters.length;
-      const toProcess =
-        options?.chapterNumbers ?? chapters.map((ch) => ch.number);
-      const completedChapters = getAllChapters(current)
-        .filter((ch) => shouldSkipChapter(current, ch.number, options?.forceRegenerate))
-        .map((ch) => ch.number);
+      const ordered = getOrderedChapters(currentProject);
+      const total = ordered.length;
+      const explicit = options?.chapterNumbers;
+      const chapterSequence = explicit
+        ? ordered.filter((chapter) => explicit.includes(chapter.number))
+        : [];
+      const initialToGenerate = explicit
+        ? chapterSequence
+        : getChaptersToGenerate(currentProject, {
+            includeFailed: true,
+            includeTooShort: options?.includeTooShort ?? true,
+            forceAll: options?.forceRegenerate,
+          });
+      const completedChapters = ordered
+        .filter(
+          (chapter) =>
+            !initialToGenerate.some((target) => target.number === chapter.number)
+        )
+        .filter((chapter) => Boolean(chapter.draft?.trim()))
+        .map((chapter) => chapter.number);
 
-      const longChapterWarning = chapters.some((ch) => {
-        const target = ch.lengthPlan?.targetLength ?? 0;
+      const longChapterWarning = ordered.some((chapter) => {
+        const target = chapter.lengthPlan?.targetLength ?? 0;
         if (!target) return false;
-        return current.language === "ja" ? target > 8000 : target > 3000;
+        return currentProject.language === "ja" ? target > 8000 : target > 3000;
       })
         ? "This chapter is long and may fail depending on model limits."
         : undefined;
 
-      for (const ch of chapters) {
-        if (controller.signal.aborted) break;
-        if (!toProcess.includes(ch.number)) continue;
-        if (shouldSkipChapter(current, ch.number, options?.forceRegenerate)) {
-          continue;
-        }
-
-        current = setChapterDraftStatus(current, ch.number, "generating");
-        current = {
-          ...current,
-          draftingProgress: {
-            currentChapter: ch.number,
-            totalChapters: total,
-            completedChapters: [...completedChapters],
-            retryCount: 0,
-            maxRetries: policy.maxRetries,
-            status: "running",
-            warning: longChapterWarning,
-          },
-        };
-        setProject({ ...current });
-
-        try {
-          const data = await withTimeout(
-            fetchGenerateChapter(current, ch.number, controller.signal),
-            DRAFT_CHAPTER_TIMEOUT_MS,
-            () =>
-              new Error(
-                `Drafting timed out at chapter ${ch.number}. Try reducing approximate chapter length or switching to a cheaper/smaller model.`
-              )
-          );
-          if (typeof data.mockMode === "boolean") setMockMode(data.mockMode);
-
-          current = data.project
-            ? hydrateWorkflowFields(data.project)
-            : updateChapterDraft(current, ch.number, {
-                draft: data.draft,
-                title: data.title,
-                chapterSummary: data.chapterSummary,
-                continuityNotes: data.continuityNotes,
-                status: "completed",
-                lastGeneratedAt: new Date().toISOString(),
-              });
-
-          if (
-            ch.number === 1 &&
-            current.title === "Untitled Project" &&
-            data.title
-          ) {
-            current = { ...current, title: data.title };
-          }
-
-          completedChapters.push(ch.number);
-          current = {
-            ...current,
-            draftingProgress: {
-              currentChapter: ch.number,
-              totalChapters: total,
-              completedChapters: [...completedChapters],
-              maxRetries: policy.maxRetries,
-              status:
-                completedChapters.length >= toProcess.length
-                  ? "completed"
-                  : "running",
-              warning: longChapterWarning,
-            },
-          };
-          setProject({ ...current });
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Drafting failed";
-          const isOpenRouter402 =
-            /\b402\b|prompt tokens|max_tokens|requires more credits|insufficient credits/i.test(
-              msg
-            );
-          current = setChapterDraftStatus(current, ch.number, "failed", {
-            error: msg,
+      setIsGeneratingChapters(true);
+      const attemptedChapters = new Set<number>();
+      try {
+        for (let index = 0; ; index++) {
+          const chapter = explicit
+            ? chapterSequence[index]
+            : getChaptersToGenerate(currentProject, {
+                includeFailed: true,
+                includeTooShort: options?.includeTooShort ?? true,
+                forceAll: options?.forceRegenerate,
+              }).find((item) => !attemptedChapters.has(item.number));
+          if (!chapter) break;
+          if (controller.signal.aborted) break;
+          attemptedChapters.add(chapter.number);
+          console.info("[CHAPTER_GENERATION_ORDER]", {
+            chapterNumber: chapter.number,
+            index,
+            total: explicit ? chapterSequence.length : total,
           });
-          current = {
-            ...current,
+
+          currentProject = {
+            ...currentProject,
             draftingProgress: {
-              currentChapter: ch.number,
+              currentChapter: chapter.number,
               totalChapters: total,
               completedChapters: [...completedChapters],
-              failedChapter: ch.number,
+              retryCount: 0,
               maxRetries: policy.maxRetries,
-              status: "failed",
+              status: "running",
               warning: longChapterWarning,
             },
           };
-          setProject({ ...current });
-          if (options?.stopOnFailure !== false) {
-            if (isOpenRouter402) {
+          setProject({ ...currentProject });
+
+          try {
+            currentProject = await generateChapterWithProject(
+              currentProject,
+              chapter.number,
+              controller
+            );
+            completedChapters.push(chapter.number);
+            currentProject = {
+              ...currentProject,
+              draftingProgress: {
+                currentChapter: chapter.number,
+                totalChapters: total,
+                completedChapters: [...completedChapters],
+                maxRetries: policy.maxRetries,
+                status:
+                  completedChapters.length >= (explicit ? chapterSequence.length : total)
+                    ? "completed"
+                    : "running",
+                warning: longChapterWarning,
+              },
+            };
+            setProject({ ...hydrateWorkflowFields(currentProject) });
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Drafting failed";
+            const isOpenRouter402 =
+              /\b402\b|prompt tokens|max_tokens|requires more credits|insufficient credits/i.test(
+                msg
+              );
+            currentProject = setChapterDraftStatus(
+              currentProject,
+              chapter.number,
+              "failed",
+              {
+                error: msg,
+              }
+            );
+            currentProject = {
+              ...currentProject,
+              draftingProgress: {
+                currentChapter: chapter.number,
+                totalChapters: total,
+                completedChapters: [...completedChapters],
+                failedChapter: chapter.number,
+                maxRetries: policy.maxRetries,
+                status: "failed",
+                warning: longChapterWarning,
+              },
+            };
+            setProject({ ...currentProject });
+            if (options?.stopOnFailure !== false) {
+              if (isOpenRouter402) {
+                throw new Error(
+                  `Prose Writer failed at chapter ${chapter.number} because OpenRouter rejected the request. Reduce chapter length, add credits, or use a cheaper model.`
+                );
+              }
               throw new Error(
-                `Prose Writer failed at chapter ${ch.number} because OpenRouter rejected the request. Reduce chapter length, add credits, or use a cheaper model.`
+                `Drafting failed at chapter ${chapter.number}. ${msg}`
               );
             }
-            throw new Error(
-              `Drafting failed at chapter ${ch.number}. ${msg}`
-            );
           }
         }
+      } finally {
+        setIsGeneratingChapters(false);
+        setActiveChapterNumber(undefined);
       }
 
-      const coverage = getChapterDraftCoverage(current);
-      current = rebuildProjectManuscript(current);
+      const coverage = getChapterDraftCoverage(currentProject);
+      currentProject = rebuildProjectManuscript(currentProject);
       const draftingComplete =
         coverage.expected > 0 && coverage.drafted >= coverage.expected;
       const now = new Date().toISOString();
-      const agents = current.agents.map((agent) =>
+      const agents = currentProject.agents.map((agent) =>
         agent.id === "drafting"
           ? {
               ...agent,
@@ -411,8 +528,8 @@ export function useStoryProject() {
             }
           : agent
       );
-      current = hydrateWorkflowFields({
-        ...current,
+      currentProject = hydrateWorkflowFields({
+        ...currentProject,
         agents,
         draftingProgress: {
           currentChapter: total,
@@ -423,14 +540,14 @@ export function useStoryProject() {
           warning: coverage.warning ?? longChapterWarning,
           failedChapter: draftingComplete
             ? undefined
-            : current.draftingProgress?.failedChapter,
+            : currentProject.draftingProgress?.failedChapter,
         },
         updatedAt: now,
       });
-      setProject({ ...current });
-      return current;
+      setProject({ ...currentProject });
+      return currentProject;
     },
-    []
+    [generateChapterWithProject]
   );
 
   const runPlanningPipeline = useCallback(
@@ -642,7 +759,7 @@ export function useStoryProject() {
 
   const approvePlanningAndGoToDrafting = useCallback(async () => {
     if (!project) return;
-    const chapters = getAllChapters(project);
+    const chapters = getOrderedChapters(project);
     if (chapters.length === 0) return;
 
     const chapterDrafts = buildChapterDraftStates(project).map((d) => ({
@@ -680,7 +797,7 @@ export function useStoryProject() {
 
   const generateChapter = useCallback(
     async (chapterNumber: number, opts?: { forceRegenerate?: boolean }) => {
-      if (!project || isRunning) return;
+      if (!project || isRunning || isGeneratingChapters) return;
       const controller = new AbortController();
       abortRef.current = controller;
       setIsRunning(true);
@@ -696,7 +813,7 @@ export function useStoryProject() {
         abortRef.current = null;
       }
     },
-    [project, isRunning, runDraftingPhase]
+    [project, isRunning, isGeneratingChapters, runDraftingPhase]
   );
 
   const regenerateChapter = useCallback(
@@ -706,27 +823,75 @@ export function useStoryProject() {
     [generateChapter]
   );
 
+  const expandChapter = useCallback(
+    async (chapterNumber: number) => {
+      if (!project || isRunning || isGeneratingChapters) return;
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setIsRunning(true);
+      setIsGeneratingChapters(true);
+      setActiveChapterNumber(chapterNumber);
+      try {
+        const expanded = await withTimeout(
+          fetchExpandChapter(project, chapterNumber, controller.signal),
+          DRAFT_CHAPTER_TIMEOUT_MS,
+          () =>
+            new Error(
+              `Expansion timed out at chapter ${chapterNumber}.`
+            )
+        );
+        const chapter = getOrderedChapters(project).find(
+          (item) => item.number === chapterNumber
+        );
+        const target = chapter?.lengthPlan?.targetLength ?? 0;
+        const unit = chapter?.lengthPlan?.unit ?? project.structure.lengthUnit;
+        const actual = countByUnit(expanded.draft, unit);
+        const lengthStatus = target > 0 ? getLengthStatus(actual, target) : undefined;
+        const reachedThreshold = target > 0 ? actual >= Math.floor(target * 0.85) : true;
+        const next = hydrateWorkflowFields(
+          updateChapterDraft(project, chapterNumber, {
+            draft: expanded.draft,
+            status: "completed",
+            lengthStatus,
+            needsExpansion: !reachedThreshold,
+            lengthWarning: reachedThreshold
+              ? undefined
+              : "Still under target after expansion",
+          })
+        );
+        setProject(next);
+      } finally {
+        setIsRunning(false);
+        setIsGeneratingChapters(false);
+        setActiveChapterNumber(undefined);
+        abortRef.current = null;
+      }
+    },
+    [project, isRunning, isGeneratingChapters]
+  );
+
   const generateRemainingChapters = useCallback(async () => {
-    if (!project || isRunning) return;
-    const missing = getMissingChapterNumbers(project);
-    const failed = getFailedChapterNumbers(project);
-    const toRun = [...new Set([...missing, ...failed])].sort((a, b) => a - b);
-    if (toRun.length === 0) return;
+    if (!project || isRunning || isGeneratingChapters) return;
+    const pending = getChaptersToGenerate(project, {
+      includeFailed: true,
+      includeTooShort: true,
+    });
+    if (pending.length === 0) return;
 
     const controller = new AbortController();
     abortRef.current = controller;
     setIsRunning(true);
     try {
       const drafted = await runDraftingPhase(project, controller, {
-        chapterNumbers: toRun,
         stopOnFailure: false,
+        includeTooShort: true,
       });
       setProject(drafted);
     } finally {
       setIsRunning(false);
       abortRef.current = null;
     }
-  }, [project, isRunning, runDraftingPhase]);
+  }, [project, isRunning, isGeneratingChapters, runDraftingPhase]);
 
   const resumeDrafting = generateRemainingChapters;
 
@@ -737,7 +902,15 @@ export function useStoryProject() {
     [generateChapter]
   );
 
-  const continueDrafting = generateRemainingChapters;
+  const continueDrafting = useCallback(async () => {
+    if (!project) return;
+    const next = getNextUnfinishedChapter(project);
+    if (next) {
+      await generateChapter(next.number);
+      return;
+    }
+    await generateRemainingChapters();
+  }, [project, generateChapter, generateRemainingChapters]);
 
   const finalizeManuscript = useCallback(async () => {
     if (!project || isRunning) return;
@@ -1004,8 +1177,15 @@ export function useStoryProject() {
       if (agentId === "drafting") {
         const failed = getFailedChapterNumbers(project);
         const missing = getMissingChapterNumbers(project);
+        const nextToGenerate = getChaptersToGenerate(project, {
+          includeFailed: true,
+          includeTooShort: true,
+        })[0];
         const target =
-          failed[0] ?? missing[0] ?? project.draftingProgress?.failedChapter;
+          failed[0] ??
+          missing[0] ??
+          nextToGenerate?.number ??
+          project.draftingProgress?.failedChapter;
         if (target != null) {
           await generateChapter(target);
         } else {
@@ -1097,6 +1277,8 @@ export function useStoryProject() {
     updateSettings,
     project,
     isRunning,
+    isGeneratingChapters,
+    activeChapterNumber,
     mockMode,
     llmProvider,
     llmModel,
@@ -1117,6 +1299,7 @@ export function useStoryProject() {
     resumeDrafting,
     generateChapter,
     regenerateChapter,
+    expandChapter,
     generateRemainingChapters,
     finalizeManuscript,
     goToStage,

@@ -141,6 +141,9 @@ export interface ChapterDraftState {
   retryCount?: number;
   actualLength?: number;
   needsRevision?: boolean;
+  lengthStatus?: "too-short" | "under" | "near" | "over";
+  lengthWarning?: string;
+  needsExpansion?: boolean;
 }
 
 export type PlanningElementId =
@@ -417,6 +420,18 @@ export interface ReviseChapterResponse {
   chapterNumber: number;
   revisedDraft: string;
   revisionSummary: string;
+}
+
+export interface ExpandChapterRequest {
+  project: StoryProject;
+  chapterNumber: number;
+}
+
+export interface ExpandChapterResponse {
+  chapterNumber: number;
+  draft: string;
+  expansionSummary: string;
+  mockMode?: boolean;
 }
 
 export const EMPTY_STORY_BIBLE: StoryBible = {

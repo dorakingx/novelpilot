@@ -5,6 +5,8 @@ import {
   buildCompleteManuscript,
   getDraftedChapters,
 } from "./format-manuscript";
+import { getChaptersToGenerate, getOrderedChapters } from "./chapter-generation-utils";
+import { getLengthStatus } from "./text-length";
 import {
   EMPTY_REPORTS,
   EMPTY_STORY_BIBLE,
@@ -181,5 +183,41 @@ describe("format-manuscript", () => {
     assert.match(manuscript, /Second chapter body\./);
     assert.match(manuscript, /# Chapter 1:/);
     assert.match(manuscript, /# Chapter 2:/);
+  });
+
+  it("getOrderedChapters sorts and deduplicates chapters by number", () => {
+    const project = projectWithParts([
+      mkPart(1, [mkChapter(2, 1), mkChapter(1, 1, "one")]),
+      mkPart(2, [mkChapter(2, 2, "two from part2"), mkChapter(3, 2)]),
+    ]);
+    const ordered = getOrderedChapters(project);
+    assert.deepEqual(
+      ordered.map((chapter) => chapter.number),
+      [1, 2, 3]
+    );
+    assert.equal(ordered[1].draft, "two from part2");
+  });
+
+  it("getChaptersToGenerate includes missing and failed in order", () => {
+    const project = projectWithParts([
+      mkPart(1, [mkChapter(1, 1, "done"), mkChapter(2, 1), mkChapter(3, 1, "done")]),
+    ]);
+    project.chapterDrafts = [
+      { chapterNumber: 1, status: "completed" },
+      { chapterNumber: 2, status: "failed" },
+      { chapterNumber: 3, status: "completed" },
+    ];
+    const chapters = getChaptersToGenerate(project, { includeFailed: true });
+    assert.deepEqual(
+      chapters.map((chapter) => chapter.number),
+      [2]
+    );
+  });
+
+  it("getLengthStatus thresholds map correctly", () => {
+    assert.equal(getLengthStatus(600, 1000), "too-short");
+    assert.equal(getLengthStatus(850, 1000), "under");
+    assert.equal(getLengthStatus(1000, 1000), "near");
+    assert.equal(getLengthStatus(1300, 1000), "over");
   });
 });

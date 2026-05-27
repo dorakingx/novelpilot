@@ -14,6 +14,7 @@ interface FinalManuscriptWorkspaceProps {
   isRunning: boolean;
   onBackToDrafting: () => void;
   onGenerateMissing: () => void;
+  onExpandShort: () => void;
   onFinalize: () => void;
   onDownloadPdf: () => void;
   onNewStory: () => void;
@@ -26,6 +27,7 @@ export function FinalManuscriptWorkspace({
   isRunning,
   onBackToDrafting,
   onGenerateMissing,
+  onExpandShort,
   onFinalize,
   onDownloadPdf,
   onNewStory,
@@ -33,6 +35,9 @@ export function FinalManuscriptWorkspace({
   isGeneratingPdf,
 }: FinalManuscriptWorkspaceProps) {
   const missing = getMissingChapterNumbers(project);
+  const tooShort = (project.chapterDrafts ?? [])
+    .filter((draft) => draft.lengthStatus === "too-short" || draft.needsExpansion)
+    .map((draft) => draft.chapterNumber);
   const publisherDone =
     project.agents.find((a) => a.id === "publisher")?.status === "completed";
 
@@ -85,10 +90,10 @@ export function FinalManuscriptWorkspace({
                 size="sm"
                 variant="glass"
                 onClick={onDownloadPdf}
-                disabled={isGeneratingPdf || missing.length > 0}
+                disabled={isGeneratingPdf || missing.length > 0 || tooShort.length > 0}
                 title={
-                  missing.length > 0
-                    ? "Generate all chapters before PDF export"
+                  missing.length > 0 || tooShort.length > 0
+                    ? "Resolve missing/too-short chapters before PDF export"
                     : undefined
                 }
               >
@@ -114,6 +119,18 @@ export function FinalManuscriptWorkspace({
                 onClick={onGenerateMissing}
               >
                 Generate missing chapters
+              </button>
+            </div>
+          )}
+          {tooShort.length > 0 && (
+            <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+              Too-short chapters: {tooShort.join(", ")}.{" "}
+              <button
+                type="button"
+                className="underline text-[#F5C542]"
+                onClick={onExpandShort}
+              >
+                Expand short chapters
               </button>
             </div>
           )}

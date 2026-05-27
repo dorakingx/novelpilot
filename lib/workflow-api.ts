@@ -1,4 +1,6 @@
 import type {
+  ExpandChapterRequest,
+  ExpandChapterResponse,
   GenerateChapterRequest,
   GenerateChapterResponse,
   ReviseChapterRequest,
@@ -23,6 +25,24 @@ export async function fetchGenerateChapter(
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.error ?? "Chapter generation failed");
+  }
+  return data;
+}
+
+export async function fetchExpandChapter(
+  project: ExpandChapterRequest["project"],
+  chapterNumber: number,
+  signal?: AbortSignal
+): Promise<ExpandChapterResponse> {
+  const res = await fetch("/api/expand-chapter", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project, chapterNumber } satisfies ExpandChapterRequest),
+    signal,
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error ?? "Chapter expansion failed");
   }
   return data;
 }

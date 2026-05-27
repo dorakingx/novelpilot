@@ -21,8 +21,11 @@ interface ChapterCardProps {
   language: "en" | "ja";
   onGenerate: () => void;
   onRegenerate: () => void;
+  onExpandToTarget: () => void;
   onSaveEdit: (draft: string) => void;
   isRunning?: boolean;
+  isGeneratingChapters?: boolean;
+  isActiveChapter?: boolean;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -40,8 +43,11 @@ export function ChapterCard({
   language,
   onGenerate,
   onRegenerate,
+  onExpandToTarget,
   onSaveEdit,
   isRunning,
+  isGeneratingChapters,
+  isActiveChapter,
 }: ChapterCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -56,7 +62,12 @@ export function ChapterCard({
 
   const target = chapter.lengthPlan?.targetLength;
   const unit = chapter.lengthPlan?.unit ?? "words";
-  const actual = chapter.draft?.length ?? draftState?.actualLength;
+  const actual = draftState?.actualLength;
+  const lengthStatus = draftState?.lengthStatus;
+  const isTooShort =
+    lengthStatus === "too-short" || Boolean(draftState?.needsExpansion);
+  const lockedByOtherChapter =
+    Boolean(isGeneratingChapters) && !isActiveChapter;
 
   const statusVariant =
     status === "completed" || status === "edited"
@@ -88,6 +99,21 @@ export function ChapterCard({
           {draftState?.needsRevision && (
             <Badge variant="warning">Needs revision</Badge>
           )}
+          {lengthStatus && (
+            <Badge
+              variant={
+                lengthStatus === "near"
+                  ? "completed"
+                  : lengthStatus === "too-short"
+                    ? "error"
+                    : lengthStatus === "under"
+                      ? "warning"
+                      : "outline"
+              }
+            >
+              {lengthStatus}
+            </Badge>
+          )}
           <Badge variant={statusVariant}>{STATUS_LABEL[status] ?? status}</Badge>
         </div>
       </div>
@@ -102,6 +128,9 @@ export function ChapterCard({
       </p>
       {draftState?.error && (
         <p className="text-xs text-red-400">{draftState.error}</p>
+      )}
+      {draftState?.lengthWarning && (
+        <p className="text-xs text-amber-400">{draftState.lengthWarning}</p>
       )}
       {!editing ? (
         <div className="text-sm bg-[#172033]/80 rounded-lg p-3 max-h-32 overflow-y-auto whitespace-pre-wrap">
@@ -125,7 +154,11 @@ export function ChapterCard({
       )}
       <div className="flex flex-wrap gap-2">
         {status === "pending" || status === "failed" ? (
-          <Button size="sm" onClick={onGenerate} disabled={isRunning}>
+          <Button
+            size="sm"
+            onClick={onGenerate}
+            disabled={isRunning || lockedByOtherChapter}
+          >
             {isRunning ? (
               <Loader2 className="size-3.5 animate-spin mr-1" />
             ) : status === "failed" ? (
@@ -139,10 +172,20 @@ export function ChapterCard({
             size="sm"
             variant="glass"
             onClick={onRegenerate}
-            disabled={isRunning}
+            disabled={isRunning || lockedByOtherChapter}
           >
             <RefreshCw className="size-3.5 mr-1" />
             Regenerate
+          </Button>
+        )}
+        {isTooShort && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onExpandToTarget}
+            disabled={isRunning || lockedByOtherChapter}
+          >
+            Expand to target length
           </Button>
         )}
         {!editing ? (

@@ -130,8 +130,22 @@ export function buildChapterDraftPrompt(
 
   const unit =
     target.lengthPlan?.unit ?? (language === "ja" ? "characters" : "words");
-  const lengthHint = target.lengthPlan?.targetLength
-    ? `Approximate length target: about ${target.lengthPlan.targetLength} ${unit} (${language === "ja" ? "count non-whitespace characters" : "count words"}). ±20% is acceptable. Length is pacing guidance only — do not truncate mid-scene for an exact count; prioritize narrative completeness. Do not use project-level total length as the primary guide.`
+  const targetLength = target.lengthPlan?.targetLength ?? 0;
+  const minLength = targetLength ? Math.floor(targetLength * 0.9) : 0;
+  const maxLength = targetLength ? Math.ceil(targetLength * 1.2) : 0;
+  const lengthHint = targetLength
+    ? language === "ja"
+      ? `Target length: about ${targetLength} Japanese ${unit}.
+Minimum acceptable length: ${minLength} Japanese ${unit}.
+Maximum preferred length: ${maxLength} Japanese ${unit}.
+Do not stop at 1000–2000 characters.
+Write a full chapter with multiple scenes, dialogue, sensory detail, and emotional progression.
+If you are approaching the end too early, expand scenes naturally.`
+      : `Target length: about ${targetLength} words.
+Minimum acceptable length: ${minLength} words.
+Maximum preferred length: ${maxLength} words.
+Do not write a summary.
+Write a full chapter with multiple scenes, dialogue, sensory detail, and emotional progression.`
     : "";
   const roleHint = target.role?.trim()
     ? `Chapter role: ${target.role}.`
@@ -149,6 +163,7 @@ ${lang}
 
 Respond with ONLY valid JSON matching this schema (no markdown fences):
 ${SINGLE_CHAPTER_DRAFT_SCHEMA}
+Return JSON only, but the draft field must contain the full chapter prose.
 
 Project context:
 ${ctxJson}`;

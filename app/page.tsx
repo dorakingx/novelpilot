@@ -15,6 +15,7 @@ import {
   getProjectStatus,
 } from "@/lib/project-status";
 import { deriveWorkflowStage } from "@/lib/workflow-utils";
+import { getChaptersToGenerate, getNextUnfinishedChapter } from "@/lib/chapter-generation-utils";
 import { useStoryProject } from "@/lib/useStoryProject";
 import type { WorkflowStage } from "@/lib/types";
 import { getMissingChapterNumbers } from "@/lib/workflow-utils";
@@ -28,6 +29,8 @@ export default function Home() {
     updateSettings,
     project,
     isRunning,
+    isGeneratingChapters,
+    activeChapterNumber,
     mockMode,
     llmProvider,
     llmModel,
@@ -39,6 +42,7 @@ export default function Home() {
     approvePlanningAndGoToDrafting,
     generateChapter,
     regenerateChapter,
+    expandChapter,
     generateRemainingChapters,
     finalizeManuscript,
     goToStage,
@@ -99,8 +103,16 @@ export default function Home() {
 
   const handleGenerateNextPending = useCallback(() => {
     if (!project) return;
-    const missing = getMissingChapterNumbers(project);
-    if (missing[0] != null) void generateChapter(missing[0]);
+    const next = getNextUnfinishedChapter(project);
+    if (next) {
+      void generateChapter(next.number);
+      return;
+    }
+    const nextRetry = getChaptersToGenerate(project, {
+      includeFailed: true,
+      includeTooShort: true,
+    })[0];
+    if (nextRetry) void generateChapter(nextRetry.number);
   }, [project, generateChapter]);
 
   const handleRetryFailed = useCallback(() => {
@@ -135,6 +147,21 @@ export default function Home() {
         <FinalManuscriptWorkspace
           project={project}
           isRunning={isRunning}
+          onExpandShort={() => {
+            void (async () => {
+              const shortChapters = (project.chapterDrafts ?? [])
+                .filter(
+                  (draft) =>
+                    draft.lengthStatus === "too-short" || draft.needsExpansion
+                )
+                .map((draft) => draft.chapterNumber)
+                .sort((a, b) => a - b);
+              goToStage("drafting");
+              for (const chapterNumber of shortChapters) {
+                await expandChapter(chapterNumber);
+              }
+            })();
+          }}
           onBackToDrafting={() => goToStage("drafting")}
           onGenerateMissing={() => {
             goToStage("drafting");
@@ -215,8 +242,11 @@ export default function Home() {
             <ChapterDraftingWorkspace
               project={project}
               isRunning={isRunning}
+              isGeneratingChapters={isGeneratingChapters}
+              activeChapterNumber={activeChapterNumber}
               onGenerateChapter={(n) => void generateChapter(n)}
               onRegenerateChapter={(n) => void regenerateChapter(n)}
+              onExpandChapter={(n) => void expandChapter(n)}
               onGenerateRemaining={() => void generateRemainingChapters()}
               onGenerateNextPending={handleGenerateNextPending}
               onRetryFailed={handleRetryFailed}

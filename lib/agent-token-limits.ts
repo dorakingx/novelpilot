@@ -1,6 +1,6 @@
 import type { LlmProvider } from "./llm-config";
 import { isLowCreditMode } from "./llm-config";
-import type { AgentId, AiModelSettings, Language } from "./types";
+import type { AgentId, AiModelSettings, Chapter, Language } from "./types";
 
 export type CallGemmaOptions = {
   signal?: AbortSignal;
@@ -82,4 +82,27 @@ export function resolveMaxTokens(
     return base;
   }
   return Math.min(base, cap);
+}
+
+export function getDraftingMaxTokensForChapter(
+  chapter: Chapter,
+  provider: LlmProvider = "openrouter"
+): number {
+  const target = chapter.lengthPlan?.targetLength ?? 3000;
+  const unit = chapter.lengthPlan?.unit ?? "characters";
+  const estimated =
+    unit === "characters"
+      ? Math.ceil(target * 1.4)
+      : Math.ceil(target * 1.6);
+
+  if (provider === "google") {
+    const googleSafe = target >= 4000 && unit === "characters" ? 6000 : estimated;
+    return googleSafe;
+  }
+
+  if (provider === "openrouter" && isLowCreditMode()) {
+    return Math.min(estimated, OPENROUTER_LOW_CREDIT_LIMITS.drafting ?? 2200);
+  }
+
+  return estimated;
 }

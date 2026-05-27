@@ -3,6 +3,7 @@ import { formatLiveGenerationError } from "@/lib/format-generation-error";
 import { getLlmConfig, shouldUseMockForRequest } from "@/lib/gemma";
 import { normalizeAiModel } from "@/lib/ai-model-utils";
 import { runAgent } from "@/lib/run-agent";
+import { getOrderedChapters } from "@/lib/chapter-generation-utils";
 import type { GenerateChapterRequest, GenerateChapterResponse } from "@/lib/types";
 
 export const maxDuration = 60;
@@ -24,6 +25,15 @@ export async function POST(request: Request) {
       ...project,
       aiModel: normalizeAiModel(project.aiModel),
     };
+    const chapter = getOrderedChapters(project).find(
+      (item) => item.number === chapterNumber
+    );
+    if (!chapter) {
+      return Response.json(
+        { error: `Chapter ${chapterNumber} not found in project outline` },
+        { status: 400 }
+      );
+    }
 
     const result = await runAgent(
       project,

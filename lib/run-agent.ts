@@ -19,6 +19,8 @@ import {
   type CallGemmaResult,
 } from "./gemma";
 import { normalizeAiModel } from "./ai-model-utils";
+import { getPrimaryProvider } from "./llm-config";
+import { getDraftingMaxTokensForChapter } from "./agent-token-limits";
 import type { LlmProvider } from "./llm-config";
 import {
   normalizeChapterOutlineOutput,
@@ -171,6 +173,7 @@ async function callLiveGemma(
   requestAiModel: StoryProject["aiModel"],
   signal: AbortSignal | undefined,
   draftChapterNumber?: number,
+  maxTokens?: number,
   llmTimeoutMs = AGENT_TIMEOUT_MS
 ): Promise<CallGemmaResult> {
   const budgetedPrompt = preparePromptForAgent(prompt, agentId);
@@ -182,6 +185,7 @@ async function callLiveGemma(
       mockLanguage: language,
       agentId,
       draftChapterNumber,
+      maxTokens,
       projectAiModel: requestAiModel,
     });
   } catch (err) {
@@ -241,6 +245,7 @@ type ExecuteAgentRecoveryOptions = {
   buildPrompt: () => string;
   buildRetryPrompt: () => string;
   llmTimeoutMs?: number;
+  maxTokens?: number;
   oversizeFirstResponseLimit?: number;
   allowLocalFallbackOnLlmError?: boolean;
 };
@@ -257,6 +262,7 @@ async function executeAgentWithRecovery(
     buildPrompt,
     buildRetryPrompt,
     llmTimeoutMs = AGENT_TIMEOUT_MS,
+    maxTokens,
     oversizeFirstResponseLimit = MAX_RETRY_RAW_CHARS,
     allowLocalFallbackOnLlmError = true,
   } = options;
@@ -286,6 +292,7 @@ async function executeAgentWithRecovery(
       requestAiModel,
       signal,
       draftChapterNumber,
+      maxTokens,
       llmTimeoutMs
     );
     let raw = llmResult.text;
@@ -318,6 +325,7 @@ async function executeAgentWithRecovery(
           requestAiModel,
           signal,
           draftChapterNumber,
+          maxTokens,
           llmTimeoutMs
         );
         raw = llmResult.text;
@@ -394,12 +402,29 @@ export async function runAgent(
         ? buildChapterDraftPrompt(project, draftChapterNumber)
         : buildAgentPrompt(agentId, context);
 
+    const draftChapter =
+      agentId === "drafting" && draftChapterNumber != null
+        ? getAllChapters(project).find((c) => c.number === draftChapterNumber)
+        : undefined;
+    const preferredProvider =
+      requestAiModel.provider ??
+      (requestAiModel.providerChoice === "google-gemini"
+        ? "google"
+        : requestAiModel.providerChoice === "openrouter-gemma"
+          ? "openrouter"
+          : getPrimaryProvider());
+    const draftingMaxTokens =
+      draftChapter && agentId === "drafting"
+        ? getDraftingMaxTokensForChapter(draftChapter, preferredProvider)
+        : undefined;
+
     return executeAgentWithRecovery({
       agentId,
       project,
       requestAiModel,
       signal,
       draftChapterNumber,
+      maxTokens: draftingMaxTokens,
       buildPrompt: () => prompt,
       buildRetryPrompt: () => buildCompactRetryPrompt(agentId, project),
     });

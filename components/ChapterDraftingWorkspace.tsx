@@ -12,8 +12,11 @@ import { Loader2 } from "lucide-react";
 interface ChapterDraftingWorkspaceProps {
   project: StoryProject;
   isRunning: boolean;
+  isGeneratingChapters?: boolean;
+  activeChapterNumber?: number;
   onGenerateChapter: (n: number) => void;
   onRegenerateChapter: (n: number) => void;
+  onExpandChapter: (n: number) => void;
   onGenerateRemaining: () => void;
   onGenerateNextPending: () => void;
   onRetryFailed: () => void;
@@ -27,8 +30,11 @@ interface ChapterDraftingWorkspaceProps {
 export function ChapterDraftingWorkspace({
   project,
   isRunning,
+  isGeneratingChapters,
+  activeChapterNumber,
   onGenerateChapter,
   onRegenerateChapter,
+  onExpandChapter,
   onGenerateRemaining,
   onGenerateNextPending,
   onRetryFailed,
@@ -42,6 +48,10 @@ export function ChapterDraftingWorkspace({
   const missing = getMissingChapterNumbers(project);
   const failed = getFailedChapterNumbers(project);
   const nextPending = missing[0];
+  const tooShort = (project.chapterDrafts ?? []).filter(
+    (draft) => draft.lengthStatus === "too-short" || draft.needsExpansion
+  );
+  const locked = Boolean(isRunning || isGeneratingChapters);
 
   const getDraftState = (n: number) =>
     project.chapterDrafts?.find((d) => d.chapterNumber === n);
@@ -52,12 +62,22 @@ export function ChapterDraftingWorkspace({
         <WorkflowProgressBar
           currentStage="drafting"
           onNavigate={onNavigateStage}
-          disabled={isRunning}
+          disabled={locked}
         />
         <h2 className="text-2xl font-bold">Chapter Drafting Room</h2>
         <p className="text-sm text-muted-foreground">
           Generate, preview, revise, and resume each chapter independently.
         </p>
+        {isGeneratingChapters && activeChapterNumber != null && (
+          <p className="text-xs text-[#F5C542]">
+            Generating chapter {activeChapterNumber}...
+          </p>
+        )}
+        {project.aiModel.providerChoice === "openrouter-gemma" && (
+          <p className="text-xs text-amber-400">
+            Length accuracy may be limited by token cap.
+          </p>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
@@ -65,15 +85,15 @@ export function ChapterDraftingWorkspace({
           size="sm"
           variant="glass"
           onClick={onGenerateRemaining}
-          disabled={isRunning || (missing.length === 0 && failed.length === 0)}
+          disabled={locked || (missing.length === 0 && failed.length === 0 && tooShort.length === 0)}
         >
-          Generate all missing
+          Generate all missing chapters
         </Button>
         <Button
           size="sm"
           variant="outline"
           onClick={onGenerateNextPending}
-          disabled={isRunning || nextPending == null}
+          disabled={locked || nextPending == null}
         >
           Generate next pending
         </Button>
@@ -81,11 +101,11 @@ export function ChapterDraftingWorkspace({
           size="sm"
           variant="outline"
           onClick={onRetryFailed}
-          disabled={isRunning || failed.length === 0}
+          disabled={locked || failed.length === 0}
         >
           Retry failed
         </Button>
-        <Button size="sm" onClick={onFinalize} disabled={isRunning}>
+        <Button size="sm" onClick={onFinalize} disabled={locked}>
           {isRunning ? (
             <Loader2 className="size-3.5 animate-spin mr-1" />
           ) : null}
@@ -95,7 +115,7 @@ export function ChapterDraftingWorkspace({
           size="sm"
           variant="ghost"
           onClick={onBackToPlanning}
-          disabled={isRunning}
+          disabled={locked}
         >
           Back to Planning
         </Button>
@@ -120,10 +140,13 @@ export function ChapterDraftingWorkspace({
                     draftState={getDraftState(chapter.number)}
                     onGenerate={() => onGenerateChapter(chapter.number)}
                     onRegenerate={() => onRegenerateChapter(chapter.number)}
+                    onExpandToTarget={() => onExpandChapter(chapter.number)}
                     onSaveEdit={(draft) =>
                       onSaveChapterEdit(chapter.number, draft)
                     }
-                    isRunning={isRunning}
+                    isRunning={locked}
+                    isGeneratingChapters={isGeneratingChapters}
+                    isActiveChapter={activeChapterNumber === chapter.number}
                   />
                 ))}
               </div>

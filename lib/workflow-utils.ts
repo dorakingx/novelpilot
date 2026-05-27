@@ -1,4 +1,8 @@
-import { getAllChapters } from "./structure-utils";
+import {
+  getChaptersToGenerate,
+  getOrderedChapters,
+} from "./chapter-generation-utils";
+import { countByUnit, getLengthStatus } from "./text-length";
 import type {
   AgentId,
   ChapterDraftState,
@@ -90,7 +94,7 @@ export function buildPlanningElements(
 export function buildChapterDraftStates(
   project: StoryProject
 ): ChapterDraftState[] {
-  const chapters = getAllChapters(project);
+  const chapters = getOrderedChapters(project);
   return chapters.map((ch) => {
     const existing = project.chapterDrafts?.find(
       (d) => d.chapterNumber === ch.number
@@ -109,6 +113,21 @@ export function buildChapterDraftStates(
     const preview = draft
       ? draft.slice(0, 800) + (draft.length > 800 ? "…" : "")
       : undefined;
+    const unit = ch.lengthPlan?.unit;
+    const targetLength = ch.lengthPlan?.targetLength;
+    const actualLength =
+      draft && unit ? countByUnit(draft, unit) : existing?.actualLength;
+    const lengthStatus =
+      actualLength && targetLength
+        ? getLengthStatus(actualLength, targetLength)
+        : existing?.lengthStatus;
+    const needsExpansion =
+      existing?.needsExpansion ?? lengthStatus === "too-short";
+    const lengthWarning =
+      existing?.lengthWarning ??
+      (lengthStatus === "too-short"
+        ? `Chapter ${ch.number} is far below target length.`
+        : undefined);
 
     return {
       chapterNumber: ch.number,
@@ -119,8 +138,11 @@ export function buildChapterDraftStates(
       error: existing?.error,
       lastGeneratedAt: existing?.lastGeneratedAt,
       retryCount: existing?.retryCount,
-      actualLength: draft?.length,
+      actualLength,
       needsRevision: ch.needsRevision ?? existing?.needsRevision,
+      lengthStatus,
+      lengthWarning,
+      needsExpansion,
     };
   });
 }
@@ -133,7 +155,7 @@ export function deriveWorkflowStage(project: StoryProject): WorkflowStage {
   if (publisherDone && project.manuscript?.trim()) return "final";
 
   const draftingAgent = project.agents.find((a) => a.id === "drafting");
-  const hasAnyDraft = getAllChapters(project).some((ch) => ch.draft?.trim());
+  const hasAnyDraft = getOrderedChapters(project).some((ch) => ch.draft?.trim());
   const outlineDone =
     project.agents.find((a) => a.id === "chapter-outline")?.status ===
     "completed";
@@ -185,14 +207,8 @@ export function getChapterDraftState(
 }
 
 export function getMissingChapterNumbers(project: StoryProject): number[] {
-  const chapters = getAllChapters(project);
-  return chapters
-    .filter((ch) => {
-      const state = getChapterDraftState(project, ch.number);
-      if (state?.status === "completed" || state?.status === "edited")
-        return !ch.draft?.trim();
-      return !ch.draft?.trim();
-    })
+  return getOrderedChapters(project)
+    .filter((ch) => !ch.draft?.trim())
     .map((ch) => ch.number);
 }
 
@@ -205,7 +221,7 @@ export function getFailedChapterNumbers(project: StoryProject): number[] {
 }
 
 export function getCompletedChapterNumbers(project: StoryProject): number[] {
-  return getAllChapters(project)
+  return getOrderedChapters(project)
     .filter((ch) => {
       const state = getChapterDraftState(project, ch.number);
       if (state?.status === "completed" || state?.status === "edited")
@@ -222,12 +238,22 @@ export function shouldSkipChapter(
 ): boolean {
   if (forceRegenerate) return false;
   const state = getChapterDraftState(project, chapterNumber);
-  const ch = getAllChapters(project).find((c) => c.number === chapterNumber);
+  const ch = getOrderedChapters(project).find((c) => c.number === chapterNumber);
   const hasDraft = Boolean(ch?.draft?.trim());
   if (!hasDraft) return false;
   if (state?.status === "failed") return false;
+  if (state?.lengthStatus === "too-short" || state?.needsExpansion) return false;
   if (state?.status === "pending" || state?.status === "generating")
     return false;
+
+  const target = ch?.lengthPlan?.targetLength;
+  const unit = ch?.lengthPlan?.unit;
+  if (target && unit && ch?.draft?.trim()) {
+    const actual = countByUnit(ch.draft, unit);
+    const lengthStatus = getLengthStatus(actual, target);
+    if (lengthStatus === "too-short") return false;
+  }
+
   return (
     state?.status === "completed" ||
     state?.status === "edited" ||
@@ -272,5 +298,23 @@ export function mergeStoryBiblePatch(
     ...project,
     storyBible: next,
     updatedAt: new Date().toISOString(),
+  });
+}
+
+export function getTooShortChapterNumbers(project: StoryProject): number[] {
+  return (
+    project.chapterDrafts
+      ?.filter((draft) => draft.lengthStatus === "too-short" || draft.needsExpansion)
+      .map((draft) => draft.chapterNumber) ?? []
+  );
+}
+
+export function getOrderedChaptersToGenerate(
+  project: StoryProject,
+  includeFailed = true
+) {
+  return getChaptersToGenerate(project, {
+    includeFailed,
+    includeTooShort: true,
   });
 }
